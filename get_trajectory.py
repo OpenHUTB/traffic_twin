@@ -92,29 +92,25 @@ def main():
         # for bp in world.get_blueprint_library().filter('*vehicle*'):
         #     print(bp.id)
         # transform = carla.Transform(carla.Location(x=4624, y=561,z=0.3), carla.Rotation(yaw=180))
-        vehicle_1 = world.try_spawn_actor(random.choice(car_bp), spawn_points[279])
+        vehicle_1 = world.try_spawn_actor(random.choice(car_bp), spawn_points[0])
         # # print("yaw1:", vehicle_1.get_transform().rotation.yaw)
-        vehicle_2 = world.try_spawn_actor(random.choice(car_bp), spawn_points[235])
-        vehicle_3 = world.try_spawn_actor(random.choice(car_bp), spawn_points[226])
-        vehicle_4 = world.try_spawn_actor(random.choice(car_bp), spawn_points[51])
+        vehicle_2 = world.try_spawn_actor(random.choice(car_bp), spawn_points[1])
+        vehicle_3 = world.try_spawn_actor(random.choice(car_bp), spawn_points[104])
+        vehicle_4 = world.try_spawn_actor(random.choice(car_bp), spawn_points[108])
         # print("yaw2:", vehicle_2.get_transform().rotation.yaw)
         vehicle_1.set_autopilot()
         vehicle_2.set_autopilot()
         vehicle_3.set_autopilot()
         vehicle_4.set_autopilot()
-        #    intersection_location = carla.Location(x=-47, y=20, z=2)
-        # print(vehicle_1.id)
-        # print(vehicle_2.id)
-        # print(spawn_points[0])
-        # print(spawn_points[93])
-        # print(spawn_points[99])
-        # world.debug.draw_string(carla.Location(x=-47, y=20, z=2), str('ss'), life_time=1000, color=carla.Color(255, 0, 0))
+
+        # 设置车辆忽略交通灯，避免获取车辆等待红绿灯的航点
+        traffic_manager.ignore_lights_percentage(vehicle_1, 100)
+        traffic_manager.ignore_lights_percentage(vehicle_2, 100)
+        traffic_manager.ignore_lights_percentage(vehicle_3, 100)
+        traffic_manager.ignore_lights_percentage(vehicle_4, 100)
+        
         initial_simulation_time = world.get_snapshot().timestamp.elapsed_seconds
-        # print(spawn_points[230])
-        # print(spawn_points[293])
-        # print(spawn_points[294])
-        # spectator = world.get_spectator()
-        # print(spectator.get_transform())
+
         i = 0
         while True:
 

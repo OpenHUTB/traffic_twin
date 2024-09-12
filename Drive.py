@@ -13,13 +13,11 @@ import math
 import numpy as np
 import csv
 import matplotlib
-
-matplotlib.use('agg')
+# matplotlib.use('agg')
 import configparser
 import warnings
-
 warnings.filterwarnings("ignore")
-
+import matplotlib.pyplot as plt
 # Local level imports
 import Controller
 
@@ -78,9 +76,83 @@ INTERP_DISTANCE_RES = 0.005  # distance between interpolated points
 
 # Controller output directory
 CONTROLLER_OUTPUT_FOLDER = os.path.dirname(os.path.realpath(__file__)) + '/Results/'
+IMAGE_OUTPUT_FOLDER = os.path.dirname(os.path.realpath(__file__)) + '/Images/'
 
 
-# 保证车辆等红绿灯并且没有走完全部航点，车辆不销毁
+# 绘制车辆轨迹图
+def plot_trajectory(x_list, y_list, waypoints_x, waypoints_y, vehicle_id):
+    create_controller_output_dir(IMAGE_OUTPUT_FOLDER)
+
+    plt.figure()
+    plt.plot(waypoints_x, waypoints_y, label="Expected Path", color='g', linestyle='--')
+    plt.plot(x_list, y_list, label="Actual Trajectory", color='b')
+    plt.title(f'Vehicle {vehicle_id} Trajectory')
+    plt.xlabel('X Position (m)')
+    plt.ylabel('Y Position (m)')
+    plt.legend()
+    plt.grid(True)
+    # plt.show()
+    file_path = os.path.join(IMAGE_OUTPUT_FOLDER, f'trajectory_vehicle_{vehicle_id}.png')
+    plt.savefig(file_path)
+    plt.close()
+
+
+# 绘制误差图
+def plot_errors(cte_list, he_list, t_list, vehicle_id):
+    create_controller_output_dir(IMAGE_OUTPUT_FOLDER)
+
+    plt.figure()
+
+    plt.subplot(2, 1, 1)
+    plt.plot(t_list, cte_list, label="Crosstrack Error (CTE)", color='r')
+    plt.title(f'Vehicle {vehicle_id} Tracking Errors')
+    plt.xlabel('Time (s)')
+    plt.ylabel('CTE (m)')
+    plt.grid(True)
+
+    plt.subplot(2, 1, 2)
+    plt.plot(t_list, he_list, label="Heading Error (HE)", color='b')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Heading Error (rad)')
+    plt.grid(True)
+
+    plt.tight_layout()
+    # plt.show()
+    file_path = os.path.join(IMAGE_OUTPUT_FOLDER, f'errors_vehicle_{vehicle_id}.png')
+    plt.savefig(file_path)
+    plt.close()
+
+
+# 绘制速度图
+def plot_speed(v_list, t_list, vehicle_id):
+    create_controller_output_dir(IMAGE_OUTPUT_FOLDER)
+
+    plt.figure()
+    plt.plot(t_list, v_list, label="Speed (m/s)", color='g')
+    plt.title(f'Vehicle {vehicle_id} Speed over Time')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Speed (m/s)')
+    plt.grid(True)
+    # plt.show()
+    file_path = os.path.join(IMAGE_OUTPUT_FOLDER, f'speed_vehicle_{vehicle_id}.png')
+    plt.savefig(file_path)
+    plt.close()
+
+
+# 绘制延迟图
+def plot_latency(latency_list, t_list, vehicle_id):
+    create_controller_output_dir(IMAGE_OUTPUT_FOLDER)
+
+    plt.figure()
+    plt.plot(t_list, latency_list, label="Latency (ms)", color='purple')
+    plt.title(f'Vehicle {vehicle_id} Latency over Time')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Latency (ms)')
+    plt.grid(True)
+    # plt.show()
+    file_path = os.path.join(IMAGE_OUTPUT_FOLDER, f'latency_vehicle_{vehicle_id}.png')
+    plt.savefig(file_path)
+    plt.close()
 
 
 def make_carla_settings():
@@ -181,11 +253,13 @@ def cleanup_resources(world):
     world.apply_settings(settings)
 
 
+# 创建输出目录
 def create_controller_output_dir(output_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
 
+# 保存轨迹图
 def store_trajectory_plot(graph, fname):
     """ Store the Resulting Plot """
     create_controller_output_dir(CONTROLLER_OUTPUT_FOLDER)
@@ -193,6 +267,7 @@ def store_trajectory_plot(graph, fname):
     graph.savefig(file_name)
 
 
+# 将某辆车的轨迹信息（包括时间、位置和速度）保存为一个CSV文件
 def write_trajectory_file(x_list, y_list, v_list, t_list, vehicle_id):
     create_controller_output_dir(CONTROLLER_OUTPUT_FOLDER)
     file_name = os.path.join(CONTROLLER_OUTPUT_FOLDER, f'Trajectory_{vehicle_id}.csv')  # t (s), x (m), y (m), v (m/s)
@@ -201,6 +276,7 @@ def write_trajectory_file(x_list, y_list, v_list, t_list, vehicle_id):
             trajectory_file.write('%0.3f, %0.3f, %0.3f, %0.3f\n' % (t_list[i], x_list[i], y_list[i], v_list[i]))
 
 
+# 将某辆车的跟踪误差（包括横向误差和航向误差）保存为一个CSV文件
 def write_error_log(cte_list, he_list, vehicle_id):
     create_controller_output_dir(CONTROLLER_OUTPUT_FOLDER)
     file_name = os.path.join(CONTROLLER_OUTPUT_FOLDER, f'Tracking Error Log_{vehicle_id}.csv')  # cte (m), he (rad)
@@ -209,6 +285,7 @@ def write_error_log(cte_list, he_list, vehicle_id):
             error_log.write('%0.10f,%0.10f\n' % (cte_list[i], he_list[i]))
 
 
+# 将车辆的延迟数据（以毫秒为单位）
 def write_latency_log(latency_list, vehicle_id):
     create_controller_output_dir(CONTROLLER_OUTPUT_FOLDER)
     file_name = os.path.join(CONTROLLER_OUTPUT_FOLDER, f'Latency Log_{vehicle_id}.csv')  # latency (ms)
@@ -257,16 +334,16 @@ def exec_waypoint_nav_demo(args):
     # for i in range(NUM_VEHICLES):
     #     vehicle = world.try_spawn_actor(vehicle_bp, spawn_points[i])
     #     vehicles.append(vehicle)
-    vehicle_1 = world.try_spawn_actor(vehicle_bp, spawn_points[279])
-    vehicle_2 = world.try_spawn_actor(vehicle_bp, spawn_points[235])
-    vehicle_3 = world.try_spawn_actor(vehicle_bp, spawn_points[226])
-    vehicle_4 = world.try_spawn_actor(vehicle_bp, spawn_points[51])
+    vehicle_1 = world.try_spawn_actor(vehicle_bp, spawn_points[0])
+    vehicle_2 = world.try_spawn_actor(vehicle_bp, spawn_points[1])
+    vehicle_3 = world.try_spawn_actor(vehicle_bp, spawn_points[104])
+    vehicle_4 = world.try_spawn_actor(vehicle_bp, spawn_points[108])
     vehicles.append(vehicle_1)
     vehicles.append(vehicle_2)
     vehicles.append(vehicle_3)
     vehicles.append(vehicle_4)
-    spectator = world.get_spectator()
-    spectator.set_transform(carla.Transform(carla.Location(x=94.826576, y=34.715199, z=275.478973), carla.Rotation(pitch=-88.999062, yaw=9.844740, roll=0.000024)))
+    # spectator = world.get_spectator()
+    # spectator.set_transform(carla.Transform(carla.Location(x=94.826576, y=34.715199, z=275.478973), carla.Rotation(pitch=-88.999062, yaw=9.844740, roll=0.000024)))
     # # 从CSV文件中读取路径点数据，并将其转换为NumPy数组，便于进一步处理
     waypoints_file = WAYPOINTS_FILENAME
     # with open(waypoints_file) as waypoints_file_handle:
@@ -375,14 +452,6 @@ def exec_waypoint_nav_demo(args):
     reached_the_end = [False for _ in vehicles]
     closest_indices = [0 for _ in vehicles]
 
-    # print(len(waypoints_by_vehicle[0]))
-    # print(len(waypoints_by_vehicle[1]))
-    # print(len(waypoints_by_vehicle[2]))
-    # print(len(waypoints_by_vehicle[3]))
-
-    # 计算下一个航点与当前航点的距离吗，如果等于0，那么设置车辆的刹车为1
-    distance_to_next_waypoint = [1 for _ in vehicles]
-
     while True:
         world.tick()
         # 避免最后车辆越接近终点速度越快
@@ -436,7 +505,7 @@ def exec_waypoint_nav_demo(args):
                         break
                     new_distance = np.linalg.norm(np.array([waypoints_by_vehicle[i][new_index][0] - current_x, waypoints_by_vehicle[i][new_index][1] - current_y]))
                 # 更新航点子集并计算控制命令
-                # 初始化局部路径的起始和终止索引
+                # 初始化局部路径的起始和终止索引(一段距离内的起始航点与结束航点)
                 waypoint_subset_first_index = closest_indices[i] - 1 if closest_indices[i] - 1 >= 0 else 0    # 表示当前车辆最接近航点的前一个航点索引
                 waypoint_subset_last_index = closest_indices[i]                                               # 表示最接近车辆当前位置的航点索引
                 total_distance_ahead = 0
@@ -446,6 +515,8 @@ def exec_waypoint_nav_demo(args):
                     if waypoint_subset_last_index >= len(waypoints_by_vehicle[i]):
                         waypoint_subset_last_index = len(waypoints_by_vehicle[i]) - 1
                         break
+
+                # 指定一段距离内包括平滑后的航点
                 new_waypoints = smoothed_waypoints_by_vehicle[i][
                                 interp_hash_by_vehicle[i][waypoint_subset_first_index]:interp_hash_by_vehicle[i][waypoint_subset_last_index] + 1]
 
@@ -454,6 +525,7 @@ def exec_waypoint_nav_demo(args):
                 controllers[i].update_values(current_x, current_y, current_yaw, current_speed, current_timestamp, 1, new_distance)
                 # 计算控制命令
                 controllers[i].update_controls()
+
                 # 获取控制命令
                 cmd_throttle, cmd_steer, cmd_brake = controllers[i].get_commands()
                 # 记录控制误差并发送控制命令
@@ -461,21 +533,6 @@ def exec_waypoint_nav_demo(args):
                 he_histories[i].append(controllers[i].get_heading_error(new_waypoints, current_yaw))
                 latency_histories[i].append(controllers[i]._latency)
 
-                # # 计算 distance_to_next_waypoint
-                # # 航点下标closest_indices[i]
-                # if closest_indices[i] < len(waypoints_by_vehicle[i]) - 1:
-                #     current_waypoint_x = waypoints_by_vehicle[i][closest_indices[i]][0]
-                #     current_waypoint_y = waypoints_by_vehicle[i][closest_indices[i]][1]
-                #
-                #     next_waypoint_x = waypoints_by_vehicle[i][closest_indices[i] + 1][0]
-                #     next_waypoint_y = waypoints_by_vehicle[i][closest_indices[i] + 1][1]
-                #     distance_to_next = np.linalg.norm(np.array([current_waypoint_x - next_waypoint_x,
-                #                                                 current_waypoint_y - next_waypoint_y]))
-                #     distance_to_next_waypoint[i] = distance_to_next
-                #
-                # if distance_to_next_waypoint[i] < 0:
-                #     send_control_command(vehicle, throttle=0.0, steer=0.0, brake=1.0)
-                # else:
                 send_control_command(vehicle, throttle=cmd_throttle, steer=cmd_steer, brake=cmd_brake)
 
                 dist_to_last_waypoint = np.linalg.norm(
@@ -493,9 +550,21 @@ def exec_waypoint_nav_demo(args):
                 print(f"\n车辆{i + 1}到达了路径终点。记录结果...")
             else:
                 print(f"\n车辆{i + 1}超过了仿真时间。记录结果...")
+            # 保存车辆轨迹数据
             write_trajectory_file(x_histories[i], y_histories[i], speed_histories[i], time_histories[i], i)
             write_error_log(cte_histories[i], he_histories[i], i)
             write_latency_log(latency_histories[i], i)
+
+            # 生成轨迹图（绘制车辆实际行驶轨迹和预期路径，观察分析车辆是否准确跟随路径。）
+            waypoints_x = [wp[0] for wp in waypoints_by_vehicle[i]]
+            waypoints_y = [wp[1] for wp in waypoints_by_vehicle[i]]
+            plot_trajectory(x_histories[i], y_histories[i], waypoints_x, waypoints_y, i)
+            # 生成误差图（横向误差和航向误差，在同一个图中，分析车辆的控制精度）
+            plot_errors(cte_histories[i], he_histories[i], time_histories[i], i)
+            # 生成速度图（显示车辆随时间的变化的情况，方便分析加速和减速行为。）
+            plot_speed(speed_histories[i], time_histories[i], i)
+            # 生成延迟图（系统延迟随时间变化的图，帮助分析系统的实时性表现）
+            plot_latency(latency_histories[i], time_histories[i], i)
     finally:
         cleanup_resources(world)
 
