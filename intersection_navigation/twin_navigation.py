@@ -82,11 +82,10 @@ def query_location(waypoint, cursor):
     return location, ro_yaw
 
 
-def clear_source(vehicle_id, waypoints_by_vehicle, intersection_time, vehicle_list, agent_list, vehicle_waypoint_offset, vehicle_plate_list):
+def clear_source(vehicle_id, waypoints_by_vehicle, intersection_time, vehicle_list, vehicle_waypoint_offset, vehicle_plate_list):
     del waypoints_by_vehicle[vehicle_id]
     del intersection_time[vehicle_id]
     del vehicle_list[vehicle_id]
-    del agent_list[vehicle_id]
     del vehicle_waypoint_offset[vehicle_id]
     vehicle_plate_list.remove(vehicle_id)
 
@@ -109,6 +108,8 @@ def main():
     vehicle_plate_list = []
     # 保存车辆当前在第几个航点位置
     vehicle_waypoint_offset = {}
+    # 销毁列表，存储要销毁的车辆id
+    destroy_list = []
 
     try:
         # 设置
@@ -126,7 +127,7 @@ def main():
                 vehicle_id = int(row[0])   # int
                 t = row[2]                 # float
                 inter = row[4]             # str
-                lane = int(row[5]) + 1        # int
+                lane = int(row[5]) + 1     # int
                 direct = row[6]            # char
 
                 # 将路口、车道和方向存储在 waypoints_by_vehicle 中，编号相同的数据存为列表
@@ -195,28 +196,34 @@ def main():
             # if elapsed_time >= 1:  # 每经过1秒推进仿真
             #     world.tick()
             #     start_time = time.time()  # 重置计时器
+            time.sleep(0.05)
+            world.tick()
 
             for vehicle_id, agent in agent_list.items():
+
+                # 注意：先判断车辆到达了最后一个航点，选择将车辆销毁
+                if agent.done() and vehicle_waypoint_offset[vehicle_id] >= len(waypoints_by_vehicle[vehicle_id]):
+                    vehicle = vehicle_list[vehicle_id]
+                    vehicle.destroy()
+
+                    # 清空该车所占资源
+                    # clear_source(vehicle_id, waypoints_by_vehicle, intersection_time, vehicle_list,
+                    #              vehicle_waypoint_offset, vehicle_plate_list)
+                    # 不再更换终点坐标，结束当前循环
+                    continue
                 # 判断车辆是否到达终点，更换车辆终点
                 if agent.done() and vehicle_waypoint_offset[vehicle_id] < len(waypoints_by_vehicle[vehicle_id]):
                     # 取出下一个航点的真实数据路口、车道、方向的列表
-                    waypoint = waypoints_by_vehicle[vehicle_id][vehicle_waypoint_offset[vehicle_id]+1]
+                    waypoint = waypoints_by_vehicle[vehicle_id][vehicle_waypoint_offset[vehicle_id]]
                     location, ro_yam = query_location(waypoint, cursor)
 
                     # 重新设置agent的终点
                     agent.set_destination(location)
                     vehicle_waypoint_offset[vehicle_id] += 1
 
-                # 判断车辆到达了最后一个航点，选择将车辆销毁
-                if agent.done() and vehicle_waypoint_offset[vehicle_id] >= len(waypoints_by_vehicle[vehicle_id]):
-                    vehicle = vehicle_list[vehicle_id]
-                    vehicle.destroy()
-
-                    # 清空该车所占资源
-                    clear_source(vehicle_id, waypoints_by_vehicle, intersection_time, vehicle_list, agent_list,
-                                 vehicle_waypoint_offset, vehicle_plate_list)
-
-            time.sleep(0.05)
+                control = agent.run_step(debug=True)
+                vehicle = vehicle_list[vehicle_id]
+                vehicle.apply_control(control)
 
     finally:
         world.apply_settings(origin_settings)
