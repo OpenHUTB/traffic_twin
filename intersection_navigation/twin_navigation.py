@@ -158,8 +158,11 @@ def main():
     filtered_vehicle_blueprints = [bp for bp in vehicle_blueprints if 'bike' not in bp.id and
                                    'omafiets' not in bp.id and
                                    'century' not in bp.id and
-                                   'vespa' not in bp.id]
-
+                                   'vespa' not in bp.id and
+                                   'motorcycle' not in bp.id and
+                                   'harley' not in bp.id and
+                                   'yamaha' not in bp.id and
+                                   'kawasaki' not in bp.id]
     # 保存全部车辆
     vehicle_list = {}
     # 保存全部agent
