@@ -3,6 +3,19 @@
         1.车辆按照第一个航点，也就是起始路口的时间来生成，使得车辆生成有先后次序
         2.增加了车辆生成因碰撞失败的策略
         3.增加只生成小汽车并随机设置车身颜色
+
+        解释下测试数据：删除了尖山路与旺龙路交叉口，4 方向；青山路与旺龙路西交叉口，2 方向；
+        望青路与青山路交叉口，1 方向，因为这几个位置在carla地图中无法生成车辆（建模原因）。
+        每辆车的路口航点集中在一起（其实也不需要集中，相同车牌的数据时间有序即可），但要求按
+        时间先后排序的（可以先作一个整体的时间排序）。相同车辆相同路口不同方向不同车道取第一
+        条数据，其他的删除。将包含大于 4 车道的车辆数据删除，因为地图上最多只包含 4 车道。
+        # 4.尝试使用异步模式，使车辆控制流畅
+        4. 设计评价孪生精准程度：将从以下几个角度来评价孪生的真实性
+            1）到达时间误差：车辆从一个路口到达另一个路口所花费的时间是最直接的评估指标。可
+            以使用平均绝对误差（MAE）或均方误差（MSE）来量化孪生模型与真实世界之间的时间差异。
+            2）路径误差：判断大于3个航点的车辆中间航点是否经过那个路口
+            3)....
+
 """
 import carla
 import time
@@ -13,16 +26,13 @@ import mysql.connector
 import sqlite3
 from datetime import datetime
 OFFSET_DISTANCE = 3          # 生成车辆失败时，将 location 后移3m
+RES_SPAWN = 3                # 低距离生成车辆，避免车辆重复生成在一个地方
+TIMEOUT_VALUE = 3            # 设置等待超时时间为10秒
+LOWEST_SPEED = 0.1           # 设置车辆等待超时的最低速度
 WAYPOINTS_FILENAME = 'Waypoints.txt'
 
 from agents.navigation.behavior_agent import BehaviorAgent
-
-# def confirm_is_to_destination(current_location, destination):
-#     x1, y1, z1 = current_location.x, current_location.y, current_location.z
-#     x2, y2, z2 = destination.x, destination.y, destination.z
-#     dis_start_to_destination = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
-#     return dis_start_to_destination
-
+from twin_accuracy_evaluator import *
 
 def setting_config(settings, world):
     settings.synchronous_mode = True
@@ -75,7 +85,7 @@ def query_location(waypoint, cursor):
     # 将 Decimal 转换为 float
     loc_x = float(loc_x)
     loc_y = float(loc_y)
-    loc_z = float(loc_z)
+    loc_z = float(loc_z) - RES_SPAWN
     ro_yaw = float(ro_yam)
     location = carla.Location(x=loc_x, y=loc_y, z=loc_z)
     return location, ro_yaw
@@ -111,6 +121,75 @@ def generate_random_vehicle_color():
     return random_color
 
 
+def is_front_vehicle_waiting_for_red_light(vehicle, max_distance=10, max_angle=30.0, recursion_depth=0, max_recursion_depth=3):
+    """
+    递归检测当前车辆同一车道上正前方是否有车辆在等待红灯，模仿 _affected_by_traffic_light 的逻辑。
+
+    :param vehicle: 当前车辆
+    :param max_distance: 检测前方车辆的最大距离
+    :param max_angle: 前方车辆与当前车辆的最大角度差，确保只检测正前方的车辆
+    :param recursion_depth: 当前递归深度，用于限制递归层次，避免无限递归
+    :param max_recursion_depth: 最大递归深度
+    :return: 如果前方车辆在等待红灯，返回 True，否则返回 False
+    """
+    if recursion_depth >= max_recursion_depth:
+        return False
+
+    # 获取世界中所有的车辆
+    vehicle_list = vehicle.get_world().get_actors().filter('vehicle.*')
+    ego_location = vehicle.get_location()
+    ego_transform = vehicle.get_transform()
+    ego_forward_vector = ego_transform.get_forward_vector()
+
+    # 获取当前车辆所在的航点
+    ego_waypoint = vehicle.get_world().get_map().get_waypoint(ego_location)
+
+    for target_vehicle in vehicle_list:
+        if target_vehicle.id == vehicle.id:
+            continue
+
+        # 获取目标车辆的航点，确保目标车辆与当前车辆在同一个车道上
+        target_location = target_vehicle.get_location()
+        target_waypoint = vehicle.get_world().get_map().get_waypoint(target_location)
+
+        # 检查目标车辆是否位于同一车道上
+        if ego_waypoint.road_id == target_waypoint.road_id and ego_waypoint.lane_id == target_waypoint.lane_id:
+            distance = ego_location.distance(target_location)
+
+            # 检测前方车辆的距离
+            if distance < max_distance:
+                # 确保目标车辆位于当前车辆的前方
+                relative_location = target_location - ego_location
+                forward_dot_product = ego_forward_vector.x * relative_location.x + ego_forward_vector.y * relative_location.y
+
+                # 计算当前车辆与前方车辆的角度差
+                angle = math.degrees(math.acos(forward_dot_product / (relative_location.length() * ego_forward_vector.length())))
+
+                if forward_dot_product > 0 and angle < max_angle:  # 确保前方车辆在当前车辆前面，且角度在允许范围内
+                    # 模仿 _affected_by_traffic_light 的逻辑，判断前方车辆的交通灯状态
+                    traffic_light = target_vehicle.get_traffic_light()
+                    if traffic_light is not None:
+                        # 确保交通灯是红灯并且在合理的距离内
+                        if traffic_light.get_state() == carla.TrafficLightState.Red:
+                            traffic_light_location = traffic_light.get_location()
+                            trigger_wp = vehicle.get_world().get_map().get_waypoint(traffic_light_location)
+
+                            # 判断红灯是否在距离内并且在前方
+                            if trigger_wp.transform.location.distance(target_location) < max_distance:
+                                ve_dir = target_waypoint.transform.get_forward_vector()
+                                wp_dir = trigger_wp.transform.get_forward_vector()
+                                dot_ve_wp = ve_dir.x * wp_dir.x + ve_dir.y * wp_dir.y + ve_dir.z * wp_dir.z
+
+                                if dot_ve_wp > 0:  # 车辆方向与交通灯方向一致，确保在正前方
+                                    return True
+
+                        else:
+                            # 如果前方车辆不是在等红灯，递归检测前方车辆的前方是否有在等红灯的车辆
+                            return is_front_vehicle_waiting_for_red_light(target_vehicle, max_distance, max_angle, recursion_depth + 1, max_recursion_depth)
+
+    return False
+
+
 def spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cursor, filtered_vehicle_blueprints,
                   world, vehicle_list, vehicle_plate_list, agent_list):
     first_waypoint = waypoints_by_vehicle[vehicle_id][0]
@@ -119,7 +198,7 @@ def spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cur
     transform = carla.Transform(location, carla.Rotation(yaw=ro_yaw))
     random_color = generate_random_vehicle_color()
     vehicle_bp = random.choice(filtered_vehicle_blueprints)
-    vehicle_bp.set_attribute('color', random_color)
+    # vehicle_bp.set_attribute('color', random_color)
     # 车辆生成失败时返回None
     vehicle = world.try_spawn_actor(vehicle_bp, transform)
     # 生成车辆位置被占，报碰撞错误，往后面移动3m重新生成车辆，直到生成成功
@@ -136,6 +215,9 @@ def spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cur
     # 创建代理
     agent = BehaviorAgent(vehicle, behavior='normal')
     agent_list[vehicle_id] = agent
+
+    # 初始化 last_action_time 为当前时间
+    agent.last_action_time = time.time()
 
     second_waypoint = waypoints_by_vehicle[vehicle_id][1]
     location, ro_yam = query_location(second_waypoint, cursor)
@@ -163,6 +245,7 @@ def main():
                                    'harley' not in bp.id and
                                    'yamaha' not in bp.id and
                                    'kawasaki' not in bp.id]
+
     # 保存全部车辆
     vehicle_list = {}
     # 保存全部agent
@@ -175,12 +258,15 @@ def main():
     destroyed_vehicle_id = []
     # 保存当前要销毁的车辆
     need_to_destroy = []
+    # 保存每辆车的生成和销毁时间（系统时间戳）
+    vehicle_lifetimes = {}
     # 判断当前时刻是否需要销毁车辆
     is_to_destroy = False
 
     try:
         # 设置
         settings = world.get_settings()
+
         setting_config(settings, world)
 
         waypoints_file = WAYPOINTS_FILENAME
@@ -213,6 +299,9 @@ def main():
         # 按车辆起点位置的时间排序,另外python3.6以后字典是有序的
         sorted_intersection_time = sort_spawn_time(intersection_time)
 
+        # 提取车辆经过的中间路口，并用ID表示
+        vehicle_middle_junctions = extract_middle_junction_ids(waypoints_by_vehicle)
+        vehicle_actual_junctions = {}
         # 将 intersection_time 拆分为两部分 vehicle_id 和 起始时间start_time
         vehicle_id_list = []
         start_time = []
@@ -229,8 +318,6 @@ def main():
             password='12345',
             database='test'
         )
-        # 连接到 SQLite 数据库
-        # conn = sqlite3.connect('carla_vehicles.db')
         # 创建一个游标对象
         cursor = conn.cursor()
 
@@ -241,6 +328,8 @@ def main():
         # 根据 earliest_vehicle_num 来决定循环的次数
         count = 0
         for vehicle_id in vehicle_id_list:
+            # 记录车辆生成的系统时间
+            vehicle_lifetimes[vehicle_id] = (int(time.time()), None)
             spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cursor, filtered_vehicle_blueprints,
                           world, vehicle_list, vehicle_plate_list, agent_list)
             count += 1
@@ -254,13 +343,9 @@ def main():
         first_system_stamp = int(time.time())
         # 记录下次该生成车辆在 vehicle_id_list 中的下标
         next_vehicle_num = earliest_vehicle_num
-        # print(next_vehicle_num)
-        # print(start_time[next_vehicle_num])
-        while True:
+        while len(vehicle_list) > 0:  # 当车辆未全部销毁时继续循环
             num = 0
-            time.sleep(0.05)
             world.tick()
-
             # 接下来陆续按时间的先后顺序生成车辆
             # 下一批生成车辆的时间戳 - 上一批生成车辆的时间戳
             if next_vehicle_num < len(start_time):
@@ -276,6 +361,7 @@ def main():
                     index = 0
                     # 生成车辆
                     for vehicle_id in vehicle_id_list[next_vehicle_num:]:
+                        vehicle_lifetimes[vehicle_id] = (int(time.time()), None)
                         spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cursor,
                                       filtered_vehicle_blueprints, world, vehicle_list, vehicle_plate_list, agent_list)
                         index += 1
@@ -288,6 +374,9 @@ def main():
             # 更换车辆的终点坐标
             for vehicle_id, agent in agent_list.items():
 
+                vehicle = vehicle_list[vehicle_id]
+                speed = vehicle.get_velocity().length()  # 获取车辆当前速度
+
                 # 注意：先判断车辆到达了最后一个航点，选择将车辆销毁
                 if agent.done() and vehicle_waypoint_offset[vehicle_id] >= len(waypoints_by_vehicle[vehicle_id]):
 
@@ -298,12 +387,42 @@ def main():
                         vehicle = vehicle_list[vehicle_id]
                         # 销毁车辆
                         vehicle.destroy()
+                        vehicle_lifetimes[vehicle_id] = (vehicle_lifetimes[vehicle_id][0], int(time.time()))
                         is_to_destroy = True
                         need_to_destroy.append(vehicle_id)
                         destroyed_vehicle_id.append(vehicle_id)
 
                     # 不再更换终点坐标, 结束当前循环
                     continue
+
+                # 使用 _affected_by_traffic_light 代替 is_at_red_light
+                is_red_light, _ = agent._affected_by_traffic_light()
+
+                # 检查车辆是否相互等待并判断超时
+                if is_red_light:
+                    # 如果车辆正在等待红灯，跳过超时检查，重置等待时间
+                    agent.last_action_time = time.time()
+                else:
+                    # 检查车辆前方是否有正在等红灯的车辆
+                    if is_front_vehicle_waiting_for_red_light(vehicle):
+                        # 如果前方车辆在等待红灯，跳过超时检查，重置等待时间
+                        agent.last_action_time = time.time()
+                    else:
+                        # 如果车辆不在等待红灯，检查是否低速并可能死锁
+                        if speed < LOWEST_SPEED:  # 速度接近于0
+                            elapsed_time = time.time() - agent.last_action_time
+
+                            # 只有当前方车辆不在等待红灯时，才进行超时检查
+                            if elapsed_time > TIMEOUT_VALUE:
+                                print(f"车辆 {vehicle_id} 超时等待，正在销毁...")
+                                vehicle.destroy()
+                                destroyed_vehicle_id.append(vehicle_id)
+                                is_to_destroy = True
+                                need_to_destroy.append(vehicle_id)
+                                continue
+                        else:
+                            # 车辆处于移动状态时重置等待时间
+                            agent.last_action_time = time.time()
 
                 # 判断车辆是否到达终点，更换车辆终点
                 if agent.done() and vehicle_waypoint_offset[vehicle_id] < len(waypoints_by_vehicle[vehicle_id]):
@@ -326,6 +445,21 @@ def main():
             # 清空 need_to_destroy
             need_to_destroy.clear()
             is_to_destroy = False
+
+            # 追踪车辆经过的实际路口
+            vehicle_actual_junctions = track_vehicle_actual_junctions(vehicle_list, threshold=20.0)
+
+        # 计算车辆生命周期差异
+        time_differences = calculate_vehicle_lifespan(vehicle_lifetimes, intersection_time)
+        # 将结果保存为csv
+        save_lifespan_to_csv(time_differences, csv_filename='vehicle_lifespan_differences.csv')
+        # 显示结果图
+        plot_lifespan_differences_line(time_differences, image_filename='vehicle_lifespan_differences.png', limit=100)
+
+        # 比较vehicle_middle_junctions 和 vehicle_actual_junctions 来评估孪生路径误差
+        path_errors = evaluate_path_error(vehicle_middle_junctions, vehicle_actual_junctions)
+        # 生成图表
+        plot_path_errors(path_errors)
 
     finally:
         world.apply_settings(origin_settings)

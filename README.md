@@ -77,15 +77,26 @@ CarlaUE4.exe
 
 即使我们使用的是CARLA自带的全局路径规划模块，其底层还是使用的控制算法来控制车辆按指定航点行驶。规划路径的同时，在航点之间已经生成了一系列的驾驶决策。当然，还可以自己控制车辆的行为，如刹车、油门等。当一辆车从一个路口行驶到另一个路口后，设置车辆的下一个路口的目标位置，这样我们就完成了基于CARLA的智能交叉口导航与数字孪生系统。
 
+#### 使用
 
+**1.搭建路口车辆航点到CARLA坐标映射的数据库**
 
+安装mysql，搭建数据库其详细的执行步骤在sql.txt!!! 选择代码块逐步执行。
 
+**2.下载中电软件园的CARLA地图**
 
+下载链接为https://pan.baidu.com/s/1gNYQaoPiaXIRTNi7PgfsGg?pwd=831g。
 
+**3.环境搭建**
 
+```
+pip install carla==0.9.15
+pip install mysql-connector-python
+```
 
+**4.运行脚本**
 
-
+打开CARLA地图，运行twin_navigation.py。
 
 
 
