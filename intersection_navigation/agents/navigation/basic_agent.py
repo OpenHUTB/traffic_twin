@@ -299,8 +299,8 @@ class BasicAgent(object):
             if trigger_wp.transform.location.distance(ego_vehicle_location) > max_distance:
                 continue
 
-            if trigger_wp.road_id != ego_vehicle_waypoint.road_id:
-                continue
+            # if trigger_wp.road_id != ego_vehicle_waypoint.road_id:
+            #     continue
 
             ve_dir = ego_vehicle_waypoint.transform.get_forward_vector()
             wp_dir = trigger_wp.transform.get_forward_vector()

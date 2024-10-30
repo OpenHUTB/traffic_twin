@@ -1,38 +1,28 @@
 """
-    版本3.0：
-        1.车辆按照第一个航点，也就是起始路口的时间来生成，使得车辆生成有先后次序
-        2.增加了车辆生成因碰撞失败的策略
-        3.增加只生成小汽车并随机设置车身颜色
-
-        解释下测试数据：删除了尖山路与旺龙路交叉口，4 方向；青山路与旺龙路西交叉口，2 方向；
-        望青路与青山路交叉口，1 方向，因为这几个位置在carla地图中无法生成车辆（建模原因）。
-        每辆车的路口航点集中在一起（其实也不需要集中，相同车牌的数据时间有序即可），但要求按
-        时间先后排序的（可以先作一个整体的时间排序）。相同车辆相同路口不同方向不同车道取第一
-        条数据，其他的删除。将包含大于 4 车道的车辆数据删除，因为地图上最多只包含 4 车道。
-        # 4.尝试使用异步模式，使车辆控制流畅
-        4. 设计评价孪生精准程度：将从以下几个角度来评价孪生的真实性
-            1）到达时间误差：车辆从一个路口到达另一个路口所花费的时间是最直接的评估指标。可
-            以使用平均绝对误差（MAE）或均方误差（MSE）来量化孪生模型与真实世界之间的时间差异。
-            2）路径误差：判断大于3个航点的车辆中间航点是否经过那个路口
-            3)....
-
+    版本5.0：
+       1.解决了部分车辆闯红灯问题
+       2.删除了销毁非正常等待车辆模块
+       3.减少局部规划得次数来解决卡顿问题
 """
 import carla
 import time
 import csv
 import random
 import math
+import cProfile
 import mysql.connector
-import sqlite3
+
 from datetime import datetime
 OFFSET_DISTANCE = 3          # 生成车辆失败时，将 location 后移3m
 RES_SPAWN = 3                # 低距离生成车辆，避免车辆重复生成在一个地方
-TIMEOUT_VALUE = 3            # 设置等待超时时间为10秒
+TIMEOUT_VALUE = 100          # 设置等待超时时间为10秒
 LOWEST_SPEED = 0.1           # 设置车辆等待超时的最低速度
 WAYPOINTS_FILENAME = 'Waypoints.txt'
+FRAME_INTERVAL = 2           # 定义全局帧间隔
 
 from agents.navigation.behavior_agent import BehaviorAgent
 from twin_accuracy_evaluator import *
+
 
 def setting_config(settings, world):
     settings.synchronous_mode = True
@@ -214,6 +204,7 @@ def spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cur
 
     # 创建代理
     agent = BehaviorAgent(vehicle, behavior='normal')
+    agent.frame_counter = 0           # 初始化帧计数器
     agent_list[vehicle_id] = agent
 
     # 初始化 last_action_time 为当前时间
@@ -375,7 +366,7 @@ def main():
             for vehicle_id, agent in agent_list.items():
 
                 vehicle = vehicle_list[vehicle_id]
-                speed = vehicle.get_velocity().length()  # 获取车辆当前速度
+                # speed = vehicle.get_velocity().length()  # 获取车辆当前速度
 
                 # 注意：先判断车辆到达了最后一个航点，选择将车辆销毁
                 if agent.done() and vehicle_waypoint_offset[vehicle_id] >= len(waypoints_by_vehicle[vehicle_id]):
@@ -395,34 +386,22 @@ def main():
                     # 不再更换终点坐标, 结束当前循环
                     continue
 
-                # 使用 _affected_by_traffic_light 代替 is_at_red_light
-                is_red_light, _ = agent._affected_by_traffic_light()
-
                 # 检查车辆是否相互等待并判断超时
-                if is_red_light:
-                    # 如果车辆正在等待红灯，跳过超时检查，重置等待时间
-                    agent.last_action_time = time.time()
-                else:
-                    # 检查车辆前方是否有正在等红灯的车辆
-                    if is_front_vehicle_waiting_for_red_light(vehicle):
-                        # 如果前方车辆在等待红灯，跳过超时检查，重置等待时间
-                        agent.last_action_time = time.time()
-                    else:
-                        # 如果车辆不在等待红灯，检查是否低速并可能死锁
-                        if speed < LOWEST_SPEED:  # 速度接近于0
-                            elapsed_time = time.time() - agent.last_action_time
-
-                            # 只有当前方车辆不在等待红灯时，才进行超时检查
-                            if elapsed_time > TIMEOUT_VALUE:
-                                print(f"车辆 {vehicle_id} 超时等待，正在销毁...")
-                                vehicle.destroy()
-                                destroyed_vehicle_id.append(vehicle_id)
-                                is_to_destroy = True
-                                need_to_destroy.append(vehicle_id)
-                                continue
-                        else:
-                            # 车辆处于移动状态时重置等待时间
-                            agent.last_action_time = time.time()
+                # 如果车辆不在等待红灯，检查是否低速并可能死锁
+                # if speed < LOWEST_SPEED:  # 速度接近于0
+                #     elapsed_time = time.time() - agent.last_action_time
+                #
+                #     # 只有当前方车辆不在等待红灯时，才进行超时检查
+                #     if elapsed_time > TIMEOUT_VALUE:
+                #         print(f"车辆 {vehicle_id} 超时等待，正在销毁...")
+                #         vehicle.destroy()
+                #         destroyed_vehicle_id.append(vehicle_id)
+                #         is_to_destroy = True
+                #         need_to_destroy.append(vehicle_id)
+                #         continue
+                # else:
+                #     # 车辆处于移动状态时重置等待时间
+                #     agent.last_action_time = time.time()
 
                 # 判断车辆是否到达终点，更换车辆终点
                 if agent.done() and vehicle_waypoint_offset[vehicle_id] < len(waypoints_by_vehicle[vehicle_id]):
@@ -433,10 +412,13 @@ def main():
                     # 重新设置agent的终点
                     agent.set_destination(location)
                     vehicle_waypoint_offset[vehicle_id] += 1
+                if agent.frame_counter % FRAME_INTERVAL == 0:
+                    control = agent.run_step(debug=True)
+                    vehicle = vehicle_list[vehicle_id]
+                    vehicle.apply_control(control)
+                # 增加帧计数器
+                agent.frame_counter += 1
 
-                control = agent.run_step(debug=True)
-                vehicle = vehicle_list[vehicle_id]
-                vehicle.apply_control(control)
             if is_to_destroy:
                 # 清空已销毁车辆所占资源
                 clear_source(need_to_destroy, waypoints_by_vehicle, intersection_time, vehicle_list,
@@ -468,5 +450,6 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+        # cProfile.run('main()')
     except KeyboardInterrupt:
         print(' - Exited by user.')
