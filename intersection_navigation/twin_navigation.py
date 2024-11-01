@@ -3,6 +3,7 @@
        1.解决了部分车辆闯红灯问题
        2.删除了销毁非正常等待车辆模块
        3.减少局部规划得次数来解决卡顿问题
+       4.解决车辆随意变道问题
 """
 import carla
 import time
@@ -336,6 +337,7 @@ def main():
         next_vehicle_num = earliest_vehicle_num
         while len(vehicle_list) > 0:  # 当车辆未全部销毁时继续循环
             num = 0
+            # time.sleep(0.02)
             world.tick()
             # 接下来陆续按时间的先后顺序生成车辆
             # 下一批生成车辆的时间戳 - 上一批生成车辆的时间戳

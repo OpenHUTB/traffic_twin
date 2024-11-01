@@ -144,31 +144,26 @@ class BasicAgent(object):
         based on the route returned by the global router, and adds it to the local planner.
         If no starting location is passed, the vehicle local planner's target location is chosen,
         which corresponds (by default), to a location about 5 meters in front of the vehicle.
-
+        这段代码的目的是设置车辆的目的地（终点位置），并基于全局路径规划计算从起始点到终点的路径，最终将路径交给局部路径规划器进行跟踪
             :param end_location (carla.Location): final location of the route
             :param start_location (carla.Location): starting location of the route
         """
-        # is_destroy = False
-        # loc1 = self._vehicle.get_location()
-        # x1, y1, z1 = loc1.x, loc1.y, loc1.z
-        # x2, y2, z2 = end_location.x, end_location.y, end_location.z
-        # dis_start_to_destination = math.sqrt((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)
-        # print(loc1)
-        # print(end_location)
-        # print(dis_start_to_destination)
-        # if dis_start_to_destination < 1:
-        #     is_destroy = True
         if not start_location:
+            # 如果没有传递起点位置，默认使用车辆当前局部规划器的目标航点的位置作为起点。通常这个航点会是车辆前方5米的一个位置。
             start_location = self._local_planner.target_waypoint.transform.location
+            # 影响的是局部路径而非全局路径
+            # 在局部路径规划器中清空之前的路径队列。因为这里我们没有提供明确的起点，意味着需要从车辆当前位置重新开始规划。
             clean_queue = True
         else:
             start_location = self._vehicle.get_location()
             clean_queue = False
-
+        # 将起始点位置转换为对应的航点。
         start_waypoint = self._map.get_waypoint(start_location)
         end_waypoint = self._map.get_waypoint(end_location)
-
+        # trace_route() 会返回一条完整的路径（由多个航点和道路选项组成的列表）。
         route_trace = self.trace_route(start_waypoint, end_waypoint)
+
+        # 将全局规划得到的路径 route_trace 设置为局部规划器的全局计划
         self._local_planner.set_global_plan(route_trace, clean_queue=clean_queue)
 
     def set_global_plan(self, plan, stop_waypoint_creation=True, clean_queue=True):
@@ -188,12 +183,13 @@ class BasicAgent(object):
     def trace_route(self, start_waypoint, end_waypoint):
         """
         Calculates the shortest route between a starting and ending waypoint.
-
+        利用全局规划器计算从起点 start_waypoint 到终点 end_waypoint 的最短路径。
             :param start_waypoint (carla.Waypoint): initial waypoint
             :param end_waypoint (carla.Waypoint): final waypoint
         """
         start_location = start_waypoint.transform.location
         end_location = end_waypoint.transform.location
+        # 返回值：路径规划结果，通常是一个由航点（carla.Waypoint）和对应的道路选项（RoadOption）组成的列表，代表从起点到终点的导航路径。
         return self._global_planner.trace_route(start_location, end_location)
 
     def run_step(self):
@@ -270,15 +266,16 @@ class BasicAgent(object):
             :param max_distance (float): max distance for traffic lights to be considered relevant.
                 If None, the base threshold value is used
         """
+        # 忽略交通灯检查
         if self._ignore_traffic_lights:
             return (False, None)
-
+        # 如果 lights_list 参数为空，函数从场景中获取所有交通灯。
         if not lights_list:
             lights_list = self._world.get_actors().filter("*traffic_light*")
-
+        # 如果 max_distance 未指定，则使用 _base_tlight_threshold 作为默认距离。
         if not max_distance:
             max_distance = self._base_tlight_threshold
-
+        # 下次进入 _affected_by_traffic_light 方法时，如果这个交通灯仍然是红灯，不需要重新遍历所有的交通灯进行判断，减少了不必要的计算。
         if self._last_traffic_light:
             if self._last_traffic_light.state != carla.TrafficLightState.Red:
                 self._last_traffic_light = None
@@ -289,26 +286,27 @@ class BasicAgent(object):
         ego_vehicle_waypoint = self._map.get_waypoint(ego_vehicle_location)
 
         for traffic_light in lights_list:
+            # 获取红绿灯触发点
             if traffic_light.id in self._lights_map:
                 trigger_wp = self._lights_map[traffic_light.id]
             else:
                 trigger_location = get_trafficlight_trigger_location(traffic_light)
                 trigger_wp = self._map.get_waypoint(trigger_location)
                 self._lights_map[traffic_light.id] = trigger_wp
-
+            # 如果触发点 trigger_wp 距离车辆超过 max_distance，则忽略该灯，继续下一个交通灯的判断。
             if trigger_wp.transform.location.distance(ego_vehicle_location) > max_distance:
                 continue
 
             # if trigger_wp.road_id != ego_vehicle_waypoint.road_id:
             #     continue
-
+            # 计算车辆前进方向 ve_dir 和触发点方向 wp_dir 的点积 dot_ve_wp。
             ve_dir = ego_vehicle_waypoint.transform.get_forward_vector()
             wp_dir = trigger_wp.transform.get_forward_vector()
             dot_ve_wp = ve_dir.x * wp_dir.x + ve_dir.y * wp_dir.y + ve_dir.z * wp_dir.z
-
+            # 如果点积小于 0，表示交通灯在车辆的相对后方，因此继续下一个交通灯的判断。
             if dot_ve_wp < 0:
                 continue
-
+            # 在找到红灯之前，不能中途返回 False，以免遗漏可能影响车辆的红灯。
             if traffic_light.state != carla.TrafficLightState.Red:
                 continue
 

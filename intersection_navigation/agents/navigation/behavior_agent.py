@@ -14,8 +14,8 @@ import carla
 from agents.navigation.basic_agent import BasicAgent
 from agents.navigation.local_planner import RoadOption
 from agents.navigation.behavior_types import Cautious, Aggressive, Normal
-
 from agents.tools.misc import get_speed, positive, is_within_distance, compute_distance
+from agents.navigation.intersection import junctions
 
 
 class BehaviorAgent(BasicAgent):
@@ -51,6 +51,8 @@ class BehaviorAgent(BasicAgent):
         self._min_speed = 5
         self._behavior = None
         self._sampling_resolution = 4.5
+        self.collision_check_counter = 0  # 添加计数器
+        self.collision_check_interval = 2  # 设置碰撞检测的间隔
 
         # Parameters for agent behavior
         if behavior == 'cautious':
@@ -250,6 +252,7 @@ class BehaviorAgent(BasicAgent):
             :param debug: boolean for debugging
             :return control: carla.VehicleControl
         """
+
         self._update_information()
 
         control = None
@@ -277,31 +280,45 @@ class BehaviorAgent(BasicAgent):
             if distance < self._behavior.braking_distance:
                 return self.emergency_stop()
 
-        # 2.2: Car following behaviors
-        vehicle_state, vehicle, distance = self.collision_and_car_avoid_manager(ego_vehicle_wp)
+        # 2.2: 车辆跟随行为
+        # vehicle_state：是否需要跟随前方车辆。
+        # vehicle：前方车辆对象。
+        # distance：车辆与前方车辆之间的距离。
+        # vehicle_state, vehicle, distance = self.collision_and_car_avoid_manager(ego_vehicle_wp)
+        vehicle_state, vehicle, distance = None, None, None
+        if self.collision_check_counter == 0:  # 仅在计数器为0时进行碰撞检测
+            vehicle_state, vehicle, distance = self.collision_and_car_avoid_manager(ego_vehicle_wp)
+        # 更新计数器
+        self.collision_check_counter = (self.collision_check_counter + 1) % self.collision_check_interval
+
+        # 获取当前路口 ID
+        current_junction = self._incoming_waypoint.get_junction() if self._incoming_waypoint.is_junction else None
+        current_junction_id = current_junction.id if current_junction else None
 
         if vehicle_state:
-            # Distance is computed from the center of the two cars,
-            # we use bounding boxes to calculate the actual distance
+            # 车辆中心的距离
+            # 使用边界框计算车距
             distance = distance - max(
                 vehicle.bounding_box.extent.y, vehicle.bounding_box.extent.x) - max(
                 self._vehicle.bounding_box.extent.y, self._vehicle.bounding_box.extent.x)
 
-            # Emergency brake if the car is very close.
+            # 车距过小紧急刹车,在这适当增加normal风格的刹车距离
             if distance < self._behavior.braking_distance:
                 return self.emergency_stop()
             else:
                 control = self.car_following_manager(vehicle, distance)
 
-        # 3: Intersection behavior
-        elif self._incoming_waypoint.is_junction and (self._incoming_direction in [RoadOption.LEFT, RoadOption.RIGHT]):
+        # 3: 路口行为
+        elif (self._incoming_waypoint.is_junction and
+              (self._incoming_direction in [RoadOption.LEFT, RoadOption.RIGHT]) and
+              current_junction_id in junctions):
             target_speed = min([
                 self._behavior.max_speed,
                 self._speed_limit - 5])
             self._local_planner.set_speed(target_speed)
             control = self._local_planner.run_step(debug=debug)
 
-        # 4: Normal behavior
+        # 4: 正常行驶行为
         else:
             target_speed = min([
                 self._behavior.max_speed,
