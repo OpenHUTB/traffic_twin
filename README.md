@@ -85,7 +85,7 @@ CarlaUE4.exe
 
 **2.下载中电软件园的CARLA地图**
 
-下载链接为https://pan.baidu.com/s/1gNYQaoPiaXIRTNi7PgfsGg?pwd=831g。
+下载链接为https://pan.baidu.com/s/1fPtEdlPZOeCGqRy1i8XP4g?pwd=ltbq。
 
 **3.环境搭建**
 
