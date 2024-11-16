@@ -96,7 +96,7 @@ pip install mysql-connector-python
 
 **4.运行脚本**
 
-打开CARLA地图，运行twin_navigation.py。
+打开CARLA地图，运行 [twin_navigation.py](./intersection_navigation/twin_navigation.py) 。
 
 
 
