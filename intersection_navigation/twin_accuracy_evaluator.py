@@ -18,7 +18,7 @@ import csv
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import List
-from twin_navigation_v4 import *
+from twin_navigation import *
 # 定义存储文件的文件夹路径
 output_folder = "output_results"
 # 创建文件夹（如果不存在）

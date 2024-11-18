@@ -415,7 +415,7 @@ def main():
                     agent.set_destination(location)
                     vehicle_waypoint_offset[vehicle_id] += 1
                 if agent.frame_counter % FRAME_INTERVAL == 0:
-                    control = agent.run_step(debug=True)
+                    control = agent.run_step()
                     vehicle = vehicle_list[vehicle_id]
                     vehicle.apply_control(control)
                 # 增加帧计数器
