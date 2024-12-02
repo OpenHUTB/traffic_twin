@@ -1,5 +1,9 @@
 import carla
 import time
+import os
+
+desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")   # 将文件保存在桌面
+filename = os.path.join(desktop_path, 'recording01.log')
 
 
 def start_recording():
@@ -8,7 +12,6 @@ def start_recording():
         client = carla.Client('localhost', 2000)
         client.set_timeout(10.0)
         # 开始录制仿真数据
-        filename = "C:\\Users\\ASUS\\Desktop\\recording01.log"  # 保存到默认路径
         additional_data = False  # 决定是否记录附加数据（如包围盒位置、物理控制参数等
         client.start_recorder(filename, additional_data)
         print(f"Started recording to {filename} with additional data: {additional_data}")
