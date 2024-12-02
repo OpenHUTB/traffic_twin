@@ -2,7 +2,7 @@ import carla
 import time
 import os
 
-desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")   # 将文件保存在桌面
+desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")    # 将文件保存在桌面
 filename = os.path.join(desktop_path, 'recording01.log')
 
 
