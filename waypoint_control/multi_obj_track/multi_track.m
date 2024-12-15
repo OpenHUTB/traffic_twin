@@ -6,7 +6,10 @@
 %    websave(filePath,url);
 %end
 %unzip(filePath,dataFolder)
-dataPath = 'C:\\Users\\ASUS\\Desktop\\PandasetLidarCameraData\\PandasetLidarCameraData';
+% 获取当前脚本所在的路径
+currentFolder = fileparts(mfilename('fullpath'));
+% 设置数据路径为当前脚本所在目录下的相对路径
+dataPath = fullfile(currentFolder, 'PandasetLidarCameraData', 'PandasetLidarCameraData');
 % 加载第一帧数据
 fileName = fullfile(dataPath,strcat(num2str(1,"%03d"),".mat"));
 % "dataLog": 这个参数指定加载文件中的变量 

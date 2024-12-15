@@ -1,5 +1,8 @@
-% 设置数据路径
-dataPath = 'C:\\Users\\ASUS\\Desktop\\mat格式\\data';
+% 获取当前脚本所在的路径
+currentFolder = fileparts(mfilename('fullpath'));
+
+% 设置数据路径为当前脚本所在目录下的相对路径
+dataPath = fullfile(currentFolder, 'mat格式', 'data');
 
 % 获取目录下的所有 .mat 文件
 matFiles = dir(fullfile(dataPath, "*.mat"));
