@@ -1,10 +1,3 @@
-"""
-    版本5.0：
-       1.解决了部分车辆闯红灯问题
-       2.删除了销毁非正常等待车辆模块
-       3.减少局部规划得次数来解决卡顿问题
-       4.解决车辆随意变道问题
-"""
 import carla
 import time
 import csv
@@ -110,75 +103,6 @@ def generate_random_vehicle_color():
 
     random_color = f'{r}, {g}, {b}'
     return random_color
-
-
-def is_front_vehicle_waiting_for_red_light(vehicle, max_distance=10, max_angle=30.0, recursion_depth=0, max_recursion_depth=3):
-    """
-    递归检测当前车辆同一车道上正前方是否有车辆在等待红灯，模仿 _affected_by_traffic_light 的逻辑。
-
-    :param vehicle: 当前车辆
-    :param max_distance: 检测前方车辆的最大距离
-    :param max_angle: 前方车辆与当前车辆的最大角度差，确保只检测正前方的车辆
-    :param recursion_depth: 当前递归深度，用于限制递归层次，避免无限递归
-    :param max_recursion_depth: 最大递归深度
-    :return: 如果前方车辆在等待红灯，返回 True，否则返回 False
-    """
-    if recursion_depth >= max_recursion_depth:
-        return False
-
-    # 获取世界中所有的车辆
-    vehicle_list = vehicle.get_world().get_actors().filter('vehicle.*')
-    ego_location = vehicle.get_location()
-    ego_transform = vehicle.get_transform()
-    ego_forward_vector = ego_transform.get_forward_vector()
-
-    # 获取当前车辆所在的航点
-    ego_waypoint = vehicle.get_world().get_map().get_waypoint(ego_location)
-
-    for target_vehicle in vehicle_list:
-        if target_vehicle.id == vehicle.id:
-            continue
-
-        # 获取目标车辆的航点，确保目标车辆与当前车辆在同一个车道上
-        target_location = target_vehicle.get_location()
-        target_waypoint = vehicle.get_world().get_map().get_waypoint(target_location)
-
-        # 检查目标车辆是否位于同一车道上
-        if ego_waypoint.road_id == target_waypoint.road_id and ego_waypoint.lane_id == target_waypoint.lane_id:
-            distance = ego_location.distance(target_location)
-
-            # 检测前方车辆的距离
-            if distance < max_distance:
-                # 确保目标车辆位于当前车辆的前方
-                relative_location = target_location - ego_location
-                forward_dot_product = ego_forward_vector.x * relative_location.x + ego_forward_vector.y * relative_location.y
-
-                # 计算当前车辆与前方车辆的角度差
-                angle = math.degrees(math.acos(forward_dot_product / (relative_location.length() * ego_forward_vector.length())))
-
-                if forward_dot_product > 0 and angle < max_angle:  # 确保前方车辆在当前车辆前面，且角度在允许范围内
-                    # 模仿 _affected_by_traffic_light 的逻辑，判断前方车辆的交通灯状态
-                    traffic_light = target_vehicle.get_traffic_light()
-                    if traffic_light is not None:
-                        # 确保交通灯是红灯并且在合理的距离内
-                        if traffic_light.get_state() == carla.TrafficLightState.Red:
-                            traffic_light_location = traffic_light.get_location()
-                            trigger_wp = vehicle.get_world().get_map().get_waypoint(traffic_light_location)
-
-                            # 判断红灯是否在距离内并且在前方
-                            if trigger_wp.transform.location.distance(target_location) < max_distance:
-                                ve_dir = target_waypoint.transform.get_forward_vector()
-                                wp_dir = trigger_wp.transform.get_forward_vector()
-                                dot_ve_wp = ve_dir.x * wp_dir.x + ve_dir.y * wp_dir.y + ve_dir.z * wp_dir.z
-
-                                if dot_ve_wp > 0:  # 车辆方向与交通灯方向一致，确保在正前方
-                                    return True
-
-                        else:
-                            # 如果前方车辆不是在等红灯，递归检测前方车辆的前方是否有在等红灯的车辆
-                            return is_front_vehicle_waiting_for_red_light(target_vehicle, max_distance, max_angle, recursion_depth + 1, max_recursion_depth)
-
-    return False
 
 
 def spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cursor, filtered_vehicle_blueprints,
@@ -388,23 +312,6 @@ def main():
                     # 不再更换终点坐标, 结束当前循环
                     continue
 
-                # 检查车辆是否相互等待并判断超时
-                # 如果车辆不在等待红灯，检查是否低速并可能死锁
-                # if speed < LOWEST_SPEED:  # 速度接近于0
-                #     elapsed_time = time.time() - agent.last_action_time
-                #
-                #     # 只有当前方车辆不在等待红灯时，才进行超时检查
-                #     if elapsed_time > TIMEOUT_VALUE:
-                #         print(f"车辆 {vehicle_id} 超时等待，正在销毁...")
-                #         vehicle.destroy()
-                #         destroyed_vehicle_id.append(vehicle_id)
-                #         is_to_destroy = True
-                #         need_to_destroy.append(vehicle_id)
-                #         continue
-                # else:
-                #     # 车辆处于移动状态时重置等待时间
-                #     agent.last_action_time = time.time()
-
                 # 判断车辆是否到达终点，更换车辆终点
                 if agent.done() and vehicle_waypoint_offset[vehicle_id] < len(waypoints_by_vehicle[vehicle_id]):
                     # 取出下一个航点的真实数据路口、车道、方向的列表
@@ -434,18 +341,21 @@ def main():
             vehicle_actual_junctions = track_vehicle_actual_junctions(vehicle_list, threshold=20.0)
 
         # 计算车辆生命周期差异
-        time_differences = calculate_vehicle_lifespan(vehicle_lifetimes, intersection_time)
+        # time_differences = calculate_vehicle_lifespan(vehicle_lifetimes, intersection_time)
         # 将结果保存为csv
-        save_lifespan_to_csv(time_differences, csv_filename='vehicle_lifespan_differences.csv')
+        # save_lifespan_to_csv(time_differences, csv_filename='vehicle_lifespan_differences.csv')
         # 显示结果图
-        plot_lifespan_differences_line(time_differences, image_filename='vehicle_lifespan_differences.png', limit=100)
+        # plot_lifespan_differences_line(time_differences, image_filename='vehicle_lifespan_differences.png', limit=100)
 
         # 比较vehicle_middle_junctions 和 vehicle_actual_junctions 来评估孪生路径误差
-        path_errors = evaluate_path_error(vehicle_middle_junctions, vehicle_actual_junctions)
+        # path_errors = evaluate_path_error(vehicle_middle_junctions, vehicle_actual_junctions)
         # 生成图表
-        plot_path_errors(path_errors)
+        # plot_path_errors(path_errors)
 
     finally:
+        actor_list = world.get_actors().filter('vehicle.*')
+        for actor in actor_list:
+            actor.destroy()
         world.apply_settings(origin_settings)
 
 

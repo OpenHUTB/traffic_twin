@@ -156,14 +156,17 @@ class GlobalRoutePlanner(object):
                 distance (float - meters) - The approximate distance where to get the next waypoints.
                 Return: list(carla.Waypoint)
                 """
+                max_iterations = 100  # 限制最大采样次数
+                iteration = 0
                 # 采样取第一个点
                 w = wp1.next(self._sampling_resolution)[0]
                 while w.transform.location.distance(endloc) > self._sampling_resolution:
                     seg_dict['path'].append(w)
                     next_ws = w.next(self._sampling_resolution)
-                    if len(next_ws) == 0:
+                    if len(next_ws) == 0 or iteration > max_iterations:
                         break
                     w = next_ws[0]
+                    iteration += 1
             else:
                 next_wps = wp1.next(self._sampling_resolution)
                 if len(next_wps) == 0:
