@@ -69,17 +69,23 @@ class BehaviorAgent(BasicAgent):
         This method updates the information regarding the ego
         vehicle based on the surrounding world.
         """
+        # 来获取当前车辆（ego vehicle）的速度，并将该速度存储到 self._speed 变量中。
         self._speed = get_speed(self._vehicle)
+        # 获取当前道路或所在区域的速度限制
         self._speed_limit = self._vehicle.get_speed_limit()
+        # 将车辆的目标速度设置为道路的速度限制。
         self._local_planner.set_speed(self._speed_limit)
         self._direction = self._local_planner.target_road_option
         if self._direction is None:
             self._direction = RoadOption.LANEFOLLOW
-
+        # 车辆的预瞄步数与其限速成正比。举例来说，如果速度限制是 50 km/h，那么 self._look_ahead_steps 将是 5。
+        # 通过这个参数，局部规划器知道要预判多少步的路径来做决策。
         self._look_ahead_steps = int((self._speed_limit) / 10)
-
-        self._incoming_waypoint, self._incoming_direction = self._local_planner.get_incoming_waypoint_and_direction(
-            steps=self._look_ahead_steps)
+        # 调用 局部规划器 的 get_incoming_waypoint_and_direction() 方法来获取下一个目标 航点 和对应的方向。
+        # self._incoming_waypoint, self._incoming_direction = self._local_planner.get_incoming_waypoint_and_direction(
+        #     steps=self._look_ahead_steps)
+        # 使用默认的steps = 3
+        self._incoming_waypoint, self._incoming_direction = self._local_planner.get_incoming_waypoint_and_direction()
         if self._incoming_direction is None:
             self._incoming_direction = RoadOption.LANEFOLLOW
 
@@ -142,23 +148,24 @@ class BehaviorAgent(BasicAgent):
             :return vehicle: nearby vehicle
             :return distance: distance to nearby vehicle
         """
-
+        # 获取附近的所有车辆
         vehicle_list = self._world.get_actors().filter("*vehicle*")
+        # 筛选出距离较近的车辆
 
         def dist(v):
             return v.get_location().distance(waypoint.transform.location)
-
         vehicle_list = [v for v in vehicle_list if dist(v) < 45 and v.id != self._vehicle.id]
 
-        if self._direction == RoadOption.CHANGELANELEFT:
+        if self._incoming_direction == RoadOption.CHANGELANELEFT:
             vehicle_state, vehicle, distance = self._vehicle_obstacle_detected(
                 vehicle_list, max(
                     self._behavior.min_proximity_threshold, self._speed_limit / 2), up_angle_th=180, lane_offset=-1)
-        elif self._direction == RoadOption.CHANGELANERIGHT:
+        elif self._incoming_direction == RoadOption.CHANGELANERIGHT:
             vehicle_state, vehicle, distance = self._vehicle_obstacle_detected(
                 vehicle_list, max(
                     self._behavior.min_proximity_threshold, self._speed_limit / 2), up_angle_th=180, lane_offset=1)
         else:
+            # 都执行的这块
             vehicle_state, vehicle, distance = self._vehicle_obstacle_detected(
                 vehicle_list, max(
                     self._behavior.min_proximity_threshold, self._speed_limit / 3), up_angle_th=30)
@@ -266,19 +273,19 @@ class BehaviorAgent(BasicAgent):
         if self.traffic_light_manager():
             return self.emergency_stop()
 
-        # 2.1: Pedestrian avoidance behaviors
-        walker_state, walker, w_distance = self.pedestrian_avoid_manager(ego_vehicle_wp)
-
-        if walker_state:
-            # Distance is computed from the center of the two cars,
-            # we use bounding boxes to calculate the actual distance
-            distance = w_distance - max(
-                walker.bounding_box.extent.y, walker.bounding_box.extent.x) - max(
-                self._vehicle.bounding_box.extent.y, self._vehicle.bounding_box.extent.x)
-
-            # Emergency brake if the car is very close.
-            if distance < self._behavior.braking_distance:
-                return self.emergency_stop()
+        # 2.1: 行人碰撞检测
+        # walker_state, walker, w_distance = self.pedestrian_avoid_manager(ego_vehicle_wp)
+        #
+        # if walker_state:
+        #     # Distance is computed from the center of the two cars,
+        #     # we use bounding boxes to calculate the actual distance
+        #     distance = w_distance - max(
+        #         walker.bounding_box.extent.y, walker.bounding_box.extent.x) - max(
+        #         self._vehicle.bounding_box.extent.y, self._vehicle.bounding_box.extent.x)
+        #
+        #     # Emergency brake if the car is very close.
+        #     if distance < self._behavior.braking_distance:
+        #         return self.emergency_stop()
 
         # 2.2: 车辆跟随行为
         # vehicle_state：是否需要跟随前方车辆。
@@ -286,8 +293,8 @@ class BehaviorAgent(BasicAgent):
         # distance：车辆与前方车辆之间的距离。
         # vehicle_state, vehicle, distance = self.collision_and_car_avoid_manager(ego_vehicle_wp)
         vehicle_state, vehicle, distance = None, None, None
-        if self.collision_check_counter == 0:  # 仅在计数器为0时进行碰撞检测
-            vehicle_state, vehicle, distance = self.collision_and_car_avoid_manager(ego_vehicle_wp)
+        # if self.collision_check_counter == 0:  # 仅在计数器为0时进行碰撞检测
+        vehicle_state, vehicle, distance = self.collision_and_car_avoid_manager(ego_vehicle_wp)
         # 更新计数器
         self.collision_check_counter = (self.collision_check_counter + 1) % self.collision_check_interval
 

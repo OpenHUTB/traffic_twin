@@ -162,7 +162,6 @@ class BasicAgent(object):
         end_waypoint = self._map.get_waypoint(end_location)
         # trace_route() 会返回一条完整的路径（由多个航点和道路选项组成的列表）。
         route_trace = self.trace_route(start_waypoint, end_waypoint)
-
         # 将全局规划得到的路径 route_trace 设置为局部规划器的全局计划
         self._local_planner.set_global_plan(route_trace, clean_queue=clean_queue)
 
@@ -349,16 +348,16 @@ class BasicAgent(object):
                 return None
 
             return Polygon(route_bb)
-
+        # 检查是否启用了忽略车辆检测的功能。
         if self._ignore_vehicles:
             return (False, None, -1)
 
         if not vehicle_list:
             vehicle_list = self._world.get_actors().filter("*vehicle*")
-
+        #  设置最大检测距离
         if not max_distance:
             max_distance = self._base_vehicle_threshold
-
+        #  获取当前车辆的位置信息
         ego_transform = self._vehicle.get_transform()
         ego_location = ego_transform.location
         ego_wpt = self._map.get_waypoint(ego_location)
@@ -367,48 +366,47 @@ class BasicAgent(object):
         if ego_wpt.lane_id < 0 and lane_offset != 0:
             lane_offset *= -1
 
-        # Get the transform of the front of the ego
+        # 计算车辆前方的位置
         ego_front_transform = ego_transform
         ego_front_transform.location += carla.Location(
             self._vehicle.bounding_box.extent.x * ego_transform.get_forward_vector())
-
+        # 判断是否使用边界框（Bounding Box）检测
         opposite_invasion = abs(self._offset) + self._vehicle.bounding_box.extent.y > ego_wpt.lane_width / 2
         use_bbs = self._use_bbs_detection or opposite_invasion or ego_wpt.is_junction
 
-        # Get the route bounding box
+        #  获取路线多边形
         route_polygon = get_route_polygon()
 
+        # 检查每辆目标车辆是否与当前路径相交
         for target_vehicle in vehicle_list:
+            # 如果目标车辆与当前车辆相同，则跳过。
             if target_vehicle.id == self._vehicle.id:
                 continue
-
+            # 如果目标车辆的距离超过了最大检测距离，跳过该车辆。
             target_transform = target_vehicle.get_transform()
             if target_transform.location.distance(ego_location) > max_distance:
                 continue
-
+            # 获取目标车辆的 道路航点，并进行后续的碰撞检测。
             target_wpt = self._map.get_waypoint(target_transform.location, lane_type=carla.LaneType.Any)
 
-            # General approach for junctions and vehicles invading other lanes due to the offset
+            # 检查路径与目标车辆的边界框是否重叠
             if (use_bbs or target_wpt.is_junction) and route_polygon:
-
                 target_bb = target_vehicle.bounding_box
                 target_vertices = target_bb.get_world_vertices(target_vehicle.get_transform())
                 target_list = [[v.x, v.y, v.z] for v in target_vertices]
                 target_polygon = Polygon(target_list)
-
+                # 判断当前路径与目标车辆的边界框是否重叠，如果重叠则返回碰撞信息。
                 if route_polygon.intersects(target_polygon):
                     return (True, target_vehicle, compute_distance(target_vehicle.get_location(), ego_location))
 
-            # Simplified approach, using only the plan waypoints (similar to TM)
+            # 简化方法：检查目标车辆是否在前方车道内
             else:
-
-                if target_wpt.road_id != ego_wpt.road_id or target_wpt.lane_id != ego_wpt.lane_id  + lane_offset:
+                if target_wpt.road_id != ego_wpt.road_id or target_wpt.lane_id != ego_wpt.lane_id + lane_offset:
                     next_wpt = self._local_planner.get_incoming_waypoint_and_direction(steps=3)[0]
                     if not next_wpt:
                         continue
-                    if target_wpt.road_id != next_wpt.road_id or target_wpt.lane_id != next_wpt.lane_id  + lane_offset:
+                    if target_wpt.road_id != next_wpt.road_id or target_wpt.lane_id != next_wpt.lane_id + lane_offset:
                         continue
-
                 target_forward_vector = target_transform.get_forward_vector()
                 target_extent = target_vehicle.bounding_box.extent.x
                 target_rear_transform = target_transform

@@ -1,3 +1,7 @@
+"""
+    版本7.0：
+       将车辆生成时间修改成仿真时间
+"""
 import carla
 import time
 import csv
@@ -8,19 +12,24 @@ import mysql.connector
 
 from datetime import datetime
 OFFSET_DISTANCE = 3          # 生成车辆失败时，将 location 后移3m
-RES_SPAWN = 3                # 低距离生成车辆，避免车辆重复生成在一个地方
+RES_SPAWN = 5                # 低距离生成车辆，避免车辆重复生成在一个地方
 TIMEOUT_VALUE = 100          # 设置等待超时时间为10秒
 LOWEST_SPEED = 0.1           # 设置车辆等待超时的最低速度
 WAYPOINTS_FILENAME = 'Waypoints.txt'
 FRAME_INTERVAL = 2           # 定义全局帧间隔
-
+SAMPLING_RESOLUTION = 2.0
 from agents.navigation.behavior_agent import BehaviorAgent
 from twin_accuracy_evaluator import *
+from agents.navigation.global_route_planner import GlobalRoutePlanner
 
 
 def setting_config(settings, world):
     settings.synchronous_mode = True
-    settings.fixed_delta_seconds = 0.05
+    # # 设置每个物理子步的最大时间（单位：秒）
+    # settings.max_substep_delta_time = 0.02  # 每个物理子步最多 0.01 秒
+    # # 设置每帧最大物理子步数
+    # settings.max_substeps = 10  # 每帧最多 10 个物理子步
+    settings.fixed_delta_seconds = 0.03
     world.apply_settings(settings)
 
 
@@ -35,7 +44,6 @@ def query_id(intersection, cursor):
                   SELECT IntersectionID FROM intersections
                   WHERE IntersectionName = %s
                   '''
-    # print(intersection)
     cursor.execute(query, (intersection,))
     res = cursor.fetchall()
     return str(res[0][0])
@@ -61,10 +69,7 @@ def query_location(waypoint, cursor):
     cursor.execute(query, (intersection_id, lane, direction))
     # 获取所有结果
     results = cursor.fetchall()
-    # print(intersection_id)
-    # print(lane)
-    # print(direction)
-    # print(results)
+
     loc_x, loc_y, loc_z, ro_yam = results[0]
     # 将 Decimal 转换为 float
     loc_x = float(loc_x)
@@ -106,7 +111,7 @@ def generate_random_vehicle_color():
 
 
 def spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cursor, filtered_vehicle_blueprints,
-                  world, vehicle_list, vehicle_plate_list, agent_list):
+                  world, vehicle_list, vehicle_plate_list, agent_list, share_global_planner):
     first_waypoint = waypoints_by_vehicle[vehicle_id][0]
     location, ro_yaw = query_location(first_waypoint, cursor)
     # 生成第一辆车
@@ -128,7 +133,7 @@ def spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cur
     vehicle_plate_list.append(vehicle_id)
 
     # 创建代理
-    agent = BehaviorAgent(vehicle, behavior='normal')
+    agent = BehaviorAgent(vehicle, behavior='normal', grp_inst=share_global_planner)
     agent.frame_counter = 0           # 初始化帧计数器
     agent_list[vehicle_id] = agent
 
@@ -142,11 +147,26 @@ def spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cur
     vehicle_waypoint_offset[vehicle_id] = 2  # 表示车辆在第二个路口位置
 
 
+def batch_control_vehicles(agent_list, world):
+    batch_size = 20
+    agents = list(agent_list.values())  # 获取所有的agent对象
+    for i in range(0, len(agents), batch_size):
+        batch = agents[i:i + batch_size]  # 获取批次中的agent对象
+        for agent in batch:
+            vehicle = agent._vehicle
+            if not agent.done():
+                control = agent.run_step()
+                vehicle.apply_control(control)
+        world.tick()
+        time.sleep(0.02)
+
+
 def main():
     # 连接到carla服务器
     client = carla.Client('localhost', 2000)
     client.set_timeout(10)
     world = client.get_world()
+    _map = world.get_map()
     origin_settings = world.get_settings()
 
     # 获取车辆蓝图库
@@ -182,7 +202,6 @@ def main():
     try:
         # 设置
         settings = world.get_settings()
-
         setting_config(settings, world)
 
         waypoints_file = WAYPOINTS_FILENAME
@@ -237,6 +256,8 @@ def main():
         # 创建一个游标对象
         cursor = conn.cursor()
 
+        share_global_planner = GlobalRoutePlanner(_map, SAMPLING_RESOLUTION)
+
         # 默认运行代码则开始最早的一辆车或者一批车辆的孪生
         # 先生成最早的一辆车或者一批车辆，并设置路口终点
         # 从起始时间考虑，判断第一批有几辆车
@@ -247,7 +268,7 @@ def main():
             # 记录车辆生成的系统时间
             vehicle_lifetimes[vehicle_id] = (int(time.time()), None)
             spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cursor, filtered_vehicle_blueprints,
-                          world, vehicle_list, vehicle_plate_list, agent_list)
+                          world, vehicle_list, vehicle_plate_list, agent_list, share_global_planner)
             count += 1
             # 最早一批次车辆生成完毕, 结束循环
             if earliest_vehicle_num == count:
@@ -256,31 +277,32 @@ def main():
         # 记录最早批次生成时间戳,2024年678月
         first_stamp = get_timestamp(start_time[0])
         # 得到当前系统的时间戳，只考虑整数部分(2024年10月)
-        first_system_stamp = int(time.time())
+        # first_system_stamp = int(time.time())
+        first_system_stamp = world.get_snapshot().timestamp.elapsed_seconds
         # 记录下次该生成车辆在 vehicle_id_list 中的下标
         next_vehicle_num = earliest_vehicle_num
         while len(vehicle_list) > 0:  # 当车辆未全部销毁时继续循环
             num = 0
-            # time.sleep(0.02)
-            world.tick()
+            # world.tick()
             # 接下来陆续按时间的先后顺序生成车辆
             # 下一批生成车辆的时间戳 - 上一批生成车辆的时间戳
             if next_vehicle_num < len(start_time):
                 this_stamp = get_timestamp(start_time[next_vehicle_num])
                 during_to_next_vehicle = this_stamp - first_stamp
                 # 当前系统时间戳 - 上次生成车辆的系统时间戳
-                this_system_stamp = int(time.time())
+                # this_system_stamp = int(time.time())
+                this_system_stamp = world.get_snapshot().timestamp.elapsed_seconds
                 during_system_time = this_system_stamp - first_system_stamp
 
                 # 已经过了相同的时间, 该生成下一批次车辆
-                if during_system_time == during_to_next_vehicle:
+                if during_system_time >= during_to_next_vehicle:
                     num = start_time.count(start_time[next_vehicle_num])
                     index = 0
                     # 生成车辆
                     for vehicle_id in vehicle_id_list[next_vehicle_num:]:
                         vehicle_lifetimes[vehicle_id] = (int(time.time()), None)
                         spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cursor,
-                                      filtered_vehicle_blueprints, world, vehicle_list, vehicle_plate_list, agent_list)
+                                      filtered_vehicle_blueprints, world, vehicle_list, vehicle_plate_list, agent_list, share_global_planner)
                         index += 1
                         if index == num:
                             break
@@ -301,7 +323,6 @@ def main():
                     # RuntimeError: trying to operate on a destroyed actor; an actor's function was called,
                     # but the actor is already destroyed.
                     if vehicle_id not in destroyed_vehicle_id:
-                        vehicle = vehicle_list[vehicle_id]
                         # 销毁车辆
                         vehicle.destroy()
                         vehicle_lifetimes[vehicle_id] = (vehicle_lifetimes[vehicle_id][0], int(time.time()))
@@ -321,18 +342,21 @@ def main():
                     # 重新设置agent的终点
                     agent.set_destination(location)
                     vehicle_waypoint_offset[vehicle_id] += 1
-                if agent.frame_counter % FRAME_INTERVAL == 0:
-                    control = agent.run_step()
-                    vehicle = vehicle_list[vehicle_id]
-                    vehicle.apply_control(control)
-                # 增加帧计数器
-                agent.frame_counter += 1
+                # # 减少不必要的计算`
+                # if not agent.done():
+                #     control = agent.run_step()
+                #     # 应用控制
+                #     vehicle.apply_control(control)
+                #     # 增加帧计数器
+                #     agent.frame_counter += 1
 
             if is_to_destroy:
                 # 清空已销毁车辆所占资源
                 clear_source(need_to_destroy, waypoints_by_vehicle, intersection_time, vehicle_list,
                              vehicle_waypoint_offset, vehicle_plate_list, agent_list)
 
+            # 分批控制车辆
+            batch_control_vehicles(agent_list, world)
             # 清空 need_to_destroy
             need_to_destroy.clear()
             is_to_destroy = False
@@ -341,16 +365,16 @@ def main():
             vehicle_actual_junctions = track_vehicle_actual_junctions(vehicle_list, threshold=20.0)
 
         # 计算车辆生命周期差异
-        # time_differences = calculate_vehicle_lifespan(vehicle_lifetimes, intersection_time)
+        time_differences = calculate_vehicle_lifespan(vehicle_lifetimes, intersection_time)
         # 将结果保存为csv
-        # save_lifespan_to_csv(time_differences, csv_filename='vehicle_lifespan_differences.csv')
+        save_lifespan_to_csv(time_differences, csv_filename='vehicle_lifespan_differences.csv')
         # 显示结果图
-        # plot_lifespan_differences_line(time_differences, image_filename='vehicle_lifespan_differences.png', limit=100)
+        plot_lifespan_differences_line(time_differences, image_filename='vehicle_lifespan_differences.png', limit=100)
 
         # 比较vehicle_middle_junctions 和 vehicle_actual_junctions 来评估孪生路径误差
-        # path_errors = evaluate_path_error(vehicle_middle_junctions, vehicle_actual_junctions)
+        path_errors = evaluate_path_error(vehicle_middle_junctions, vehicle_actual_junctions)
         # 生成图表
-        # plot_path_errors(path_errors)
+        plot_path_errors(path_errors)
 
     finally:
         actor_list = world.get_actors().filter('vehicle.*')

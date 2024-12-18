@@ -23,7 +23,7 @@ class Normal(object):
     safety_time = 3
     min_proximity_threshold = 10
     # braking_distance = 5
-    braking_distance = 7
+    braking_distance = 15
     tailgate_counter = 0
 
 

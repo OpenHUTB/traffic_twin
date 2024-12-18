@@ -29,7 +29,6 @@ class GlobalRoutePlanner(object):
         self._graph = None
         self._id_map = None
         self._road_id_to_edge = None
-
         self._intersection_end_node = -1
         self._previous_decision = RoadOption.VOID
 
@@ -131,6 +130,7 @@ class GlobalRoutePlanner(object):
             [(w0, w1), (w0, w2), (w1, w3), (w2, w3), (w0, w4)]
             道路段之间可能有间隔
         """
+        i = 0
         for segment in self._wmap.get_topology():
             # 提取起点和终点坐标
             wp1, wp2 = segment[0], segment[1]
@@ -146,6 +146,7 @@ class GlobalRoutePlanner(object):
             # 定义 self._sampling_resolution 表示采样分辨率，即每隔多少距离采集一个航点。
             endloc = wp2.transform.location
             # 判断 wp1 到 wp2 的距离是否超过分辨率 self._sampling_resolution
+
             if wp1.transform.location.distance(endloc) > self._sampling_resolution:
                 """
                 next(self, distance)
@@ -158,11 +159,13 @@ class GlobalRoutePlanner(object):
                 """
                 max_iterations = 100  # 限制最大采样次数
                 iteration = 0
+
                 # 采样取第一个点
                 w = wp1.next(self._sampling_resolution)[0]
                 while w.transform.location.distance(endloc) > self._sampling_resolution:
                     seg_dict['path'].append(w)
                     next_ws = w.next(self._sampling_resolution)
+                    # if len(next_ws) == 0:
                     if len(next_ws) == 0 or iteration > max_iterations:
                         break
                     w = next_ws[0]
@@ -173,6 +176,7 @@ class GlobalRoutePlanner(object):
                     continue
                 seg_dict['path'].append(next_wps[0])
             self._topology.append(seg_dict)
+
 
     def _build_graph(self):
         """
@@ -312,7 +316,7 @@ class GlobalRoutePlanner(object):
                             next_segment = self._localize(next_waypoint.transform.location)
                             if next_segment is not None:
                                 self._graph.add_edge(
-                                    # next_segment[0]表示边的第一个点
+                                    # next_segment[0]表示边的第一个点的id
                                     self._id_map[segment['entryxyz']], next_segment[0], entry_waypoint=waypoint,
                                     exit_waypoint=next_waypoint, intersection=False, exit_vector=None,
                                     path=[], length=0, type=next_road_option, change_waypoint=next_waypoint)
@@ -359,6 +363,7 @@ class GlobalRoutePlanner(object):
         lane_id1 = self.get_lane_id_from_coordinates(l1)
         lane_id2 = self.get_lane_id_from_coordinates(l2)
 
+        # 欧几里得距离。
         distance = np.linalg.norm(l1 - l2)
 
         # 增加车道偏移惩罚项

@@ -201,16 +201,19 @@ class LocalPlanner(object):
         :return:
         """
         if clean_queue:
+            # self._waypoints_queue 是一个 deque（双端队列），用于存储局部规划中的航点。
             self._waypoints_queue.clear()
 
         # Remake the waypoints queue if the new plan has a higher length than the queue
         new_plan_length = len(current_plan) + len(self._waypoints_queue)
+        # 如果新计划的长度超过了 waypoints_queue 的最大长度 maxlen，则需要扩展队列的大小，
+        # 重新创建一个长度更大的双端队列（deque）
         if new_plan_length > self._waypoints_queue.maxlen:
             new_waypoint_queue = deque(maxlen=new_plan_length)
             for wp in self._waypoints_queue:
                 new_waypoint_queue.append(wp)
             self._waypoints_queue = new_waypoint_queue
-
+        # 将每一个 (carla.Waypoint, RoadOption) 对应的航点和路选信息添加到 waypoints_queue 中。
         for elem in current_plan:
             self._waypoints_queue.append(elem)
 
@@ -224,6 +227,7 @@ class LocalPlanner(object):
         :param debug: boolean flag to activate waypoints debugging
         :return: control to be applied
         """
+        # 如果启用了速度限制（_follow_speed_limits 为真），则将目标速度设置为车辆当前的速度限制
         if self._follow_speed_limits:
             self._target_speed = self._vehicle.get_speed_limit()
 
@@ -231,7 +235,7 @@ class LocalPlanner(object):
         if not self._stop_waypoint_creation and len(self._waypoints_queue) < self._min_waypoint_queue_length:
             self._compute_next_waypoints(k=self._min_waypoint_queue_length)
 
-        # Purge the queue of obsolete waypoints
+        # 清除过时的航点
         veh_location = self._vehicle.get_location()
         vehicle_speed = get_speed(self._vehicle) / 3.6
         self._min_distance = self._base_min_distance + self._distance_ratio * vehicle_speed
@@ -249,11 +253,12 @@ class LocalPlanner(object):
             else:
                 break
 
+        # 从局部规划器的航点队列中移除已经过时的航点
         if num_waypoint_removed > 0:
             for _ in range(num_waypoint_removed):
                 self._waypoints_queue.popleft()
 
-        # Get the target waypoint and move using the PID controllers. Stop if no target waypoint
+        # 获取目标航点并执行控制 Stop if no target waypoint
         if len(self._waypoints_queue) == 0:
             control = carla.VehicleControl()
             control.steer = 0.0
@@ -265,8 +270,8 @@ class LocalPlanner(object):
             self.target_waypoint, self.target_road_option = self._waypoints_queue[0]
             control = self._vehicle_controller.run_step(self._target_speed, self.target_waypoint)
 
-        if debug:
-            draw_waypoints(self._vehicle.get_world(), [self.target_waypoint], 1.0)
+        # if debug:
+        #     draw_waypoints(self._vehicle.get_world(), [self.target_waypoint], 1.0)
 
         return control
 
@@ -276,6 +281,7 @@ class LocalPlanner(object):
 
             :param steps: number of steps to get the incoming waypoint.
         """
+        # print(steps)
         if len(self._waypoints_queue) > steps:
             return self._waypoints_queue[steps]
 
