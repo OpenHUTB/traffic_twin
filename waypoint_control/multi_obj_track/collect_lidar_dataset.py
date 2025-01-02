@@ -67,7 +67,8 @@ def filter_vehicle_blueprinter(vehicle_blueprints):
                                    'motorcycle' not in bp.id and
                                    'harley' not in bp.id and
                                    'yamaha' not in bp.id and
-                                   'kawasaki' not in bp.id]
+                                   'kawasaki' not in bp.id and
+                                   'mini' not in bp.id]
     return filtered_vehicle_blueprints
 
 
@@ -126,7 +127,9 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
 
         # 获取边界框的宽长高
         bounding_box_extent = bounding_box.extent
-        bounding_box_extent_lidar = np.array([2 * bounding_box_extent.x, 2 * bounding_box_extent.y, 2 * bounding_box_extent.z])
+        length = 2 * bounding_box_extent.x
+        width = 2 * bounding_box_extent.y
+        height = 2 * bounding_box_extent.z
 
         bounding_box_rotation = np.array([rotation.yaw, rotation.pitch, rotation.roll])
         # 将 Euler 角（pitch, yaw, roll）转换为旋转矩阵（3x3）
@@ -138,16 +141,17 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
         # 输出转换后的 pitch, yaw, roll
         yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
         # 构造标签数据（Nx9 格式）
+
         label = [
             bounding_box_location_lidar[0],  # x
             bounding_box_location_lidar[1],  # y
-            bounding_box_location_lidar[2],  # z ,需要把z替换成bounding_box.z
-            bounding_box_extent_lidar[1],  # 长
-            bounding_box_extent_lidar[0],  # 宽
-            bounding_box_extent_lidar[2],  # 高
-            yaw_lidar,  # yaw
+            bounding_box_location_lidar[2] + 0.3,  # z ,需要把z替换成bounding_box.z
+            length,
+            width,
+            height,
             pitch_lidar,  # pitch
-            roll_lidar  # roll
+            roll_lidar,  # roll
+            yaw_lidar  # yaw
         ]
         # 判断车辆的类别（car, truck）
         category = recognize_vehicle_class(vehicle)
