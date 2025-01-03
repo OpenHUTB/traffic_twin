@@ -44,7 +44,7 @@ camera_names = [
 
 # 创建保存雷达数据的文件夹
 def create_radar_folder():
-    folder_name = f"data"
+    folder_name = f"test_data"
     # 检查文件夹是否已存在，若不存在则创建
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
@@ -54,7 +54,7 @@ def create_radar_folder():
 
 # 创建保存相机数据的文件夹
 def create_camera_folder(camera_id):
-    folder_name = f"data/camera/{camera_id}_camera"
+    folder_name = f"test_data/camera/{camera_id}"
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
         print(f"Created folder: {folder_name}")
@@ -75,6 +75,7 @@ def save_radar_data(radar_data, world):
     # 将 location 转换为 float64（即 double 类型）
     location = location.astype(np.float64)
     intensity = points[:, 3].reshape(-1, 1).astype(np.float64)  # 获取强度数据（第四通道）
+    # intensity_scaled = np.round(intensity * 255).astype(np.uint8)
     count = location.shape[0]
     # 计算 x 的范围
     x_limits = [np.min(location[:, 0]), np.max(location[:, 0])]  # x 轴的最小值和最大值
@@ -85,7 +86,7 @@ def save_radar_data(radar_data, world):
     radar_folder = create_radar_folder()
     file_name = os.path.join(radar_folder, f"{current_frame}.mat")
     LidarData = {
-        'PointsCloud': {
+        'PointCloud': {
             'Location': location,
             'Count': count,
             'XLimits': x_limits,
@@ -108,7 +109,7 @@ def save_radar_data(radar_data, world):
     camera_data = []
     for i, name in enumerate(camera_names):
         camera_data.append({
-            'ImagePath': f"data/camera/{name}/{current_frame}.jpg",  # 字符串路径
+            'ImagePath': f"camera/{name}/{current_frame}.jpg",  # 字符串路径
             'Pose': {
                 'Position': relativePose_to_egoVehicle[name][:3],  # 单独的struct
                 'Velocity': [0, 0, 0],  # 静止速度
@@ -150,7 +151,7 @@ def save_camera_data(image_data, camera_id):
     image = image.reshape((image_data.height, image_data.width, 4))  # 4th channel is alpha
     image = image[:, :, :3]  # 去掉 alpha 通道，只保留 RGB
     camera_folder = create_camera_folder(camera_id)
-    file_name = os.path.join(camera_folder, f"{current_frame}.png")
+    file_name = os.path.join(camera_folder, f"{current_frame}.jpg")
     try:
         cv2.imwrite(file_name, image)  # 使用 OpenCV 保存图像
     except Exception as e:
@@ -167,8 +168,7 @@ def setup_sensors(world, addtion_param):
     transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8),carla.Rotation(pitch=0, yaw=90, roll=0))
     # 配置LiDAR传感器
     lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
-    lidar_bp.set_attribute('dropoff_general_rate',
-                           lidar_bp.get_attribute('dropoff_general_rate').recommended_values[0])
+    lidar_bp.set_attribute('dropoff_general_rate', '0.1')
     lidar_bp.set_attribute('dropoff_intensity_limit',
                            lidar_bp.get_attribute('dropoff_intensity_limit').recommended_values[0])
     lidar_bp.set_attribute('dropoff_zero_intensity',
@@ -179,7 +179,7 @@ def setup_sensors(world, addtion_param):
 
     # 创建雷达并绑定回调
     lidar = world.spawn_actor(lidar_bp, transform)
-    world.tick()
+    # world.tick()
     lidar.listen(lambda data: save_radar_data(data, world))
 
     # 配置相机传感器
@@ -195,12 +195,33 @@ def setup_sensors(world, addtion_param):
     return lidar, camera_dict
 
 
+def filter_vehicle_blueprinter(vehicle_blueprints):
+    """
+    :param vehicle_blueprints: 车辆蓝图
+    :return: 过滤自行车后的车辆蓝图
+    """
+    filtered_vehicle_blueprints = [bp for bp in vehicle_blueprints if 'bike' not in bp.id and
+                                   'omafiets' not in bp.id and
+                                   'century' not in bp.id and
+                                   'vespa' not in bp.id and
+                                   'motorcycle' not in bp.id and
+                                   'harley' not in bp.id and
+                                   'yamaha' not in bp.id and
+                                   'kawasaki' not in bp.id and
+                                   'mini' not in bp.id]
+    return filtered_vehicle_blueprints
+
+
 # 生成自动驾驶车辆
-def spawn_autonomous_vehicles(world, tm, num_vehicles=10):
+def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
+    # 设置随机种子
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+
     vehicle_list = []
     blueprint_library = world.get_blueprint_library()
     vehicle_blueprints = blueprint_library.filter('vehicle.*')
-    vehicle_bp = random.choice(vehicle_blueprints)
+    filter_vehicle_blueprints = filter_vehicle_blueprinter(vehicle_blueprints)
     for _ in range(num_vehicles):
         # 随机选择一个位置
         spawn_point = world.get_map().get_spawn_points()
@@ -210,7 +231,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=10):
 
         # 选择一个随机位置生成车辆
         transform = spawn_point[np.random.randint(len(spawn_point))]
-        vehicle_bp = random.choice(vehicle_blueprints)
+        vehicle_bp = random.choice(filter_vehicle_blueprints)
         vehicle = world.try_spawn_actor(vehicle_bp, transform)
         if vehicle is None:
             continue
@@ -231,6 +252,9 @@ def main():
     client.set_timeout(10.0)
 
     world = client.get_world()
+    # weather = carla.WeatherParameters(cloudiness=10.0, precipitation=10.0, fog_density=10.0)
+    # world.set_weather(weather)
+
     # 仿真设置
     settings = world.get_settings()
     settings.fixed_delta_seconds = 0.05
@@ -243,17 +267,20 @@ def main():
     tm.set_synchronous_mode(True)
     camera_dict = {}
     lidar = None
+    vehicles = []
     addtion_param = {
         'channels': '64',
-        'range': '100',
-        'points_per_second': '250000',
+        'range': '200',
+        'points_per_second': '2200000',
         'rotation_frequency': '20'
     }
     try:
+        # 设置随机种子
+        random_seed = 20
         # 静止 ego_vehicle 的位置
         ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=0.5), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 先生成自动驾驶车辆
-        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=40)
+        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
 
         # 启动雷达传感器
         lidar, camera_dict = setup_sensors(world, addtion_param)
@@ -277,6 +304,9 @@ def main():
             if camera is not None:
                 camera.stop()  # 停止相机传感器
                 camera.destroy()  # 销毁相机传感器
+
+        for vehicle in vehicles:
+            vehicle.destroy()
 
 
 if __name__ == "__main__":
