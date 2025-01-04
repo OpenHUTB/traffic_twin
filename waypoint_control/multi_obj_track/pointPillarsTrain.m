@@ -32,7 +32,7 @@ axis off;
 %% Step 2: 数据预处理
 % 定义裁剪参数
 
-xMin = 0;     % X 轴最小值
+xMin = -69.12;     % X 轴最小值
 yMin = -39.68;  % Y 轴最小值
 zMin = -5.0;    % Z 轴最小值
 xMax = 69.12;   % X 轴最大值
@@ -69,7 +69,7 @@ reset(lidarData);
 % 设置随机种子
 rng(1);
 shuffledIndices = randperm(size(processedLabels,1)); % 生成一个随机的排列索引，对应到每个数据集。
-idx = floor(0.8 * length(shuffledIndices));  % ：计算训练集的大小。
+idx = floor(0.7 * length(shuffledIndices));  % ：计算训练集的大小。
 
 trainData = croppedPointCloudObj(shuffledIndices(1:idx),:);
 testData = croppedPointCloudObj(shuffledIndices(idx+1:end),:);
