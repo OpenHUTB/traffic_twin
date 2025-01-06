@@ -20,7 +20,7 @@ Labels = timetable2table(timeTable);
 %}
 % 2、3列数据
 % boxLabels = Labels(:,2:3);
-boxLabels = Labels(1:1000,2:3);
+boxLabels = Labels(:,2:3);
 
 % 显示全视图点云
 figure
@@ -32,7 +32,7 @@ axis off;
 %% Step 2: 数据预处理
 % 定义裁剪参数
 
-xMin = -69.12;     % X 轴最小值
+xMin = 0;     % X 轴最小值
 yMin = -39.68;  % Y 轴最小值
 zMin = -5.0;    % Z 轴最小值
 xMax = 69.12;   % X 轴最大值
