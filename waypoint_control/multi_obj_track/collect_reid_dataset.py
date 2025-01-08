@@ -15,7 +15,7 @@ import cv2
 
 # 设置参数
 DROP_BUFFER_TIME = 55   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
-IMAGES_SAVE_TIME = 25   # 保存图片的时间
+IMAGES_SAVE_TIME = 40   # 保存图片的时间
 OUTPUT_DIR = "./reid_data"  # 数据保存路径
 # 相机相对于车辆的位置
 camera_location_relative_vehicle = [
@@ -69,8 +69,10 @@ def generate_vehicle_images(vehicle_type, folder_name, world, spawn_points, tm):
     cameras = []
     # 生成车辆
     vehicle = world.try_spawn_actor(vehicle_type, spawn_point)
-    spawn_point.location.z += 20
-    spectator_transform = carla.Transform(spawn_point.location, carla.Rotation(pitch=-90))
+    x = spawn_point.location.x
+    y = spawn_point.location.y
+    location = carla.Location(x=x, y=y, z=20)
+    spectator_transform = carla.Transform(location, carla.Rotation(pitch=-90))
     spectator.set_transform(spectator_transform)
     world.tick()
     # 配置自动驾驶
@@ -125,7 +127,10 @@ def filter_vehicle_blueprinter(vehicle_blueprints):
                                    'harley' not in bp.id and
                                    'yamaha' not in bp.id and
                                    'kawasaki' not in bp.id and
-                                   'mini' not in bp.id]
+                                   'mini' not in bp.id and
+                                   'vehicle.carlamotors.firetruck' not in bp.id and
+                                   'vehicle.carlamotors.european_hgv' not in bp.id and
+                                   'vehicle.mitsubishi.fusorosa' not in bp.id]
     return filtered_vehicle_blueprints
 
 
