@@ -7,6 +7,8 @@
          .mat
          .gpsData.mat 自车经纬等信息（可以省去，需要修改helperGenerateEgoTrajectory.m）
 
+     ego_vehicle coordinate  x：前，y：左侧 z:向上
+
 """
 import time
 import numpy as np
@@ -16,24 +18,34 @@ import cv2
 import random
 import scipy.io
 
-# 理想化的相机位置
+# 路口1的相机位置
+# camera_loc = {
+#        "back_camera": carla.Transform(carla.Location(x=-46, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-90, roll=0)),  # 后相机
+#        "front_camera": carla.Transform(carla.Location(x=-46, y=28, z=3.6), carla.Rotation(pitch=0, yaw=90, roll=0)),  # 前相机
+#        "right_camera": carla.Transform(carla.Location(x=-50, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 右相机
+#        "front_right_camera": carla.Transform(carla.Location(x=-50, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 前右相机
+#        "left_camera": carla.Transform(carla.Location(x=-42, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0)),  # 左相机
+#        "front_left_camera": carla.Transform(carla.Location(x=-42, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0))   # 前左相机
+# }
+# 路口2的相机位置
 camera_loc = {
-       "back_camera": carla.Transform(carla.Location(x=-46, y=14, z=1.8), carla.Rotation(pitch=0, yaw=-90, roll=0)), # 后相机
-       "front_camera": carla.Transform(carla.Location(x=-46, y=28, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0)),  # 前相机
-       "right_camera": carla.Transform(carla.Location(x=-50, y=14, z=1.8), carla.Rotation(pitch=0, yaw=-178, roll=0)),# 右相机
-       "front_right_camera": carla.Transform(carla.Location(x=-50, y=28, z=1.8), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 前右相机
-       "left_camera": carla.Transform(carla.Location(x=-42, y=14, z=1.8), carla.Rotation(pitch=0, yaw=-0, roll=0)),  # 左相机
-       "front_left_camera": carla.Transform(carla.Location(x=-42, y=28, z=1.8), carla.Rotation(pitch=0, yaw=-0, roll=0))   # 前左相机
+       "back_camera": carla.Transform(carla.Location(x=104, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-90, roll=0)),  # 后相机
+       "front_camera": carla.Transform(carla.Location(x=104, y=28, z=3.6), carla.Rotation(pitch=0, yaw=90, roll=0)),  # 前相机
+       "right_camera": carla.Transform(carla.Location(x=100, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 右相机
+       "front_right_camera": carla.Transform(carla.Location(x=100, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 前右相机
+       "left_camera": carla.Transform(carla.Location(x=108, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0)),  # 左相机
+       "front_left_camera": carla.Transform(carla.Location(x=108, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0))   # 前左相机
 }
+
 relativePose_to_egoVehicle = {
-       "back_camera": [-7.00, 0.00, 0.00, -180.00, 0.00, 0.00],
-       "front_camera": [7.00, 0.00, 0.00, 0.00, 0.00, 0.00],
-       "right_camera": [0.00, -4.00, 0.00, -90.00, 0.00, 0.00],
-       "front_right_camera": [7.00, -4.00, 0.00, -90.00, 0.00, 0.00],
-       "left_camera": [0.00, 4.00, 0.00, 90.00, 0.00, 0.00],
-       "front_left_camera": [7.00, 4.00, 0.00, 90.00, 0.00, 0.00]
+       "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],
+       "front_camera": [7.00, 0.00, 2.62, 0.00, 0.00, 0.00],
+       "right_camera": [0.00, -4.00, 2.62, -90.00, 0.00, 0.00],
+       "front_right_camera": [7.00, -4.00, 2.62, -90.00, 0.00, 0.00],
+       "left_camera": [0.00, 4.00, 2.62, 90.00, 0.00, 0.00],
+       "front_left_camera": [7.00, 4.00, 2.62, 90.00, 0.00, 0.00]
 }
-relativePose_lidar_to_egoVehicle = [0, 0, 1.3, 0, 0, 0, 0, 0, 0]
+relativePose_lidar_to_egoVehicle = [0, 0, 0.82, 0, 0, 0, 0, 0, 0]
 
 # 相机名称列表
 camera_names = [
@@ -164,8 +176,10 @@ def save_camera_data(image_data, camera_id):
 def setup_sensors(world, addtion_param):
     lidar = None
     camera_dict = {}
-    # 设置理想化的雷达位置
-    transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8),carla.Rotation(pitch=0, yaw=90, roll=0))
+    # 路口1的雷达位置
+    # transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8),carla.Rotation(pitch=0, yaw=90, roll=0))
+    # 路口2的雷达位置
+    transform = carla.Transform(carla.Location(x=104, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
     # 配置LiDAR传感器
     lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
     lidar_bp.set_attribute('dropoff_general_rate', '0.1')
@@ -277,8 +291,10 @@ def main():
     try:
         # 设置随机种子
         random_seed = 20
-        # 静止 ego_vehicle 的位置
-        ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=0.5), carla.Rotation(pitch=0, yaw=90, roll=0))
+        # 路口1的静止 ego_vehicle 位置
+        # ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
+        # 路口2的静止 ego_vehicle 位置
+        ego_transform = carla.Transform(carla.Location(x=104, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
 
