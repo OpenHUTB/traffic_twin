@@ -12,17 +12,17 @@ import os
 import time
 import numpy as np
 import cv2
-
+import scipy.io
+# 定义车辆类别的标签编号（在CARLA中，车辆的类别 ID 通常为10）
+VEHICLE_CLASS_ID = 14
 # 设置参数
 DROP_BUFFER_TIME = 55   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
-IMAGES_SAVE_TIME = 40   # 保存图片的时间
+IMAGES_SAVE_TIME = 50   # 保存图片的时间
 OUTPUT_DIR = "./reid_data"  # 数据保存路径
 # 相机相对于车辆的位置
 camera_location_relative_vehicle = [
-        carla.Transform(carla.Location(x=4, y=0, z=1),carla.Rotation(yaw=180)),
-        carla.Transform(carla.Location(x=0, y=4, z=1), carla.Rotation(yaw=-90)),
-        carla.Transform(carla.Location(x=0, y=-4, z=1), carla.Rotation(yaw=90)),
-        carla.Transform(carla.Location(x=-4, y=0, z=1), carla.Rotation(yaw=0))
+        carla.Transform(carla.Location(x=4.2, y=0, z=1.2),carla.Rotation(yaw=180)),  # 前视角相机
+        carla.Transform(carla.Location(x=-4.2, y=0, z=1.2), carla.Rotation(yaw=0))   # 后视角相机
 ]
 
 # 确保输出目录存在
@@ -36,9 +36,10 @@ def save_image(image, folder_path):
     image_array = np.array(image.raw_data)
     image_array = image_array.reshape((image.height, image.width, 4))
     image_array = image_array[:, :, :3]  # 只取RGB，不包含Alpha通道
-    timestamp = int(time.time() * 1000)  # 当前时间的毫秒级时间戳
+    # 获取当前帧编号
+    current_frame = image.frame
     # 保存为JPEG格式
-    img_path = os.path.join(folder_path, f"{timestamp}.jpeg")
+    img_path = os.path.join(folder_path, f"{current_frame}.jpeg")
     cv2.imwrite(img_path, image_array)
     time.sleep(0.1)  # 增加延迟，减缓保存速度
 
@@ -46,14 +47,20 @@ def save_image(image, folder_path):
 # 创建相机传感器
 def create_camera_sensor(vehicle, world, transform):
     camera_bp = world.get_blueprint_library().find('sensor.camera.rgb')
+    # 设置语义分割相机
+    segmentation_camera_bp = world.get_blueprint_library().find('sensor.camera.semantic_segmentation')
     # 配置相机传感器
     camera_bp.set_attribute('image_size_x', '1920')
     camera_bp.set_attribute('image_size_y', '1080')
     camera_bp.set_attribute('fov', '90')
+    segmentation_camera_bp.set_attribute('image_size_x', '1920')
+    segmentation_camera_bp.set_attribute('image_size_y', '1080')
+    segmentation_camera_bp.set_attribute('fov', '90')
     camera = world.spawn_actor(camera_bp, transform, attach_to=vehicle)
+    segmentation_camera = world.spawn_actor(segmentation_camera_bp, transform, attach_to=vehicle)
     # 等待传感器初始化
     time.sleep(0.05)
-    return camera
+    return camera, segmentation_camera
 
 
 # 生成车辆并拍摄图像
@@ -67,6 +74,7 @@ def generate_vehicle_images(vehicle_type, folder_name, world, spawn_points, tm):
     spawn_point = random.choice(spawn_points)
     spectator = world.get_spectator()
     cameras = []
+    segmentation_cameras = []
     # 生成车辆
     vehicle = world.try_spawn_actor(vehicle_type, spawn_point)
     x = spawn_point.location.x
@@ -84,34 +92,94 @@ def generate_vehicle_images(vehicle_type, folder_name, world, spawn_points, tm):
     for _ in range(DROP_BUFFER_TIME):
         world.tick()
         time.sleep(0.05)  # 稍微延迟，让车辆有时间落地
-
+    label_dicts = []  # 每个视角的标签列表
     pic_index = 0
     for cam_loc in camera_location_relative_vehicle:
         # 创建相机传感器
-        camera = create_camera_sensor(vehicle, world, cam_loc)
+        camera, segmentation_camera = create_camera_sensor(vehicle, world, cam_loc)
         cameras.append(camera)
+        segmentation_cameras.append(segmentation_camera)
         pic_index += 1
         # 创建文件夹
         view_folder_path = os.path.join(folder_path, f"{pic_index}")
-        print(view_folder_path)
         if not os.path.exists(view_folder_path):
             os.makedirs(view_folder_path)
+
+        label_dict = {}  # 当前视角的标签字典
+        label_dicts.append(label_dict)
         # 获取并且保存图片
         camera.listen(lambda data, camera_path=view_folder_path: save_image(data, camera_path))
-
+        segmentation_camera .listen(lambda image: save_label(image, label_dict))
     # # 同步收集相机数据
     for _ in range(IMAGES_SAVE_TIME):
         world.tick()
         time.sleep(0.05)
-    return vehicle, cameras
+    return vehicle, cameras, segmentation_cameras, label_dicts, folder_path
 
 
-def destroy_vehicle_sensor(vehicle, cameras):
+def save_label(image, label_dict):
+    """
+     处理语义分割相机的输出，提取车辆像素并拟合二维框。
+     """
+
+    # 将CARLA图像转换为NumPy数组
+    array = np.frombuffer(image.raw_data, dtype=np.uint8)
+    array = array.reshape((image.height, image.width, 4))  # 语义分割图像为BGRA格式
+    segmentation_mask = array[:, :, 2]  # 提取蓝色通道作为分割掩码
+
+    # unique_classes = np.unique(segmentation_mask)  # 获取所有唯一的类别 ID
+    # print(f"Unique classes in segmentation mask: {unique_classes}")
+    # 获取车辆像素的坐标
+    vehicle_pixels = np.column_stack(np.where(segmentation_mask == VEHICLE_CLASS_ID))
+    # 如果没有检测到车辆像素，则返回None
+    if vehicle_pixels.size == 0:
+        return None
+        # 获取当前帧编号
+    current_frame = image.frame
+    # 获取二维边界框 (x_min, y_min, x_max, y_max)
+    x_min = vehicle_pixels[:, 1].min()
+    x_max = vehicle_pixels[:, 1].max()
+    y_min = vehicle_pixels[:, 0].min()
+    y_max = vehicle_pixels[:, 0].max()
+
+    box_width = x_max-x_min
+    box_height = y_max-y_min
+    # 将标签存储到字典中
+    label_dict[current_frame] = [x_min, y_min, box_width, box_height]
+
+
+def save_label_to_mat(label_dicts, folder_path):
+    """
+    保存多个视角的 groundtruth 数据为 MATLAB 格式的 .mat 文件。
+    :param label_dicts: 包含多个视角 groundtruth 数据的列表，每个元素是一个字典。
+    :param folder_path: 保存 .mat 文件的文件夹路径。
+    """
+    # 遍历每个视角的字典
+    for idx, label_dict in enumerate(label_dicts):
+        # 构造 MATLAB 格式的表格
+        label_data = {
+            "Time": [],
+            "Label": [],  # car 标签
+        }
+        # 遍历字典中的键值对
+        for current_time, labels in label_dict.items():
+            label_data["Time"].append(current_time)  # 添加时间戳
+            label_data["Label"].append(labels)  # 添加标签列表
+        # 保存为 .mat 文件
+        file_name = os.path.join(folder_path, f"{idx+1}.mat")
+        scipy.io.savemat(file_name, {"LabelData": label_data})
+
+
+def destroy_vehicle_sensor(vehicle, cameras, segmentation_cameras):
     vehicle.destroy()
     for cam in cameras:
         if cam is not None:
             cam.stop()  # 停止相机传感器
             cam.destroy()  # 销毁相机传感器
+    for seg_cam in segmentation_cameras:
+        if seg_cam is not None:
+            seg_cam.stop()  # 停止相机传感器
+            seg_cam.destroy()  # 销毁相机传感器
 
 
 def filter_vehicle_blueprinter(vehicle_blueprints):
@@ -155,17 +223,17 @@ def main():
         blueprint_library = world.get_blueprint_library()
         vehicle_blueprints = blueprint_library.filter('vehicle.*')
         filter_bike_blueprinter = filter_vehicle_blueprinter(vehicle_blueprints)
-
         spawn_points = world.get_map().get_spawn_points()
 
         # 为每个蓝图创建数据集文件夹
         for folder_index in range(len(filter_bike_blueprinter)):
-            print(folder_index)
             vehicle_print = filter_bike_blueprinter[folder_index]
             folder_name = f"{folder_index + 1}"
             print(f"Generating images for: {folder_name} ({vehicle_print})")
-            vehicle, cameras = generate_vehicle_images(vehicle_print, folder_name, world, spawn_points, tm)
-            destroy_vehicle_sensor(vehicle, cameras)
+            vehicle, cameras, segmentation_cameras, label_dicts, folder_path = generate_vehicle_images(vehicle_print, folder_name, world, spawn_points, tm)
+            # 将ground_truth保存为mat文件
+            save_label_to_mat(label_dicts, folder_path)
+            destroy_vehicle_sensor(vehicle, cameras, segmentation_cameras)
 
         print("Data collection completed!")
     finally:
