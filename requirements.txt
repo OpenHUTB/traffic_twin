@@ -5,3 +5,5 @@ pygame>=1.9.4
 matplotlib>=2.2.2
 future>=0.16.0
 scipy>=0.17.0
+carla==0.9.15
+opencv-python
