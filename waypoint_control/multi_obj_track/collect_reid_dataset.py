@@ -22,13 +22,13 @@ CAR_CLASS_ID = 14
 TRUCK_CLASS_ID = 15
 BUS_CLASS_ID = 16
 # 设置参数
-DROP_BUFFER_TIME = 55   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
+DROP_BUFFER_TIME = 60   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
 IMAGES_SAVE_TIME = 20   # 保存图片的数量
 OUTPUT_DIR = "./reid_data"  # 数据保存路径
 # 相机位置
 camera_location = [
-               carla.Transform(carla.Location(x=-111, y=-3, z=2.800176),carla.Rotation(yaw=-90))
-               # carla.Transform(carla.Location(x=-111, y=-24, z=2.800176),carla.Rotation(yaw=90))
+                carla.Transform(carla.Location(x=-111, y=-2, z=2.800176), carla.Rotation(yaw=-90)),
+                carla.Transform(carla.Location(x=-106, y=-25, z=2.800176), carla.Rotation(yaw=90))
                 ]
 
 # 确保输出目录存在
@@ -102,7 +102,7 @@ def generate_vehicle_images(vehicle_type, folder_name, world, spawn_points, tm):
     for _ in range(DROP_BUFFER_TIME):
         world.tick()
         time.sleep(0.05)  # 稍微延迟，让车辆有时间落地
-    label_dicts = [{}]  # 每个视角的标签列表
+    label_dicts = [{},{}]  # 每个视角的标签列表
     pic_index = 0
     for cam_loc in camera_location:
         # 创建相机传感器
