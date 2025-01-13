@@ -24,7 +24,6 @@
 
 ```
 pip install -r requirements.txt
-pip install matplotlib==2.2.2
 ```
 
 **2. 导航至 CARLA 可执行程序目录，比如：**
