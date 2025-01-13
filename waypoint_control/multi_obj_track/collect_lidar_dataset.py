@@ -13,7 +13,6 @@ import cv2
 import random
 import scipy.io
 import math
-from Transformation import *
 from scipy.spatial.transform import Rotation as R
 relativePose_lidar_to_egoVehicle = [0, 0, 1.3, 0, 0, 0, 0, 0, 0]
 LIDAR_RANGE = 50   # 筛选可视距离雷达的车辆
