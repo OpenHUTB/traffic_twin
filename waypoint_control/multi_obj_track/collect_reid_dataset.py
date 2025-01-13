@@ -109,7 +109,7 @@ def generate_vehicle_images(vehicle_type, folder_name, world, spawn_points, tm):
         label_dicts.append(label_dict)
         # 获取并且保存图片
         camera.listen(lambda data, camera_path=view_folder_path: save_image(data, camera_path))
-        segmentation_camera .listen(lambda image: save_label(image, label_dict))
+        segmentation_camera.listen(lambda image, lb=label_dict: save_label(image, lb))
     # # 同步收集相机数据
     for _ in range(IMAGES_SAVE_TIME):
         world.tick()
