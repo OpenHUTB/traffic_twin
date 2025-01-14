@@ -10,7 +10,7 @@
 
 **1.安装CARLA0.9.15**[Releases · carla-simulator/carla](https://github.com/carla-simulator/carla/releases)
 
-**2.配置MATLAB,选择版本2024b，下载安装:**
+**2.配置MATLAB，选择版本2024b，下载安装:**
 
 - [Deep Learning Toolbox](https://ww2.mathworks.cn/help/deeplearning/index.html)
 
