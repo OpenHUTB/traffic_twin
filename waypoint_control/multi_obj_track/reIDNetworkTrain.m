@@ -45,7 +45,7 @@ montage(previewImages,Size=[1 4])
 % 重新初始化训练数据集，确保每次从头开始。
 reset(dsTrain)
 % 使用预训练的 ResNet-50 网络作为骨干网络。
-resbackbone = imagePretrainedNetwork("resnet50", Weights="none");
+resbackbone = imagePretrainedNetwork("resnet50");
 % 获取所有不同的类标签
 classes = unique(imds.Labels);
 %  定义输入图像的大小

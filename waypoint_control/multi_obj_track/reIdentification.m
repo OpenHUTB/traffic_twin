@@ -14,9 +14,8 @@ detector = yolov4ObjectDetector(name);
 imageFolder = fullfile(currentPath ,"reidFile");  % 设置图片文件夹路径
 imageFiles = dir(fullfile(imageFolder, "*.jpg"));  % 获取所有JPEG格式的图片文件，修改为适合的扩展名
 
-
-vehicleFeature = [];  % 存储已知车辆的特征向量（Re-ID特征）
 vehicleMontage = {};  % 存储检测到的车辆图像的单元格数组，用于可视化检测到的车辆。
+firstVehicleFature = [];  % 存储已知车辆的特征向量（Re-ID
 for i = 1:numel(imageFiles)  % 遍历所有图像文件
     % 读当前帧
      % 读取当前图像
@@ -42,10 +41,10 @@ for i = 1:numel(imageFiles)  % 遍历所有图像文件
     % 初始化一个计数器 vehicle，用于标记当前正在处理的车辆的索引
     vehicle = 1;
     % 遍历所有检测到的物体，若标签为 "car"，则裁剪出车辆的图像，并通过预训练的行人重识别网络（pretrainedNet）提取特征。
-    for i = 1:size(bboxes,1)
-        if labels(i) == "car" || labels(i) == "truck" % 若该物体的标签为 "car"或"truck"（即它是一个车辆），则进行裁剪并提取车辆图像的特征。
+    for j = 1:size(bboxes,1)
+        if labels(j) == "car" || labels(j) == "truck" % 若该物体的标签为 "car"或"truck"（即它是一个车辆），则进行裁剪并提取车辆图像的特征。
             % 获取当前车辆的边界框 bbox
-            bbox = bboxes(i,:);
+            bbox = bboxes(j,:);
             % 根据 bbox 提供的边界框裁剪出当前车辆的图像
             croppedImg = imcrop(vidFrame,bbox);
             % 对裁剪出来的图像 croppedImg 进行缩放，将其调整为 224x224 的大小
@@ -56,26 +55,27 @@ for i = 1:numel(imageFiles)  % 遍历所有图像文件
             vehicle = vehicle + 1;
         end
     end
-    
-    % 如果 vehicleFeature 为空，表示是第一次处理帧，直接将第一个检测到的车辆特征存储到 vehicleFeature 中。
-    if isempty(vehicleFeature)
-        vehicleFeature = appearanceData(:,1);
+
+    if i == 1
+        firstVehicleFature = appearanceData(:,1);
         vehicleMontage{end+1} = croppedVehicle{1};
     else
+        
         % 如果 vehicleFeature 已经存储了某车辆的特征，则使用余弦相似度（pdist2）
         % 计算当前帧中每个车辆特征与已知车辆特征的相似度。
-        cosineSimilarity = 1-pdist2(vehicleFeature',appearanceData',"cosine");
+        cosineSimilarity = 1-pdist2(firstVehicleFature',appearanceData',"cosine");
         % 选择相似度最大（即匹配度最好的车辆）的索引 matchIdx 和相似度值 cosSim。
         [cosSim,matchIdx] = max(cosineSimilarity);
-       
-        % 设定一个相似度阈值 similarityThreshold，若当前帧中的最匹配车辆的相似度高于该阈值，则认为该车辆是同一辆车。
+               
+        % 设定一个相似度阈值 similarityThreshold，若当前帧中的最匹配车辆的相似度高于该阈值，则认为该车辆是同一辆车
         % 更新 vehicleFeature 为当前帧中最匹配车辆的特征，并将该车辆的图像添加到 vehicleMontage 中。
-        similarityThreshold = 0.9;
+        similarityThreshold = 0.5;
         if cosSim > similarityThreshold
-            disp(cosSim)
-            % vehicleFeature = appearanceData(:,matchIdx);
-            vehicleMontage{end+1} = croppedVehicle{matchIdx};
+           disp(cosSim)
+           firstVehicleFature = appearanceData(:,matchIdx);
+           vehicleMontage{end+1} = croppedVehicle{matchIdx};
         end
+         
     end
 
 end
