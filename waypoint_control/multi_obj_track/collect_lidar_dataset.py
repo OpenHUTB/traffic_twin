@@ -3,7 +3,7 @@
     1. 这里不需要过滤遮挡情况：裁剪的同时已经将点少于50的边界框过滤了
     2. 边界框需要处理，z轴需要调大一点
     3. 收集的数据集尽量在3000个左右
-
+    4. 同步保存数据
 """
 import time
 import numpy as np
@@ -13,9 +13,12 @@ import cv2
 import random
 import scipy.io
 import math
+from queue import Queue
+from queue import Empty
 from scipy.spatial.transform import Rotation as R
 relativePose_lidar_to_egoVehicle = [0, 0, 1.3, 0, 0, 0, 0, 0, 0]
 LIDAR_RANGE = 50   # 筛选可视距离雷达的车辆
+POINT_SAVE_TIME = 3000  # 保存数据数量
 
 
 # 创建保存雷达数据的文件夹
@@ -69,33 +72,6 @@ def filter_vehicle_blueprinter(vehicle_blueprints):
                                    'kawasaki' not in bp.id and
                                    'mini' not in bp.id]
     return filtered_vehicle_blueprints
-
-
-# def filter_occlusion_vehicle(vehicle_list):
-# def filter_vehicle_by_direction(vehicle_list, lidar_yaw, location, angle_tolerance=15, distance_threshold=30):
-#     final_vehicle_list = []
-#     # 将 lidar_yaw 转换为弧度
-#     lidar_yaw_rad = math.radians(lidar_yaw)
-#     for vehicle in vehicle_list:
-#         # 获取车辆的位置
-#         vehicle_location = vehicle.get_transform().location
-#         # 计算雷达与车辆之间的距离
-#         distance = location.distance(vehicle_location)
-#         if distance <= distance_threshold:
-#             # 距离小于等于阈值，直接保留
-#             final_vehicle_list.append(vehicle)
-#         else:
-#             # 获取车辆的旋转角度（yaw）
-#             vehicle_yaw = vehicle.get_transform().rotation.yaw
-#             vehicle_yaw_rad = math.radians(vehicle_yaw)
-#             # 计算方向差的绝对值
-#             direction_diff = abs(math.degrees(math.atan2(math.sin(vehicle_yaw_rad - lidar_yaw_rad),
-#                                                          math.cos(vehicle_yaw_rad - lidar_yaw_rad))))
-#             # 方向差接近平行（0°）或垂直（90°/270°），则保留车辆
-#             if direction_diff <= angle_tolerance or abs(direction_diff - 90) <= angle_tolerance or abs(direction_diff - 270) <= angle_tolerance:
-#                 final_vehicle_list.append(vehicle)
-#
-#     return final_vehicle_list
 
 
 def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_frame, lidar_yaw):
@@ -168,20 +144,21 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
         "car": car_labels,  # car 标签
         "truck": truck_labels  # truck 标签
     }
-    label_folder = create_label_folder()
-    file_name = os.path.join(label_folder, f"{current_frame}.mat")
-    # 保存为 .mat 文件
-    scipy.io.savemat(file_name, {"LabelData": label_data})
+    # label_folder = create_label_folder()
+    # file_name = os.path.join(label_folder, f"{current_frame}.mat")
+    # # 保存为 .mat 文件
+    # scipy.io.savemat(file_name, {"LabelData": label_data})
+    return label_data
 
 
 # 定义回调函数来保存雷达点云数据
-def save_radar_data(radar_data, world, location, lidar_to_world_inv, lidar_yaw):
+def save_radar_data(radar_data, world, location, lidar_to_world_inv, lidar_yaw, sensor_queue):
     # 时间戳
     timestamp = world.get_snapshot().timestamp.elapsed_seconds
     # 获取当前帧编号
     current_frame = radar_data.frame
     # 保存车辆标签
-    save_point_label(world, location, lidar_to_world_inv, timestamp, current_frame, lidar_yaw)
+    label_data = save_point_label(world, location, lidar_to_world_inv, timestamp, current_frame, lidar_yaw)
 
     # 保存点云数据
     # 获取雷达数据并将其转化为numpy数组
@@ -198,9 +175,9 @@ def save_radar_data(radar_data, world, location, lidar_to_world_inv, lidar_yaw):
     y_limits = [np.min(location[:, 1]), np.max(location[:, 1])]  # y 轴的最小值和最大值
     z_limits = [np.min(location[:, 2]), np.max(location[:, 2])]  # z 轴的最小值和最大值
 
-    # 创建存储数据的文件夹（每个雷达一个文件夹）
-    radar_folder = create_radar_folder()
-    file_name = os.path.join(radar_folder, f"{current_frame}.mat")
+    # # 创建存储数据的文件夹（每个雷达一个文件夹）
+    # radar_folder = create_radar_folder()
+    # file_name = os.path.join(radar_folder, f"{current_frame}.mat")
     LidarData = {
         'PointCloud': {
             'Location': location,
@@ -225,10 +202,11 @@ def save_radar_data(radar_data, world, location, lidar_to_world_inv, lidar_yaw):
     }
     # 将点云数据保存为 .mat 文件
     # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
-    scipy.io.savemat(file_name, {'datalog': datalog})
+    # scipy.io.savemat(file_name, {'datalog': datalog})
+    sensor_queue.put((datalog, label_data))
 
 
-def setup_sensors(world, addtion_param, transform, lidar_to_world_inv):
+def setup_sensors(world, addtion_param, transform, lidar_to_world_inv, data_struct_list):
     lidar = None
     location = carla.Location(x=-46, y=21, z=1)
     lidar_yaw = transform.rotation.yaw
@@ -245,8 +223,7 @@ def setup_sensors(world, addtion_param, transform, lidar_to_world_inv):
 
     # 创建雷达并绑定回调
     lidar = world.spawn_actor(lidar_bp, transform)
-    world.tick()
-    lidar.listen(lambda data: save_radar_data(data, world, location, lidar_to_world_inv, lidar_yaw))
+    lidar.listen(lambda data: save_radar_data(data, world, location, lidar_to_world_inv, lidar_yaw, data_struct_list))
     return lidar
 
 
@@ -321,47 +298,43 @@ def main():
         # 获取雷达到世界的变换矩阵（4x4矩阵）
         lidar_to_world = np.array(lidar_transform.get_matrix())
         lidar_to_world_inv = np.linalg.inv(lidar_to_world)
+        sensor_queue = Queue()
         # 启动雷达传感器
-        lidar = setup_sensors(world, addtion_param, lidar_transform, lidar_to_world_inv )
-        # # 获取雷达到世界坐标系的变换矩阵
-        # lidar_transform = lidar.get_transform()  # 获取雷达的变换信息
-
-        # lidar_to_world = np.array(lidar_transform.get_matrix())  # 获取雷达到世界的变换矩阵（4x4矩阵）
-        # # 获取从世界坐标系到雷达坐标系的变换矩阵（4x4矩阵）
-        # lidar_to_world_inv = np.linalg.inv(lidar_to_world)
-        # print("------------------------------")
-        # world_position = np.array([vehicle_location.x, vehicle_location.y, vehicle_location.z, 1])
-        # # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
-        # bounding_box_location_lidar = lidar_to_world_inv @ world_position  # 矩阵乘法
-        # bounding_box_location_lidar = bounding_box_location_lidar[:3]  # 去掉齐次坐标部分，得到三维坐标
-        # print(bounding_box_location_lidar)
-        #
-        # vehicle_rotation = np.array([vehicle_rotation.yaw, vehicle_rotation.pitch, vehicle_rotation.roll])
-        # # 将 Euler 角（pitch, yaw, roll）转换为旋转矩阵（3x3）
-        # rotation_matrix_world = R.from_euler('zyx', vehicle_rotation, degrees=True).as_matrix()
-        # # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
-        # # 转换旋转矩阵
-        # rotation_matrix_lidar = lidar_to_world_inv[:3, :3] @ rotation_matrix_world
-        # rotation_lidar = R.from_matrix(rotation_matrix_lidar)
-        # euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=True)
-        #
-        # # 输出转换后的 pitch, yaw, roll
-        # pitch_lidar, yaw_lidar, roll_lidar = euler_angles_lidar
-        # print(f"Converted pitch: {pitch_lidar}, yaw: {yaw_lidar}, roll: {roll_lidar}")
-
-        while True:
+        lidar = setup_sensors(world, addtion_param, lidar_transform, lidar_to_world_inv, sensor_queue)
+        folder_index = 1
+        # 同步保存雷达数据
+        for _ in range(POINT_SAVE_TIME):
             world.tick()
-            time.sleep(0.05)
-    finally:
-        settings.synchronous_mode = False
-        world.apply_settings(settings)
+            datalog, label = sensor_queue.get(True, 1.0)
+            # 开始保存
+            # 创建存储数据的文件夹（每个雷达一个文件夹）
+            radar_folder = create_radar_folder()
+            file_name = os.path.join(radar_folder, f"{folder_index}.mat")
+            # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
 
+            scipy.io.savemat(file_name, {'datalog': datalog})
+            label_folder = create_label_folder()
+            file_name = os.path.join(label_folder, f"{folder_index}.mat")
+            # 保存为 .mat 文件
+            scipy.io.savemat(file_name, {"LabelData": label})
+            time.sleep(0.05)
+            folder_index += 1
+        print("Data collection completed!")
+        # 销毁车辆和雷达传感器
         if lidar is not None:
             lidar.stop()  # 确保停止传感器线程
             lidar.destroy()  # 销毁雷达传感器
 
         for vehicle in vehicles:
             vehicle.destroy()
+        # 清空队列
+        while not sensor_queue.empty():
+            sensor_queue.get()
+        # 删除队列引用
+        del sensor_queue
+    finally:
+        settings.synchronous_mode = False
+        world.apply_settings(settings)
 
 
 if __name__ == "__main__":

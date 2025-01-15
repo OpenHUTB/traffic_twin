@@ -63,7 +63,7 @@ pip install -r requirements.txt
 
 **4.坐标转换**
 
-获取的轨迹是相对于自车的坐标，然而我们假设自车是静止在路口中间（实际不存在），雷达和相机都附着在自车上，也就是说与自车存在一个相对位置，[**示例**]([激光雷达和摄像头数据的对象级融合，用于车辆跟踪](https://ww2.mathworks.cn/help/fusion/ug/object-level-fusion-of-lidar-and-camera-data-for-vehicle-tracking.html))中雷达与车辆的相对位置是[0,0,0]，但本项目中雷达是高出一定的距离。[convertTrackToCarlaCoordinate.m](./multi_obj_track/convertTrackToCarlaCoordinate.m)将坐标转换成CARLA场景中的轨迹，使用的是相对于自车的，因此(x,y)是正确的。
+获取的轨迹是相对于自车的坐标，然而我们假设自车是静止在路口中间（实际不存在），雷达和相机都附着在自车上，也就是说与自车存在一个相对位置，[**示例**](https://ww2.mathworks.cn/help/fusion/ug/object-level-fusion-of-lidar-and-camera-data-for-vehicle-tracking.html)中雷达与车辆的相对位置是[0,0,0]，但本项目中雷达是高出一定的距离。[convertTrackToCarlaCoordinate.m](./multi_obj_track/convertTrackToCarlaCoordinate.m)将坐标转换成CARLA场景中的轨迹，使用的是相对于自车的，因此(x,y)是正确的。
 
 **注意！**
 
@@ -87,7 +87,7 @@ pip install -r requirements.txt
 
 **4.测试**
 
-将路口1位置跟踪到的车辆车辆图片和路口2位置该视角相机的图片放在一起进行再识别[reIDNetworkTrain.m](./multi_obj_track/reIDNetworkTrain.m)， 也就是说第一张图是要重新识别的对象，在下个路口进行识别，进而整合二者的轨迹。
+将路口1位置跟踪到的车辆车辆图片和路口2位置该视角相机的图片放在一起进行再识别[reIdentification.m](./multi_obj_track/reIdentification.m)， 也就是说第一张图是要重新识别的对象，在下个路口进行识别，进而整合二者的轨迹。
 
 ![](../img/reid.jpg)
 
