@@ -154,13 +154,14 @@ for frame = 1:numFrames
          lidarDetections{i}.Measurement(2) = -lidarDetections{i}.Measurement(2);
     end
     
+    viewTracks = tracks;
     % 遍历 objectTrack 数组的每个元素
-    for i = 1:numel(tracks)
-        tracks(i).State(3, :) = -tracks(i).State(3, :);     
+    for i = 1:numel(viewTracks)
+        viewTracks(i).State(3, :) = -viewTracks(i).State(3, :);     
     end
 
     % 可视化结果
-    display(dataPath, diversYDatalog, egoPose, lidarDetections, cameraDetections, tracks);
+    display(dataPath, diversYDatalog, egoPose, lidarDetections, cameraDetections, viewTracks);
 
     % 更新所有目标的轨迹
     for t = 1:length(tracks)

@@ -17,25 +17,28 @@ import os
 import cv2
 import random
 import scipy.io
-
+from queue import Queue
+from queue import Empty
+DATA_MUN = 500
+DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
 # 路口1的相机位置
-# camera_loc = {
-#        "back_camera": carla.Transform(carla.Location(x=-46, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-90, roll=0)),  # 后相机
-#        "front_camera": carla.Transform(carla.Location(x=-46, y=28, z=3.6), carla.Rotation(pitch=0, yaw=90, roll=0)),  # 前相机
-#        "right_camera": carla.Transform(carla.Location(x=-50, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 右相机
-#        "front_right_camera": carla.Transform(carla.Location(x=-50, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 前右相机
-#        "left_camera": carla.Transform(carla.Location(x=-42, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0)),  # 左相机
-#        "front_left_camera": carla.Transform(carla.Location(x=-42, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0))   # 前左相机
-# }
-# 路口2的相机位置
 camera_loc = {
-       "back_camera": carla.Transform(carla.Location(x=104, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-90, roll=0)),  # 后相机
-       "front_camera": carla.Transform(carla.Location(x=104, y=28, z=3.6), carla.Rotation(pitch=0, yaw=90, roll=0)),  # 前相机
-       "right_camera": carla.Transform(carla.Location(x=100, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 右相机
-       "front_right_camera": carla.Transform(carla.Location(x=100, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 前右相机
-       "left_camera": carla.Transform(carla.Location(x=108, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0)),  # 左相机
-       "front_left_camera": carla.Transform(carla.Location(x=108, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0))   # 前左相机
+       "back_camera": carla.Transform(carla.Location(x=-46, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-90, roll=0)),  # 后相机
+       "front_camera": carla.Transform(carla.Location(x=-46, y=28, z=3.6), carla.Rotation(pitch=0, yaw=90, roll=0)),  # 前相机
+       "right_camera": carla.Transform(carla.Location(x=-50, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 右相机
+       "front_right_camera": carla.Transform(carla.Location(x=-50, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 前右相机
+       "left_camera": carla.Transform(carla.Location(x=-42, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0)),  # 左相机
+       "front_left_camera": carla.Transform(carla.Location(x=-42, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0))   # 前左相机
 }
+# 路口2的相机位置
+# camera_loc = {
+#        "back_camera": carla.Transform(carla.Location(x=104, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-90, roll=0)),  # 后相机    1
+#        "front_camera": carla.Transform(carla.Location(x=104, y=28, z=3.6), carla.Rotation(pitch=0, yaw=90, roll=0)),  # 前相机    2
+#        "right_camera": carla.Transform(carla.Location(x=100, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 右相机   6
+#        "front_right_camera": carla.Transform(carla.Location(x=100, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 前右相机  4
+#        "left_camera": carla.Transform(carla.Location(x=108, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0)),  # 左相机     5
+#        "front_left_camera": carla.Transform(carla.Location(x=108, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0))   # 前左相机    3
+# }
 
 relativePose_to_egoVehicle = {
        "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],
@@ -73,7 +76,7 @@ def create_camera_folder(camera_id):
     return folder_name
 
 
-# 定义回调函数来保存雷达点云数据
+# 定义函数来保存雷达点云数据
 def save_radar_data(radar_data, world):
     # 获取当前帧编号
     current_frame = radar_data.frame
@@ -156,7 +159,7 @@ def save_radar_data(radar_data, world):
     scipy.io.savemat(file_name, {'datalog': datalog})
 
 
-# 定义回调函数来保存相机图像数据
+# 定义函数来保存相机图像数据
 def save_camera_data(image_data, camera_id):
     current_frame = image_data.frame
     image = np.array(image_data.raw_data)
@@ -172,14 +175,18 @@ def save_camera_data(image_data, camera_id):
     return image
 
 
+def sensor_callback(sensor_data, sensor_queue, sensor_name):
+    sensor_queue.put((sensor_data, sensor_name))
+
+
 # 记录雷达和相机数据
-def setup_sensors(world, addtion_param):
+def setup_sensors(world, addtion_param, sensor_queue):
     lidar = None
     camera_dict = {}
     # 路口1的雷达位置
-    # transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8),carla.Rotation(pitch=0, yaw=90, roll=0))
+    transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8),carla.Rotation(pitch=0, yaw=90, roll=0))
     # 路口2的雷达位置
-    transform = carla.Transform(carla.Location(x=104, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
+    # transform = carla.Transform(carla.Location(x=104, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
     # 配置LiDAR传感器
     lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
     lidar_bp.set_attribute('dropoff_general_rate', '0.1')
@@ -194,7 +201,8 @@ def setup_sensors(world, addtion_param):
     # 创建雷达并绑定回调
     lidar = world.spawn_actor(lidar_bp, transform)
     # world.tick()
-    lidar.listen(lambda data: save_radar_data(data, world))
+    # lidar.listen(lambda data: save_radar_data(data, world))
+    lidar.listen(lambda data: sensor_callback(data, sensor_queue, "lidar"))
 
     # 配置相机传感器
     camera_bp = world.get_blueprint_library().find('sensor.camera.rgb')
@@ -203,7 +211,8 @@ def setup_sensors(world, addtion_param):
     camera_bp.set_attribute('fov', '90')
     for cam_id, transform in camera_loc.items():
         camera = world.spawn_actor(camera_bp, transform)
-        camera.listen(lambda data, camera_id=cam_id: save_camera_data(data, camera_id))
+        # camera.listen(lambda data, camera_id=cam_id: save_camera_data(data, camera_id))
+        camera.listen(lambda data, camera_id=cam_id: sensor_callback(data, sensor_queue, camera_id))
         camera_dict[cam_id] = camera
 
     return lidar, camera_dict
@@ -236,16 +245,34 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
     blueprint_library = world.get_blueprint_library()
     vehicle_blueprints = blueprint_library.filter('vehicle.*')
     filter_vehicle_blueprints = filter_vehicle_blueprinter(vehicle_blueprints)
-    for _ in range(num_vehicles):
-        # 随机选择一个位置
-        spawn_point = world.get_map().get_spawn_points()
-        if len(spawn_point) == 0:
-            print("No spawn points available!")
-            return []
+    # 随机选择一个位置
+    spawn_points = world.get_map().get_spawn_points()
+    if len(spawn_points) == 0:
+        print("No spawn points available!")
+        return []
 
+    # 如果蓝图不足，使用颜色来区分
+    num_blueprints = len(filter_vehicle_blueprints)
+    num_colors = 12
+    available_colors = ["255,0,0", "0,255,0", "0,0,255", "255,255,0", "0,255,255", "255,0,255", "128,128,0",
+                        "128,0,128", "0,128,128", "255,165,0", "0,255,255", "255,192,203"]
+    # 生成车辆
+    vehicle_index = 0
+    for _ in range(num_vehicles):
         # 选择一个随机位置生成车辆
-        transform = spawn_point[np.random.randint(len(spawn_point))]
-        vehicle_bp = random.choice(filter_vehicle_blueprints)
+        transform = spawn_points[np.random.randint(len(spawn_points))]
+        # vehicle_bp = random.choice(filter_vehicle_blueprints)
+        # 选择蓝图，确保每个蓝图的车辆唯一
+        if vehicle_index < num_blueprints:
+            vehicle_bp = filter_vehicle_blueprints[vehicle_index]
+            vehicle_index += 1
+        else:
+            # 蓝图用完后，开始使用颜色来区分
+            vehicle_bp = filter_vehicle_blueprints[vehicle_index % num_blueprints]
+            color = available_colors[vehicle_index % num_colors]
+            vehicle_bp.set_attribute('color', color)
+            vehicle_index += 1
+
         vehicle = world.try_spawn_actor(vehicle_bp, transform)
         if vehicle is None:
             continue
@@ -257,6 +284,26 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
         print(f"Spawned vehicle: {vehicle.id}")
 
     return vehicle_list
+
+
+def destroy_actor(lidar, camera_dict, vehicles, sensor_queue):
+    if lidar is not None:
+        lidar.stop()  # 确保停止传感器线程
+        lidar.destroy()  # 销毁雷达传感器
+
+    # 同样处理相机传感器
+    for camera_traffic_id, camera in camera_dict.items():
+        if camera is not None:
+            camera.stop()  # 停止相机传感器
+            camera.destroy()  # 销毁相机传感器
+
+    for vehicle in vehicles:
+        vehicle.destroy()
+    # 清空队列
+    while not sensor_queue.empty():
+        sensor_queue.get()
+    # 删除队列引用
+    del sensor_queue
 
 
 # 主函数
@@ -279,9 +326,6 @@ def main():
     # 创建交通管理器
     tm = client.get_trafficmanager(8000)
     tm.set_synchronous_mode(True)
-    camera_dict = {}
-    lidar = None
-    vehicles = []
     addtion_param = {
         'channels': '64',
         'range': '200',
@@ -294,35 +338,33 @@ def main():
         # 路口1的静止 ego_vehicle 位置
         # ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 路口2的静止 ego_vehicle 位置
-        ego_transform = carla.Transform(carla.Location(x=104, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
+        # ego_transform = carla.Transform(carla.Location(x=104, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
-
-        # 启动雷达传感器
-        lidar, camera_dict = setup_sensors(world, addtion_param)
-
-        while True:
+        # 等待车辆落地开始行驶后再开始收集数据集
+        for _ in range(DROP_BUFFER_TIME):
             world.tick()
             time.sleep(0.05)
+        sensor_queue = Queue()
+        # 启动相机、雷达传感器
+        lidar, camera_dict = setup_sensors(world, addtion_param, sensor_queue)
 
+        for _ in range(DATA_MUN):
+            world.tick()
+            # 同步保存多传感器数据
+            for _ in range(1 + len(camera_dict)):
+                data, sensor_name = sensor_queue.get(True, 1.0)
+                if "lidar" in sensor_name:  # lidar数据
+                    save_radar_data(data, world)
+                else:
+                    save_camera_data(data, sensor_name)
+            # time.sleep(0.05)
+        destroy_actor(lidar, camera_dict, vehicles, sensor_queue)
     except Exception as e:
         print(f"Error occurred during execution: {e}")
     finally:
         settings.synchronous_mode = False
         world.apply_settings(settings)
-
-        if lidar is not None:
-            lidar.stop()  # 确保停止传感器线程
-            lidar.destroy()  # 销毁雷达传感器
-
-        # 同样处理相机传感器
-        for camera_traffic_id, camera in camera_dict.items():
-            if camera is not None:
-                camera.stop()  # 停止相机传感器
-                camera.destroy()  # 销毁相机传感器
-
-        for vehicle in vehicles:
-            vehicle.destroy()
 
 
 if __name__ == "__main__":
