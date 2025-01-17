@@ -1,6 +1,6 @@
 % 数据路径
 currentPath = fileparts(mfilename('fullpath'));
-dataPath = fullfile(currentPath, 'test_data');
+dataPath = fullfile(currentPath, 'test_data_junc2');
 % disp(dataPath)
 % 获取所有 .mat 文件
 matFiles = dir(fullfile(dataPath, "*.mat"));
@@ -42,8 +42,8 @@ tracker = trackerJPDA( ...
     ClutterDensity=1e-7, ...
     NewTargetDensity=1e-7, ...
     ConfirmationThreshold=0.99, ...
-    DeletionThreshold=0.2, ...
-    DeathRate=0.5);
+    DeletionThreshold=0.02, ...
+    DeathRate=0.2);
 
 % 初始化显示对象
 display = helperLidarCameraFusionDisplay;
@@ -62,7 +62,7 @@ display = helperLidarCameraFusionDisplay;
 % 路口2
 numFrames = 467;
 % 设置固定的初始位置 (假设车辆静止于 ENU 坐标系的某点)
-initialPosition = [0, 0, 0]; % 假设车辆在 ENU 原点
+initialPosition = [0, 0, 0.98]; % 假设车辆在 ENU 原点
 
 % 重复初始位置构成轨迹点
 waypoints = repmat(initialPosition, numFrames, 1);
@@ -153,7 +153,6 @@ for frame = 1:numFrames
         % 取反 Measurement 中的第二个值
          lidarDetections{i}.Measurement(2) = -lidarDetections{i}.Measurement(2);
     end
-    
     viewTracks = tracks;
     % 遍历 objectTrack 数组的每个元素
     for i = 1:numel(viewTracks)
@@ -190,8 +189,14 @@ end
 
 % 过滤掉轨迹数量少于20的车辆
 allTracks = allTracks(cellfun(@(x) size(x, 1) >= 5, {allTracks.Positions}));
+% 轨迹目录
+tracksDirectory = fullfile(dataPath, "tracks");
+if ~exist(tracksDirectory, 'dir')
+    mkdir(tracksDirectory);
+end
+
 % 保存轨迹路径
-savePath = fullfile(dataPath, 'trackedData.mat'); 
+savePath = fullfile(tracksDirectory, 'trackedData.mat'); 
 
 % 保存 allTracks 变量到 .mat 文件
 save(savePath, 'allTracks');
