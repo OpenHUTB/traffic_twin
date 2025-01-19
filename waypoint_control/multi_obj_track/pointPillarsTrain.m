@@ -19,7 +19,6 @@ timeTable = data.gTruth.LabelData;
 Labels = timetable2table(timeTable);
 %}
 % 2、3列数据
-% boxLabels = Labels(:,2:3);
 boxLabels = Labels(:,2:3);
 
 % 显示全视图点云
@@ -29,10 +28,11 @@ ax = pcshow(ptCld.Location);
 set(ax,'XLim',[-50 50],'YLim',[-40 40]);
 zoom(ax,2.5);
 axis off;
+
 %% Step 2: 数据预处理
 % 定义裁剪参数
 
-xMin = 0;     % X 轴最小值
+xMin = -69.12;  % X 轴最小值
 yMin = -39.68;  % Y 轴最小值
 zMin = -5.0;    % Z 轴最小值
 xMax = 69.12;   % X 轴最大值
@@ -44,6 +44,7 @@ pointCloudRange = [xMin xMax yMin yMax zMin zMax];
 % 裁剪点云并处理标签
 [croppedPointCloudObj, processedLabels] = cropFrontViewFromLidarData(...
     lidarData, boxLabels, pointCloudRange);
+
 % 显示裁剪的点云和实际方码框标签。
 pc = croppedPointCloudObj{1,1};
 % processedLabels显示一帧的,也就是一行
@@ -63,13 +64,12 @@ ax = pcshow(pc);
 showShape('cuboid',bboxes,'Parent',ax,'Opacity',0.1,...
         'Color','green','LineWidth',0.5);
 reset(lidarData);
-
 %% Step 3: 创建数据存储对象
 % 将数据集拆分为训练集和测试集。选择 80% 的数据用于训练网络，其余的数据用于评估。
 % 设置随机种子
 rng(1);
 shuffledIndices = randperm(size(processedLabels,1)); % 生成一个随机的排列索引，对应到每个数据集。
-idx = floor(0.7 * length(shuffledIndices));  % ：计算训练集的大小。
+idx = floor(0.8 * length(shuffledIndices));  % ：计算训练集的大小。
 
 trainData = croppedPointCloudObj(shuffledIndices(1:idx),:);
 testData = croppedPointCloudObj(shuffledIndices(idx+1:end),:);
@@ -84,7 +84,7 @@ testLabels = processedLabels(shuffledIndices(idx+1:end),:);
 % 训练数据（点云及其对应的标签）保存为 PCD 文件，以便之后能够方便地加载和访问这些文件。
 writeFiles = true;
 % 确保目标文件夹存在
-dataLocation = fullfile(dataPath, 'InputData1');
+dataLocation = fullfile(dataPath, 'InputData');
 if ~exist(dataLocation, 'dir')
     mkdir(dataLocation); % 创建文件夹
 end
@@ -108,7 +108,7 @@ colors = {'green','magenta'};
 helperShowPointCloudWith3DBoxes(ptCld,bboxes,labels,classNames,colors)
 
 % 定义了一个文件夹路径,用于存储采样后的点云数据和标签
-sampleLocation = fullfile(dataPath,'GTsamples1');
+sampleLocation = fullfile(dataPath,'GTsamples');
 if ~exist(sampleLocation, 'dir')
     mkdir(sampleLocation); % 创建文件夹
 end
@@ -117,7 +117,7 @@ end
                             'Verbose',false,'WriteLocation',sampleLocation);
 cdsSampled = combine(ldsSampled,bdsSampled); % 合并采样数据
 %  数据增强：过采样
-numObjects = [5 5]; % 定义了每种类别（如车和卡车）要进行的过采样次数。
+numObjects = [20 20]; % 定义了每种类别（如车和卡车）要进行的过采样次数。
 % 使用 transform 函数对 cds 数据进行数据增强，增加每个类别的样本数量，改善数据的平衡性。
 cdsAugmented = transform(cds,@(x)pcBboxOversample(x,cdsSampled,classNames,numObjects));
 % 数据增强：变换

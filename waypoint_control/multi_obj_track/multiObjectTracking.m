@@ -1,6 +1,6 @@
 % 数据路径
 currentPath = fileparts(mfilename('fullpath'));
-dataPath = fullfile(currentPath, 'test_data');
+dataPath = fullfile(currentPath, 'test_data_junc2');
 % disp(dataPath)
 % 获取所有 .mat 文件
 matFiles = dir(fullfile(dataPath, "*.mat"));
@@ -42,8 +42,8 @@ tracker = trackerJPDA( ...
     ClutterDensity=1e-7, ...
     NewTargetDensity=1e-7, ...
     ConfirmationThreshold=0.99, ...
-    DeletionThreshold=0.2, ...
-    DeathRate=0.5);
+    DeletionThreshold=0.02, ...
+    DeathRate=0.2);
 
 % 初始化显示对象
 display = helperLidarCameraFusionDisplay;
@@ -58,15 +58,19 @@ display = helperLidarCameraFusionDisplay;
 % 处理数据帧
 
 % 定义轨迹点的数量
-numFrames = 1076;
+% 路口1numFrames = 1076;
+% 路口2
+numFrames = 467;
 % 设置固定的初始位置 (假设车辆静止于 ENU 坐标系的某点)
-initialPosition = [0, 0, 0]; % 假设车辆在 ENU 原点
+initialPosition = [0, 0, 0.98]; % 假设车辆在 ENU 原点
 
 % 重复初始位置构成轨迹点
 waypoints = repmat(initialPosition, numFrames, 1);
 
 % 设置每个点的到达时间，模拟静止车辆的时间流逝
-initialTime = 10.5462; % 初始时间
+% 路口1 initialTime = 10.5462; % 初始时间 
+% 路口2
+initialTime = 22.4915;
 timeInterval = 0.05;   % 每点的时间间隔
 
 timeOfArrival = initialTime + (0:numFrames-1)' * timeInterval;
@@ -117,7 +121,7 @@ for frame = 1:numFrames
     % 提取雷达检测数据
     [~, lidarBoxes, lidarPose] = helperExtractLidarData(datalog);
     lidarDetections = helperAssembleLidarDetections(lidarBoxes, lidarPose, time, 1, egoPose);
-
+        
     % 提取相机检测数据
     cameraDetections = cell(0, 1);
     for k = 1:numel(datalog.CameraData)
@@ -137,8 +141,26 @@ for frame = 1:numFrames
     % 跟踪目标
     tracks = tracker(detections, time);
     disp(tracks)
+    
+    % 正常显示点云和3D框，将y坐标取反
+    diversYDatalog = datalog;
+    pointCloudLocation = diversYDatalog.LidarData.PointCloud.Location;
+    pointCloudLocation(:, 2) = -pointCloudLocation(:, 2);  % 取反 Y 坐标
+    diversYDatalog.LidarData.PointCloud.Location = pointCloudLocation;
+
+     % 遍历 lidarDetections 中的每个元素
+    for i = 1:numel(lidarDetections)
+        % 取反 Measurement 中的第二个值
+         lidarDetections{i}.Measurement(2) = -lidarDetections{i}.Measurement(2);
+    end
+    viewTracks = tracks;
+    % 遍历 objectTrack 数组的每个元素
+    for i = 1:numel(viewTracks)
+        viewTracks(i).State(3, :) = -viewTracks(i).State(3, :);     
+    end
+
     % 可视化结果
-    display(dataPath, datalog, egoPose, lidarDetections, cameraDetections, tracks);
+    display(dataPath, diversYDatalog, egoPose, lidarDetections, cameraDetections, viewTracks);
 
     % 更新所有目标的轨迹
     for t = 1:length(tracks)
@@ -166,9 +188,15 @@ for frame = 1:numFrames
 end
 
 % 过滤掉轨迹数量少于20的车辆
-allTracks = allTracks(cellfun(@(x) size(x, 1) >= 20, {allTracks.Positions}));
+allTracks = allTracks(cellfun(@(x) size(x, 1) >= 5, {allTracks.Positions}));
+% 轨迹目录
+tracksDirectory = fullfile(dataPath, "tracks");
+if ~exist(tracksDirectory, 'dir')
+    mkdir(tracksDirectory);
+end
+
 % 保存轨迹路径
-savePath = fullfile(dataPath, 'trackedData.mat'); 
+savePath = fullfile(tracksDirectory, 'trackedData.mat'); 
 
 % 保存 allTracks 变量到 .mat 文件
 save(savePath, 'allTracks');

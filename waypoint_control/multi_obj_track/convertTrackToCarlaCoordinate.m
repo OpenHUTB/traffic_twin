@@ -6,7 +6,7 @@ filename = fullfile(dataPath,"trackedData.mat");
 % "dataLog": 这个参数指定加载文件中的变量 
 data = load(filename);
 allTracks = data.allTracks;
-%{
+
 % 路口1：雷达到 carla 的转换矩阵
 TransformationMatrix = [
     -4.37113883e-08, -1.00000000e+00,  0.00000000e+00, -4.60000000e+01;
@@ -14,7 +14,7 @@ TransformationMatrix = [
      0.00000000e+00, -0.00000000e+00,  1.00000000e+00,  1.79999995e+00;
      0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00
 ];
-%}
+%{
 % 路口2：雷达到 carla 的转换矩阵
 TransformationMatrix = [
      -4.37113883e-08, -1.00000000e+00, 0.00000000e+00, 1.04000000e+02;
@@ -22,6 +22,7 @@ TransformationMatrix = [
      0.00000000e+00, -0.00000000e+00, 1.00000000e+00, 1.79999995e+00;
      0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00
 ];
+%}
 % 遍历所有轨迹
 for t = 1:length(allTracks)
     % 获取当前轨迹的位置
@@ -42,8 +43,12 @@ for t = 1:length(allTracks)
     % 更新轨迹中的位置为世界坐标
     allTracks(t).Positions = worldPositions;
 end
-
+% 轨迹目录
+tracksDirectory = fullfile(dataPath, "tracks");
+if ~exist(tracksDirectory, 'dir')
+    mkdir(tracksDirectory);
+end
 % 保存转换后的轨迹
-savePath = fullfile(dataPath, 'convertedCarlaTrackedData.mat'); 
+savePath = fullfile(tracksDirectory, 'convertedCarlaTrackedData.mat'); 
 save(savePath, 'allTracks');
 disp(['转换后的轨迹数据已保存到 ', savePath]);
