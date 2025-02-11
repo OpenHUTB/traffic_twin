@@ -1,7 +1,11 @@
 % 数据路径
 currentPath = fileparts(mfilename('fullpath'));
-dataPath = fullfile(currentPath, 'test_data_junc2');
-% disp(dataPath)
+dataPath = fullfile(currentPath, 'test_data_junc1');
+
+% 文件夹路径
+folderPath = fullfile(currentPath, 'reID/Utils/misc');
+% 将文件夹添加到路径
+addpath(folderPath);
 % 获取所有 .mat 文件
 matFiles = dir(fullfile(dataPath, "*.mat"));
 [~, idx] = sort({matFiles.name});
@@ -58,9 +62,9 @@ display = helperLidarCameraFusionDisplay;
 % 处理数据帧
 
 % 定义轨迹点的数量
-% 路口1numFrames = 1076;
+% 路口1
 % 路口2
-numFrames = 467;
+numFrames = 500;
 % 设置固定的初始位置 (假设车辆静止于 ENU 坐标系的某点)
 initialPosition = [0, 0, 0.98]; % 假设车辆在 ENU 原点
 
@@ -130,7 +134,7 @@ for frame = 1:numFrames
         thisCameraDetections = helperAssembleCameraDetections(cameraBoxes{k}, cameraPose, time, k + 1, egoPose);
         cameraDetections = [cameraDetections; thisCameraDetections]; %#ok<AGROW> 
     end
-
+   
     % 合并检测结果
     if frame == 1
         detections = lidarDetections;
@@ -161,7 +165,7 @@ for frame = 1:numFrames
 
     % 可视化结果
     display(dataPath, diversYDatalog, egoPose, lidarDetections, cameraDetections, viewTracks);
-
+    
     % 更新所有目标的轨迹
     for t = 1:length(tracks)
         trackID = tracks(t).TrackID;
@@ -187,8 +191,8 @@ for frame = 1:numFrames
 
 end
 
-% 过滤掉轨迹数量少于20的车辆
-allTracks = allTracks(cellfun(@(x) size(x, 1) >= 5, {allTracks.Positions}));
+% 过滤掉轨迹数量少于15的车辆
+allTracks = allTracks(cellfun(@(x) size(x, 1) >= 15, {allTracks.Positions}));
 % 轨迹目录
 tracksDirectory = fullfile(dataPath, "tracks");
 if ~exist(tracksDirectory, 'dir')
