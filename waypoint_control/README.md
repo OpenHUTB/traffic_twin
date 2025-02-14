@@ -48,7 +48,7 @@ pip install -r requirements.txt
 
 **1.收集轨迹跟踪的数据**
 
-在Town10场景，运行[collect_intersection_camera_lidar.py](./multi_obj_track/collect_intersection_camera_lidar.py)收集多目标跟踪的测试数据，其中每个路口中心包括1个激光雷达，雷达周围哦覆盖6个RGB相机，收集每一帧的6个视角的场景图片和点云数据，放在./multi_obj_track下。
+在Town10场景，运行[collect_intersection_camera_lidar.py](./multi_obj_track/collect_intersection_camera_lidar.py)收集多目标跟踪的测试数据，其中每个路口中心包括1个激光雷达，雷达周围覆盖6个RGB相机，收集每一帧的6个视角的场景图片和点云数据，放在./multi_obj_track下。
 
 **2.数据预处理**
 
