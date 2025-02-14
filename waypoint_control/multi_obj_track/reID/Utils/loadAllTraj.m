@@ -1,0 +1,65 @@
+currentPath = fileparts(mfilename('fullpath'));
+% 获取当前路径的上级目录
+parentPath = fileparts(currentPath);
+% 再次获取上级目录，即上上级目录
+grandparentPath = fileparts(parentPath);
+junc = 'test_data_junc2';
+dataPath = fullfile(grandparentPath, junc,'tracks' );
+trackedDataPath = fullfile(dataPath, 'trackedData.mat');
+datasetFolder = "trainedCustomReidNetwork.mat";
+netFolder = fullfile(grandparentPath, datasetFolder);
+data = load(netFolder);
+net = data.net;
+% 加载 .mat 文件中的数据
+if exist(trackedDataPath, 'file')
+    loadedData = load(trackedDataPath);  % 加载文件内容
+    disp('File loaded successfully');
+else
+    disp('The file does not exist');
+end
+
+tracksVehiclePicturePath = fullfile(parentPath, 'trkIDImg', junc);
+
+% 获取目录下所有文件
+imageFiles = dir(fullfile(tracksVehiclePicturePath, '*.jpeg')); % 或者 '*.jpeg', '*.png' 根据你的图片格式调整
+numImages = numel(imageFiles);
+
+traj_data = cell(1, numImages); 
+traj_f_data = zeros(numImages, 2); 
+
+% 将数据保存到结构体中
+trackerOutput.traj = traj_data;
+trackerOutput.traj_f = traj_f_data;
+% 遍历每张图片
+for k = 1:length(imageFiles)
+    % 获取当前图片的完整路径
+    imageFilePath = fullfile(tracksVehiclePicturePath, imageFiles(k).name);
+     % 加载图片
+    img = imread(imageFilePath);
+    % 从文件名中提取轨迹ID
+    [~, imageName, ~] = fileparts(imageFiles(k).name);  % 提取文件名，不带扩展名
+    trackID = str2double(imageName);  % 将文件名转换为数字作为轨迹ID
+    % 在表格中找到对应的行
+    index = find([loadedData.allTracks.TrackID] == trackID);
+    if isempty(index)
+        continue;  % 跳过当前循环，继续下一个
+    end
+    positions = loadedData.allTracks(index).Positions;
+    features = [];
+    features = extractReidentificationFeatures(net,img);
+    % 将特征重塑为 1x2048 的形式
+    features = reshape(features, 1, 2048);
+    trackerOutput.traj{k} = struct( ...
+        'trackID', trackID, ...  % 轨迹 ID
+        'wrl_pos', positions, ...  % 位置数据
+        'mean_hsv', features ...  % 特征数据
+    );
+   [N, ~] = size(positions);
+   trackerOutput.traj_f(k,:) = [1, N];
+end
+baseName = 'traj';
+fileName = [junc, '_', baseName, '.mat'];
+% 保存 trackerOutput 到 .mat 文件
+outputFilePath = fullfile(currentPath, fileName);  % 定义保存路径
+save(outputFilePath, 'trackerOutput');  
+disp('trackerOutput saved successfully');

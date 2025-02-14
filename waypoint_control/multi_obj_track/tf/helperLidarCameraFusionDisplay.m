@@ -58,7 +58,7 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                 pi.Title = camNames{idx(i)};
             end
 
-
+            % 显示点云框
             obj.ImagePlotters = imgPlotters;
             p3d = uipanel('Parent',obj.fig,'Units','normalized','Position',[0 0.5 1 0.5]);
             p3d.Title = "lidar";
@@ -66,13 +66,13 @@ classdef helperLidarCameraFusionDisplay < matlab.System
             points = datalog.LidarData.PointCloud.Location; 
             intensity = datalog.LidarData.PointCloud.Intensity; 
             
-            % 创建 pointCloud 对象
+            % 创建 pointCloud 对象，显示点云
             ptCloud = pointCloud(points, 'Intensity', intensity);
             pcshow(points,'Parent',ax);
             ax.XLim = [-60 100];
             ax.YLim = [-20 30];
             ax.ZLim = [-10 10];
- 
+            
             obj.LidarPointCloudPlotter = ax.Children(1);
             view(ax,0,90);
             tp = theaterPlot('Parent',ax);
@@ -106,6 +106,7 @@ classdef helperLidarCameraFusionDisplay < matlab.System
 
         function stepImpl(obj,dataFolder, dataLog, egoPose, lidarDetections, cameraDetections, tracks)
             idx = [1 2 3 4 5 6];
+            % 初始化雷达检测数据
             if ~isempty(lidarDetections)
                 d = [lidarDetections{:}];
                 lidarMeas = horzcat(d.Measurement);
@@ -114,22 +115,24 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                 dim = lidarMeas(5:7,:);
                 yaw = lidarMeas(4,:);
             else
+                % 如果雷达数据为空，则将位置、速度、尺寸和朝向初始化为零
                 pos = zeros(3,0);
                 vel = zeros(3,0);
                 dim = zeros(3,0);
                 yaw = zeros(1,0);
             end
-
+            %  初始化相机检测数据
             if ~isempty(cameraDetections)
                 d = [cameraDetections{:}];
                 cameraMeas = horzcat(d.Measurement);
                 sensorIdx = horzcat(d.SensorIndex);
                 cameraBox = cameraMeas(1:4,:)'*pixelScale();
             else
+                % 如果没有相机检测数据，则将边界框和传感器索引初始化为空
                 cameraBox = zeros(4,0);
                 sensorIdx =0;
             end
-
+            %  初始化目标跟踪数据
             if ~isempty(tracks)
                 states = horzcat(tracks.State);
                 trkPos = states([1 3 6],:);
@@ -140,6 +143,7 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                 labels = cellstr("T" + num2str(trkIds(:)));
                 [trkPos, trkVel, trkDim, trkYaw] = transformForward(trkPos, trkVel, trkDim, trkYaw, egoPose);
             else
+                % 如果没有目标跟踪数据，则将轨迹数据初始化为空。
                 trkPos = zeros(3,0);
                 trkVel = zeros(3,0);
                 trkDim = zeros(3,0);
@@ -147,41 +151,68 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                 trkIds = zeros(1,0,'uint32');
                 labels = cell(0,1);
             end
-
+            % 显示每一帧6个相机图片的车辆包围框
             for i = 1:numel(idx)
                 % Plot camera image and detections
-                 % 原始路径
+                % 获取相机图像的路径
                 originalPath = fullfile(dataFolder,dataLog.CameraData(idx(i)).ImagePath);
-
+                [~, lastFolder, ~] = fileparts(dataFolder);
+                junc = lastFolder;
+                % 读取相机图像
                 img = imread(originalPath);
+                savedImg = img;
+                % 获取当前相机的检测框（bounding box）数据
                 cameraBoxData = cameraBox(sensorIdx == idx(i) + 1, :);
                 if isempty(cameraBoxData)
                     cameraBoxData = zeros(0, 4);  % 保证维度为 [0, 4]
                 end
+                % 在图像上插入检测框注释
                 img = insertObjectAnnotation(img,'rectangle',cameraBoxData,'C','Color','blue','LineWidth',2);
 
-                % Plot lidar detections on this image
+                % 获取相机的姿态数据并创建相机对象
                 cameraPose = dataLog.CameraData(idx(i)).Pose;
+                % 创建一个单目相机对象,用于将雷达数据和跟踪数据投影到相机图像上。
                 camera = getMonoCamera(idx(i),cameraPose);
-
-                % Project lidar data on camera
+                
+                % 将雷达数据投影到相机图像上
                 [lidarBox, isValid] = cuboidProjection(camera, pos, dim, yaw);
+                % 在图像上插入雷达数据的投影框
                 img = insertObjectAnnotation(img,'projected-cuboid',lidarBox(:,:,isValid),'L','Color','yellow','LineWidth',2);
 
-                % Project track data on camera
+                % 将跟踪数据投影到相机图像上,trkBox 8x2xnumVehicle
                 [trkBox, isValid] = cuboidProjection(camera, trkPos, trkDim, trkYaw);
-
+                
+                % 在图像上插入跟踪数据的投影框
                 img = insertObjectAnnotation(img,'projected-cuboid',trkBox(:,:,isValid),labels(isValid),'Color','green','LineWidth',4,'FontSize',28);
+                
+                % 返回轨迹id、图片、以及2D框
+                % 匹配融合框和2D检测框
+                % 当前帧当前相机视角至少有一条融合轨迹
+                %{
+                  savedImg：当前相机视角图片
+                  cameraBoxData：当前相机视角2D检测框,Nx4 double
+                  trkBox(:,:,isValid):当前视角融合3D检测框, 8x2xN double
+                  trkIds(isValid)：当前视角对应3D融合检测框的ID 1xN uint32
+                %}
+                if  ~isempty(trkBox) && any(isValid) && ~isempty(cameraBoxData) && sum(isValid) == size(cameraBoxData, 1)
+                    trkIDimg2DBox = extractTrackVehiclePicture(cameraBoxData, trkBox(:,:,isValid), trkIds(isValid));
+                    saveTrackVehiclePicture(trkIDimg2DBox, savedImg, junc)
+                end 
+                
+                
                 obj.ImagePlotters{i}.CData = img;
             end
-
-            % Plot on 3-D plots
+            
+            
+            % 更新雷达点云的 3D 显示
             set(obj.LidarPointCloudPlotter,...
                 XData=dataLog.LidarData.PointCloud.Location(:,1),...
                 YData=dataLog.LidarData.PointCloud.Location(:,2),...
                 ZData=dataLog.LidarData.PointCloud.Location(:,3),...
                 CData=dataLog.LidarData.PointCloud.Location(:,3));
+            % 绘制雷达检测框
             plotBox(obj, obj.LidarDetectionPlotter, pos, vel, dim, yaw);
+            % 绘制雷达跟踪框
             plotBox(obj, obj.LidarTrackPlotter, trkPos, trkVel, trkDim, trkYaw, labels);
 
             drawnow

@@ -1,8 +1,8 @@
-function saveTrackVehiclePicture(trkIDimg2DBox, savedImg)
+function saveTrackVehiclePicture(trkIDimg2DBox, savedImg, junc)
      currentPath = fileparts(mfilename('fullpath'));
      parentPath = fileparts(currentPath);
      grandparentPath = fileparts(parentPath);
-     dataPath = fullfile(grandparentPath, 'trkIDImg');
+     dataPath = fullfile(grandparentPath, 'trkIDImg', junc);
      if ~exist(dataPath, 'dir')
         mkdir(dataPath);
      end
