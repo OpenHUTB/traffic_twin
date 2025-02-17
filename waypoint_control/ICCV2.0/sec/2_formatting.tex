@@ -44,7 +44,7 @@ The network is capable of performing this task effectively.
 \textbf{control.}
 After obtaining all the data, we will proceed with vehicle control. 
 Kaleb Ben Naveed et al. proposed a hierarchical reinforcement learning-based method for autonomous driving trajectory planning and control. 
-By training a reinforcement learning agent in a simulation environment, this method optimizes the vehicle's control strategy according to environmental changes, achieving efficient trajectory planning and dynamic path adjustment. 
-R. Barea et al. proposed a deep reinforcement learning (DRL)-based control method, where an agent is trained in the CARLA simulation platform to autonomously learn and optimize the vehicle's control strategies (such as throttle, brake, and steering) to ensure safe and smooth driving. 
+By training a reinforcement learning agent in a simulation environment, this method optimizes the vehicle's control strategy according to environmental changes, achieving efficient trajectory planning and dynamic path adjustment.\cite{Alpher22}
+R. Barea et al. proposed a deep reinforcement learning (DRL)-based control method, where an agent is trained in the CARLA simulation platform to autonomously learn and optimize the vehicle's control strategies (such as throttle, brake, and steering) to ensure safe and smooth driving.\cite{Alpher21}
 We use a trajectory smoothing algorithm to control the vehicle's trajectory, enabling the vehicle to more accurately follow the planned path, especially in situations with many road curves or irregular road surfaces. 
 Compared to precise real-time optimization control, the trajectory smoothing algorithm typically involves fewer real-time computations, reducing reliance on computational resources while maintaining effectiveness and improving real-time performance.
