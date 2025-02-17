@@ -1,0 +1,19 @@
+
+name: Compile Latex
+
+on: [push, pull_request]
+    
+jobs:
+  build_latex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v3
+      - name: Compile LaTeX document
+        uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: waypoint_control/ICCV
+          root_file: main.tex
+          texlive_version: 2023
+          latexmk_use_xelatex: true
+          
