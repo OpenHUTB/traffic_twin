@@ -3,9 +3,7 @@
 
 We have summarized research work on different aspects of DT.
 
-%-------------------------------------------------------------------------
-\subsection{Vehicle Detection}
-
+\textbf{Vehicle Detection.}
 DT mainly uses LiDAR and cameras for vehicle object detection.
 Several recent studies have explored the fusion of LiDAR and camera data for vehicle detection,demonstrating significant improvements in both accuracy and robustness. 
 For instance, MVDNet (2018) utilizes a multi-view fusion approach, where LiDAR point clouds are projected to different views (such as bird’s-eye view and front view) and matched with camera images, combining depth information from LiDAR and texture information from the camera. 
@@ -19,10 +17,7 @@ This approach enhances the model’s robustness against sensor failures by ensur
 These methods collectively highlight the importance of sensor fusion and advanced learning techniques in achieving robust and accurate vehicle detection, even in challenging conditions.
 We use the PointPillars deep learning method which has shown good performance.
 
-
-%-------------------------------------------------------------------------
-\subsection{Data association}
-
+\textbf{Trajectory tracking.}
 Most existing algorithms, with a few exceptions, can be seen as special cases of the multi-modal fusion problem. 
 These methods organize the input data using a graph structure, where edges represent relationships between modalities, and nodes represent different targets or states. 
 Algorithms that can be solved in polynomial time typically handle specific modalities or time-continuous edges, with some also utilizing maximum flow or matching algorithms. 
@@ -33,9 +28,7 @@ Joint optimization and iterative optimization strategies have also been widely u
 We use Joint Integrated Probabilistic Data Association (JIPDA), which combines data from multiple sensors and optimizes probabilistic associations to effectively handle data uncertainty and missing information in target tracking, improving tracking accuracy and robustness in complex environments.
 
 
-%-------------------------------------------------------------------------
-\subsection{appearance}
-
+\textbf{appearance.}
 The appearance of vehicles can be described through color, texture, and shape features. 
 While color and texture features are commonly used for identifying the vehicle's appearance, shape features provide important information about the vehicle's structure. 
 The impact of lighting changes is typically adjusted through color normalization, sample-based techniques, or luminance transfer functions, which can be optimized via supervised or unsupervised learning. 
@@ -48,81 +41,10 @@ The most advanced technologies in the field of vehicle re-identification current
 We designed a ResNet-50 network for vehicle re-identification by drawing inspiration from Re-ID.
 The network is capable of performing this task effectively.
 
-%-------------------------------------------------------------------------
-\subsection{Cross-references}
-
-For the benefit of author(s) and readers, please use the
-{\small\begin{verbatim}
-  \cref{...}
-\end{verbatim}}  command for cross-referencing to figures, tables, equations, or sections.
-This will automatically insert the appropriate label alongside the cross-reference as in this example:
-\begin{quotation}
-  To see how our method outperforms previous work, please see \cref{fig:onecol} and \cref{tab:example}.
-  It is also possible to refer to multiple targets as once, \eg~to \cref{fig:onecol,fig:short-a}.
-  You may also return to \cref{sec:formatting} or look at \cref{eq:also-important}.
-\end{quotation}
-If you do not wish to abbreviate the label, for example at the beginning of the sentence, you can use the
-{\small\begin{verbatim}
-  \Cref{...}
-\end{verbatim}}
-command. Here is an example:
-\begin{quotation}
-  \Cref{fig:onecol} is also quite important.
-\end{quotation}
-
-%-------------------------------------------------------------------------
-\subsection{References}
-
-List and number all bibliographical references in 9-point Times, single-spaced, at the end of your paper.
-When referenced in the text, enclose the citation number in square brackets, for
-example~\cite{Authors14}.
-Where appropriate, include page numbers and the name(s) of editors of referenced books.
-When you cite multiple papers at once, please make sure that you cite them in numerical order like this \cite{Alpher02,Alpher03,Alpher05,Authors14b,Authors14}.
-If you use the template as advised, this will be taken care of automatically.
-
-\begin{table}
-  \centering
-  \begin{tabular}{@{}lc@{}}
-    \toprule
-    Method & Frobnability \\
-    \midrule
-    Theirs & Frumpy \\
-    Yours & Frobbly \\
-    Ours & Makes one's heart Frob\\
-    \bottomrule
-  \end{tabular}
-  \caption{Results.   Ours is better.}
-  \label{tab:example}
-\end{table}
-
-%-------------------------------------------------------------------------
-\subsection{Illustrations, graphs, and photographs}
-
-All graphics should be centered.
-In \LaTeX, avoid using the \texttt{center} environment for this purpose, as this adds potentially unwanted whitespace.
-Instead use
-{\small\begin{verbatim}
-  \centering
-\end{verbatim}}
-at the beginning of your figure.
-Please ensure that any point you wish to make is resolvable in a printed copy of the paper.
-Resize fonts in figures to match the font in the body text, and choose line widths that render effectively in print.
-Readers (and reviewers), even of an electronic copy, may choose to print your paper in order to read it.
-You cannot insist that they do otherwise, and therefore must not assume that they can zoom in to see tiny details on a graphic.
-
-When placing figures in \LaTeX, it's almost always best to use \verb+\includegraphics+, and to specify the figure width as a multiple of the line width as in the example below
-{\small\begin{verbatim}
-   \usepackage{graphicx} ...
-   \includegraphics[width=0.8\linewidth]
-                   {myfile.pdf}
-\end{verbatim}
-}
-
-
-%-------------------------------------------------------------------------
-\subsection{Color}
-
-Please refer to the author guidelines on the \confName\ \confYear\ web page for a discussion of the use of color in your document.
-
-If you use color in your plots, please keep in mind that a significant subset of reviewers and readers may have a color vision deficiency; red-green blindness is the most frequent kind.
-Hence avoid relying only on color as the discriminative feature in plots (such as red \vs green lines), but add a second discriminative feature to ease disambiguation.
+\textbf{control.}
+After obtaining all the data, we will proceed with vehicle control. 
+Kaleb Ben Naveed et al. proposed a hierarchical reinforcement learning-based method for autonomous driving trajectory planning and control. 
+By training a reinforcement learning agent in a simulation environment, this method optimizes the vehicle's control strategy according to environmental changes, achieving efficient trajectory planning and dynamic path adjustment.\cite{Alpher22}
+R. Barea et al. proposed a deep reinforcement learning (DRL)-based control method, where an agent is trained in the CARLA simulation platform to autonomously learn and optimize the vehicle's control strategies (such as throttle, brake, and steering) to ensure safe and smooth driving.\cite{Alpher21}
+We use a trajectory smoothing algorithm to control the vehicle's trajectory, enabling the vehicle to more accurately follow the planned path, especially in situations with many road curves or irregular road surfaces. 
+Compared to precise real-time optimization control, the trajectory smoothing algorithm typically involves fewer real-time computations, reducing reliance on computational resources while maintaining effectiveness and improving real-time performance.
