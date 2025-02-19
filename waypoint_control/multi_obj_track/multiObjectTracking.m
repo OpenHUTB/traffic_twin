@@ -1,6 +1,6 @@
 % 数据路径
 currentPath = fileparts(mfilename('fullpath'));
-junc = 'test_data_junc2';
+junc = 'test_data_junc';
 dataPath = fullfile(currentPath, junc);
 
 % 文件夹路径
@@ -12,6 +12,11 @@ matFiles = dir(fullfile(dataPath, "*.mat"));
 [~, idx] = sort({matFiles.name});
 matFiles = matFiles(idx);
 
+% 创建融合框计数文件夹
+allTracksFolderPath = fullfile(currentPath, 'Evaluation/demo_data');
+if ~exist(allTracksFolderPath, 'dir')
+    mkdir(allTracksFolderPath);
+end
 % 加载第一帧数据
 fileName = fullfile(dataPath, matFiles(1).name);
 load(fileName, "datalog");
@@ -73,7 +78,7 @@ waypoints = repmat(initialPosition, numFrames, 1);
 % 设置每个点的到达时间，模拟静止车辆的时间流逝
 % 路口1 initialTime = 14.1989; % 初始时间 
 % 路口2 21.8214
-initialTime = 21.8214;
+initialTime = 12.7901;
 timeInterval = 0.05;   % 每点的时间间隔
 
 timeOfArrival = initialTime + (0:numFrames-1)' * timeInterval;
@@ -96,6 +101,7 @@ egoTrajectory = waypointTrajectory(waypoints, ...
 prevTime = -inf;
 % 初始化一个结构体数组来保存每个目标的轨迹
 allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {});
+evaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
 
 for frame = 1:numFrames
     % 加载当前帧数据
@@ -144,7 +150,7 @@ for frame = 1:numFrames
     % 跟踪目标
     tracks = tracker(detections, time);
     disp(tracks)
-    
+
     % 正常显示点云和3D框，将y坐标取反
     diversYDatalog = datalog;
     pointCloudLocation = diversYDatalog.LidarData.PointCloud.Location;
@@ -161,15 +167,15 @@ for frame = 1:numFrames
     for i = 1:numel(viewTracks)
         viewTracks(i).State(3, :) = -viewTracks(i).State(3, :);     
     end
-
+    
     % 可视化结果
     display(dataPath, diversYDatalog, egoPose, lidarDetections, cameraDetections, viewTracks);
     
     % 更新所有目标的轨迹
     for t = 1:length(tracks)
         trackID = tracks(t).TrackID;
-        position = tracks(t).State([1, 3, 5]);  % 轨迹的位置 (x, y, z)
-        velocity = tracks(t).State([2, 4, 6]);  % 轨迹的速度 (vx, vy, vz)
+        position = tracks(t).State([1, 3, 6]);  % 轨迹的位置 (x, y, z)
+        velocity = tracks(t).State([2, 4, 7]);  % 轨迹的速度 (vx, vy, vz)
         
         % 检查该 TrackID 是否已存在于 allTracks 中
         trackIdx = find([allTracks.TrackID] == trackID);
@@ -188,7 +194,19 @@ for frame = 1:numFrames
         end
     end
 
+    for t = 1:length(tracks)
+        trackID = tracks(t).TrackID;
+        position = tracks(t).State([1, 3, 6]);  
+        evaluationTracks(end+1).Time = time;
+        evaluationTracks(end).TrackID = trackID;
+        evaluationTracks(end).Position = position;
+    end
+
 end
+
+allTracksPath = fullfile(allTracksFolderPath, 'trackedTracks.mat');
+save(allTracksPath, 'evaluationTracks');
+
 
 % 过滤掉轨迹数量少于15的车辆
 allTracks = allTracks(cellfun(@(x) size(x, 1) >= 15, {allTracks.Positions}));
