@@ -1,0 +1,33 @@
+\section{Experiments}
+
+We conducted the following experiments: 
+(a) 3D object detection using PointPillars deep learning for LiDAR, 
+(b) object-level fusion of LiDAR and camera data for object tracking, 
+(c) vehicle re-identification between intersections using a ReID network, and 
+(d) controlling the vehicle to achieve trajectory reproduction.
+
+\subsection{target detection}
+
+Zhang Y et al. proposed ByteTrack, which improves the accuracy and speed of multi-object tracking by associating each detection box and using optimization strategies.\cite{Alpher22b}
+Mingxing Tan et al. proposed a new object detection model, EfficientDet, which optimizes the model's efficiency and accuracy by introducing a compound scaling method, achieving excellent performance on multiple datasets.\cite{Alpher20b}
+We use the LiDAR and camera data from CARLA for data fusion to track vehicles and obtain the trajectory of the vehicles relative to the ego vehicle. 
+Therefore, it is necessary to use the LiDAR dataset from CARLA to train the PointPillars network.
+First, in the Town10 scene, we run a script to collect the point cloud training dataset, including point cloud data and 3D bounding boxes.
+Then, in MATLAB, the point cloud training dataset is converted into PCD files, and the training labels for all frames are combined into a single MAT file.
+Finally, the PointPillars network is trained using the obtained training dataset.
+
+\subsection{Multi target tracking}
+
+Zhang Y et al. proposed ByteTrack, which improves the accuracy and speed of multi-object tracking by associating each detection box and using optimization strategies.\cite{Alpher22b}
+In the Town10 scenario, multi-object tracking test data is collected, where each intersection center includes one LiDAR, with six RGB cameras surrounding the LiDAR. Scene images and point cloud data from six different viewpoints are collected for each frame.
+Then, data preprocessing is performed to detect vehicles in the point cloud and obtain 3D labels; vehicles in the images are detected to obtain 2D labels (here we use a pre-trained YOLOv4 model).
+Next, we perform data fusion of the obtained 3D labels and 2D labels to obtain the trajectories and visualize the tracked vehicles.
+The obtained trajectories are currently in the coordinate system relative to the ego vehicle. However, we assume that the ego vehicle is stationary at the center of the intersection (which does not exist in reality), with both the LiDAR and cameras attached to the ego vehicle. This means there is a relative position between the sensors and the ego vehicle. Therefore, we convert the coordinates to the trajectory in the CARLA scene, using the coordinates relative to the ego vehicle, to obtain the correct (x, y).
+
+\subsection{Re identification}
+
+We generate vehicles at the same location, placing an RGB camera at the vehicle's starting point and a semantic segmentation camera at the vehicle's endpoint. We capture images from the front and rear directions of the vehicle for each frame, along with the 2D labels.
+Then, the vehicle images from the front and rear viewpoints are cropped based on the 2D labels, and images from the same type of vehicle from both viewpoints are combined. Finally, the images are reshaped to a size of 224x224.
+The imagePretrainedNetwork function is used to train the model, specifying the ResNet50 architecture. This neural network has already learned rich feature representations from a large number of images.
+Finally, the vehicle images tracked at Intersection 1 and the images from the corresponding viewpoint camera at Intersection 2 are placed together for re-identification. In other words, the first image is the object to be re-identified, and it will be recognized at the next intersection, thus allowing the integration of both trajectories.
+For matching vehicle trajectories between intersections, we currently compute the cosine similarity between all corresponding vehicle trajectories at the two intersections. If Intersection 1 has M vehicles and Intersection 2 has N vehicles, a matrix of size M×N is generated. If the similarity exceeds a certain threshold, the two vehicles are considered to be the same vehicle.
