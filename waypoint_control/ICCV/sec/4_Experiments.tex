@@ -30,7 +30,6 @@ We generate vehicles at the same location, placing an RGB camera at the vehicle'
 Then, the vehicle images from the front and rear viewpoints are cropped based on the 2D labels, and images from the same type of vehicle from both viewpoints are combined. Finally, the images are reshaped to a size of 224x224.
 The imagePretrainedNetwork function is used to train the model, specifying the ResNet50 architecture. This neural network has already learned rich feature representations from a large number of images.
 Finally, the vehicle images tracked at Intersection 1 and the images from the corresponding viewpoint camera at Intersection 2 are placed together for re-identification. In other words, the first image is the object to be re-identified, and it will be recognized at the next intersection, thus allowing the integration of both trajectories.
-<<<<<<< HEAD
 For matching vehicle trajectories between intersections, we currently compute the cosine similarity between all corresponding vehicle trajectories at the two intersections. If Intersection 1 has M vehicles and Intersection 2 has N vehicles, a matrix of size M×N is generated. If the similarity exceeds a certain threshold, the two vehicles are considered to be the same vehicle.
 
 \subsection{Trajectory reproduction}
@@ -41,6 +40,3 @@ We use the simulation scene from Zhongdian Software Park to create the digital t
 The trajectory information is not a series of closely spaced waypoints, but rather the information collected when the vehicle passes through each intersection. It includes the license plate, license plate type, pass time, device ID, intersection name, lane ID, and direction ID.
 In addition, we create a universal database that maps intersections, lanes, and directions to the endpoint coordinates of roads in the CARLA simulation scene, including x, y, z, and yaw.
 In this way, we can control the vehicle to navigate from one intersection to another.
-=======
-For matching vehicle trajectories between intersections, we currently compute the cosine similarity between all corresponding vehicle trajectories at the two intersections. If Intersection 1 has M vehicles and Intersection 2 has N vehicles, a matrix of size M×N is generated. If the similarity exceeds a certain threshold, the two vehicles are considered to be the same vehicle.
->>>>>>> 17c561ed6c687cb704260eed6bfc1d6776b7c958
