@@ -24,6 +24,7 @@ from scipy.spatial.transform import Rotation as R
 DATA_MUN = 500
 DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
 FUSION_DETECTION_ACTUAL_DIS = 45  # 多目标跟踪的实际检测距离
+WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
 
 # 路口1的相机位置
 camera_loc = {
@@ -420,7 +421,10 @@ def main():
         # 获取雷达到世界的变换矩阵（4x4矩阵）
         lidar_to_world = np.array(lidar_transform.get_matrix())
         lidar_to_world_inv = np.linalg.inv(lidar_to_world)
-
+        # 记录第二路口数据时，等待车辆到达后开始记录
+        # for _ in range(WAITE_NEXT_INTERSECTION_TIME):
+        #     world.tick()
+        #     time.sleep(0.05)
         # 等待车辆落地开始行驶后再开始收集数据集
         for _ in range(DROP_BUFFER_TIME):
             world.tick()
