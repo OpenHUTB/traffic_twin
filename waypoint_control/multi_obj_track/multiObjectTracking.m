@@ -1,6 +1,6 @@
 % 数据路径
 currentPath = fileparts(mfilename('fullpath'));
-junc = 'test_data_junc';
+junc = 'test_data_junc2';
 dataPath = fullfile(currentPath, junc);
 
 % 文件夹路径
@@ -17,6 +17,11 @@ allTracksFolderPath = fullfile(currentPath, 'Evaluation/demo_data');
 if ~exist(allTracksFolderPath, 'dir')
     mkdir(allTracksFolderPath);
 end
+allTracksJuncFolderPath = fullfile(allTracksFolderPath, junc);
+if ~exist(allTracksJuncFolderPath, 'dir')
+    mkdir(allTracksJuncFolderPath);
+end
+
 % 加载第一帧数据
 fileName = fullfile(dataPath, matFiles(1).name);
 load(fileName, "datalog");
@@ -68,7 +73,7 @@ display = helperLidarCameraFusionDisplay;
 % 处理数据帧
 
 % 定义轨迹点的数量
-numFrames = 500;
+numFrames = 200;
 % 设置固定的初始位置 (假设车辆静止于 ENU 坐标系的某点)
 initialPosition = [0, 0, 0.98]; % 假设车辆在 ENU 原点
 
@@ -76,9 +81,9 @@ initialPosition = [0, 0, 0.98]; % 假设车辆在 ENU 原点
 waypoints = repmat(initialPosition, numFrames, 1);
 
 % 设置每个点的到达时间，模拟静止车辆的时间流逝
-% 路口1 initialTime = 14.1989; % 初始时间 
-% 路口2 21.8214
-initialTime = 12.7901;
+% 路口1 initialTime = 16.799063429236412; % 初始时间 
+% 路口2 31.274116698652506
+initialTime = 31.274116698652506;
 timeInterval = 0.05;   % 每点的时间间隔
 
 timeOfArrival = initialTime + (0:numFrames-1)' * timeInterval;
@@ -204,7 +209,7 @@ for frame = 1:numFrames
 
 end
 
-allTracksPath = fullfile(allTracksFolderPath, 'trackedTracks.mat');
+allTracksPath = fullfile(allTracksJuncFolderPath, 'trackedTracks.mat');
 save(allTracksPath, 'evaluationTracks');
 
 
