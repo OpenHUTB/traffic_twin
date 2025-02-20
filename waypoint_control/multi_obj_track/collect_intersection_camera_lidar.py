@@ -8,6 +8,7 @@
          .gpsData.mat 自车经纬等信息（可以省去，需要修改helperGenerateEgoTrajectory.m）
 
      ego_vehicle coordinate  x：前，y：左侧 z:向上
+     4.多目标融合检测的实际范围是在45m以内
 
 """
 import time
@@ -19,8 +20,12 @@ import random
 import scipy.io
 from queue import Queue
 from queue import Empty
+from scipy.spatial.transform import Rotation as R
 DATA_MUN = 500
 DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
+FUSION_DETECTION_ACTUAL_DIS = 45  # 多目标跟踪的实际检测距离
+WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
+
 # 路口1的相机位置
 camera_loc = {
        "back_camera": carla.Transform(carla.Location(x=-46, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-90, roll=0)),  # 后相机
@@ -59,7 +64,7 @@ camera_names = [
 
 # 创建保存雷达数据的文件夹
 def create_radar_folder():
-    folder_name = f"test_data"
+    folder_name = f"test_data_junc"
     # 检查文件夹是否已存在，若不存在则创建
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
@@ -69,19 +74,77 @@ def create_radar_folder():
 
 # 创建保存相机数据的文件夹
 def create_camera_folder(camera_id):
-    folder_name = f"test_data/camera/{camera_id}"
+    folder_name = f"test_data_junc/camera/{camera_id}"
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
         print(f"Created folder: {folder_name}")
     return folder_name
 
 
+# 保存车辆标签
+def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicle_labels):
+    # 获取雷达检测范围内的全部车辆
+    # 获取附近的所有车辆
+    vehicle_list = world.get_actors().filter("*vehicle*")
+
+    # 筛选出距离雷达小于 45 米的车辆
+    def dist(v):
+        return v.get_location().distance(location)
+    # 筛选出距离小于 LIDAR_RANGE 的车辆
+    vehicle_list = list(filter(lambda v: dist(v) < FUSION_DETECTION_ACTUAL_DIS, vehicle_list))
+    vehicle_labels = []  # 车辆标签列表
+    # 获取标签NX9
+    for vehicle in vehicle_list:
+        bounding_box = vehicle.bounding_box
+        bbox_z = bounding_box.location.z
+        location = vehicle.get_transform().location
+        rotation = vehicle.get_transform().rotation
+        bounding_box_location = np.array([location.x, location.y, bbox_z, 1])
+        # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
+        bounding_box_location_lidar = lidar_to_world_inv @ bounding_box_location  # 矩阵乘法
+        bounding_box_location_lidar = bounding_box_location_lidar[:3]  # 去掉齐次坐标部分，得到三维坐标
+
+        # 获取边界框的宽长高
+        bounding_box_extent = bounding_box.extent
+        length = 2 * bounding_box_extent.x
+        width = 2 * bounding_box_extent.y
+        height = 2 * bounding_box_extent.z
+
+        bounding_box_rotation = np.array([rotation.yaw, rotation.pitch, rotation.roll])
+        # 将 Euler 角（pitch, yaw, roll）转换为旋转矩阵（3x3）
+        rotation_matrix_world = R.from_euler('zyx', bounding_box_rotation, degrees=True).as_matrix()
+        # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
+        rotation_matrix_lidar = lidar_to_world_inv[:3, :3] @ rotation_matrix_world
+        rotation_lidar = R.from_matrix(rotation_matrix_lidar)
+        euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=True)
+        # 输出转换后的 pitch, yaw, roll
+        yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
+        # 构造标签数据（Nx9 格式）
+
+        label = [
+            bounding_box_location_lidar[0],  # x
+            bounding_box_location_lidar[1],  # y
+            bounding_box_location_lidar[2] + 0.3
+            # length,
+            # width,
+            # height,
+            # pitch_lidar,  # pitch
+            # roll_lidar,  # roll
+            # yaw_lidar  # yaw
+        ]
+        vehicle_id = vehicle.id
+        vehicle_labels.append((time_stamp, vehicle_id, label))
+    all_vehicle_labels.append(vehicle_labels)
+
+
 # 定义函数来保存雷达点云数据
-def save_radar_data(radar_data, world):
+def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, lidar_to_world_inv, all_vehicle_labels):
     # 获取当前帧编号
     current_frame = radar_data.frame
     # 时间戳
     timestamp = world.get_snapshot().timestamp.elapsed_seconds
+    location = ego_vehicle_transform.location
+    save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels)
 
     # 获取雷达数据并将其转化为numpy数组
     points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
@@ -97,7 +160,7 @@ def save_radar_data(radar_data, world):
     y_limits = [np.min(location[:, 1]), np.max(location[:, 1])]  # y 轴的最小值和最大值
     z_limits = [np.min(location[:, 2]), np.max(location[:, 2])]  # z 轴的最小值和最大值
 
-    # 创建存储数据的文件夹（每个雷达一个文件夹）
+    # 创建存储数据的文件夹
     radar_folder = create_radar_folder()
     file_name = os.path.join(radar_folder, f"{current_frame}.mat")
     LidarData = {
@@ -154,6 +217,16 @@ def save_radar_data(radar_data, world):
         'LidarData': LidarData,
         'CameraData': CameraData  # 使用结构体数组
     }
+    vehicle_list = []
+    # 保存每一帧融合检测实际范围内的车辆数量
+    vehicle_list = world.get_actors().filter("*vehicle*")
+
+    def dist(v):
+        return v.get_location().distance(ego_vehicle_transform.location)
+
+    vehicle_list = [v for v in vehicle_list if dist(v) < FUSION_DETECTION_ACTUAL_DIS]
+    vehicle_count = len(vehicle_list)
+    actual_vehicle_num.append((timestamp, vehicle_count))
     # 将点云数据保存为 .mat 文件
     # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
     scipy.io.savemat(file_name, {'datalog': datalog})
@@ -240,7 +313,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
     # 设置随机种子
     random.seed(random_seed)
     np.random.seed(random_seed)
-
+    tm.set_random_device_seed(random_seed)
     vehicle_list = []
     blueprint_library = world.get_blueprint_library()
     vehicle_blueprints = blueprint_library.filter('vehicle.*')
@@ -336,11 +409,22 @@ def main():
         # 设置随机种子
         random_seed = 20
         # 路口1的静止 ego_vehicle 位置
-        # ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
+        ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 路口2的静止 ego_vehicle 位置
         # ego_transform = carla.Transform(carla.Location(x=104, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
+        # 路口1设置理想化的雷达位置
+        lidar_transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
+        # 路口2设置理想化的雷达位置
+        # lidar_transform = carla.Transform(carla.Location(x=104, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
+        # 获取雷达到世界的变换矩阵（4x4矩阵）
+        lidar_to_world = np.array(lidar_transform.get_matrix())
+        lidar_to_world_inv = np.linalg.inv(lidar_to_world)
+        # 记录第二路口数据时，等待车辆到达后开始记录
+        # for _ in range(WAITE_NEXT_INTERSECTION_TIME):
+        #     world.tick()
+        #     time.sleep(0.05)
         # 等待车辆落地开始行驶后再开始收集数据集
         for _ in range(DROP_BUFFER_TIME):
             world.tick()
@@ -348,17 +432,40 @@ def main():
         sensor_queue = Queue()
         # 启动相机、雷达传感器
         lidar, camera_dict = setup_sensors(world, addtion_param, sensor_queue)
-
+        actual_vehicle_num = []
+        all_vehicle_labels = []
         for _ in range(DATA_MUN):
             world.tick()
             # 同步保存多传感器数据
             for _ in range(1 + len(camera_dict)):
                 data, sensor_name = sensor_queue.get(True, 1.0)
                 if "lidar" in sensor_name:  # lidar数据
-                    save_radar_data(data, world)
+                    save_radar_data(data, world, ego_transform, actual_vehicle_num, lidar_to_world_inv, all_vehicle_labels)
                 else:
                     save_camera_data(data, sensor_name)
             # time.sleep(0.05)
+        folder_name = f"test_data_junc/vehicle_data"
+        # 检查文件夹是否已存在，若不存在则创建
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+            print(f"Created folder: {folder_name}")
+        file_path = os.path.join(folder_name, "vehicle_count.mat")
+        # 将时间戳和车辆数量追加保存到txt文件中
+        vehicle_data = np.array(actual_vehicle_num)
+        # 保存数据为 mat 文件
+        scipy.io.savemat(file_path, {"vehicle_data": vehicle_data})
+
+        flattened_data = [item for sublist in all_vehicle_labels for item in sublist]
+        processed_data = []
+
+        for entry in flattened_data:
+            timestamp, vehicle_id, position = entry
+            processed_data.append({'Time': timestamp, 'TruthID': vehicle_id, 'Position': position})
+
+        truths = np.array(processed_data, dtype=object)
+        file_path = os.path.join(folder_name, "truths.mat")
+        scipy.io.savemat(file_path, {'truths': truths})
+
         destroy_actor(lidar, camera_dict, vehicles, sensor_queue)
     except Exception as e:
         print(f"Error occurred during execution: {e}")
