@@ -312,7 +312,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
     # 设置随机种子
     random.seed(random_seed)
     np.random.seed(random_seed)
-
+    tm.set_random_device_seed(random_seed)
     vehicle_list = []
     blueprint_library = world.get_blueprint_library()
     vehicle_blueprints = blueprint_library.filter('vehicle.*')
@@ -413,8 +413,10 @@ def main():
         # ego_transform = carla.Transform(carla.Location(x=104, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
-        # 设置理想化的雷达位置
+        # 路口1设置理想化的雷达位置
         lidar_transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
+        # 路口2设置理想化的雷达位置
+        # lidar_transform = carla.Transform(carla.Location(x=104, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 获取雷达到世界的变换矩阵（4x4矩阵）
         lidar_to_world = np.array(lidar_transform.get_matrix())
         lidar_to_world_inv = np.linalg.inv(lidar_to_world)
