@@ -1,10 +1,10 @@
 \section{Related Work}
 \label{sec:formatting}
 
-We have summarized research work on different aspects of DT.
+We have summarized research work on different aspects of UVDT.
 
 \textbf{Vehicle Detection.}
-DT mainly uses LiDAR and cameras for vehicle object detection.
+UVDT mainly uses LiDAR and cameras for vehicle object detection.
 Several recent studies have explored the fusion of LiDAR and camera data for vehicle detection,demonstrating significant improvements in both accuracy and robustness. 
 For instance, MVDNet (2018) utilizes a multi-view fusion approach, where LiDAR point clouds are projected to different views (such as bird’s-eye view and front view) and matched with camera images, combining depth information from LiDAR and texture information from the camera. 
 This method improves detection performance, especially in complex environments. 
@@ -17,7 +17,7 @@ This approach enhances the model’s robustness against sensor failures by ensur
 These methods collectively highlight the importance of sensor fusion and advanced learning techniques in achieving robust and accurate vehicle detection, even in challenging conditions.
 We use the PointPillars deep learning method which has shown good performance.
 
-\textbf{Trajectory tracking.}
+\textbf{Multi camera multi-target tracking.}
 Most existing algorithms, with a few exceptions, can be seen as special cases of the multi-modal fusion problem. 
 These methods organize the input data using a graph structure, where edges represent relationships between modalities, and nodes represent different targets or states. 
 Algorithms that can be solved in polynomial time typically handle specific modalities or time-continuous edges, with some also utilizing maximum flow or matching algorithms. 
@@ -28,7 +28,7 @@ Joint optimization and iterative optimization strategies have also been widely u
 We use Joint Integrated Probabilistic Data Association (JIPDA), which combines data from multiple sensors and optimizes probabilistic associations to effectively handle data uncertainty and missing information in target tracking, improving tracking accuracy and robustness in complex environments.
 
 
-\textbf{appearance.}
+\textbf{Vehicle re identification.}
 The appearance of vehicles can be described through color, texture, and shape features. 
 While color and texture features are commonly used for identifying the vehicle's appearance, shape features provide important information about the vehicle's structure. 
 The impact of lighting changes is typically adjusted through color normalization, sample-based techniques, or luminance transfer functions, which can be optimized via supervised or unsupervised learning. 
@@ -41,7 +41,7 @@ The most advanced technologies in the field of vehicle re-identification current
 We designed a ResNet-50 network for vehicle re-identification by drawing inspiration from Re-ID.
 The network is capable of performing this task effectively.
 
-\textbf{control.}
+\textbf{twin.}
 After obtaining all the data, we will proceed with vehicle control. 
 Kaleb Ben Naveed et al. proposed a hierarchical reinforcement learning-based method for autonomous driving trajectory planning and control. 
 By training a reinforcement learning agent in a simulation environment, this method optimizes the vehicle's control strategy according to environmental changes, achieving efficient trajectory planning and dynamic path adjustment.\cite{Alpher22}

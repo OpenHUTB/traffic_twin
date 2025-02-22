@@ -1,4 +1,33 @@
 \section{Method}
 
-\subsection{PointPillars}
+\subsection{problem definition}
 
+In UVDT, the input for single-intersection vehicle detection and tracking consists of point cloud data and images, where the point cloud data is the input from the radar and the images are the input from the camera. 
+The input for multi-intersection object detection is the same as that for a single intersection, but the input for its object tracking includes trajectories and the corresponding vehicle appearance features. 
+The input for the re-identification module is a 1×2048 vehicle feature vector. 
+The input for the twin part includes trajectory data (comprising the desired vehicle trajectory and the current vehicle state), environmental information (such as road conditions and obstacle information), and the system's control strategy.
+
+\textbf{PointPillars.}
+We use the PointPillars network to process the input for vehicle detection and generate the output.
+A PointPillars network requires two inputs: pillar indices as a P-by-2 and pillar features as a P-by-N-by-K matrix. P is the number of pillars in the network, N is the number of points per pillar, and K is the feature dimension.
+The network begins with a feature encoder, which is a simplified PointNet. It contains a series of convolution, batch-norm, and relu layers followed by a max pooling layer. A scatter layer at the end maps the extracted features into a 2-D space using the pillar indices.
+Next, the network has a 2-D CNN backbone that consists of encoder-decoder blocks. Each encoder block consists of convolution, batch-norm, and relu layers to extract features at different spatial resolutions. Each decoder block consists of transpose convolution, batch-norm, and relu layers.
+The network then concatenates output features at the end of each decoder block, and passes these features through six detection heads with convolutional and sigmoid layers to predict occupancy, location, size, angle, heading, and class.
+
+\textbf{trackerJPDA.}
+
+\textbf{ReID.}
+
+\subsection{Single intersection multi-target tracking}
+
+
+\subsection{Multi intersection and multi-target tracking}
+
+
+\subsection{Trajectory inference and reconstruction}
+
+
+\subsection{Twin of Trajectory}
+
+
+\subsection{Evaluation}
