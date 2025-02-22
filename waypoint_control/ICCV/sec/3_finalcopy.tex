@@ -1,6 +1,6 @@
 \section{Method}
 
-\subsection{problem definition}
+\subsection{Problem definition}
 
 In UVDT, the input for single-intersection vehicle detection and tracking consists of point cloud data and images, where the point cloud data is the input from the radar and the images are the input from the camera. 
 The input for multi-intersection object detection is the same as that for a single intersection, but the input for its object tracking includes trajectories and the corresponding vehicle appearance features. 
@@ -14,7 +14,7 @@ The network begins with a feature encoder, which is a simplified PointNet. It co
 Next, the network has a 2-D CNN backbone that consists of encoder-decoder blocks. Each encoder block consists of convolution, batch-norm, and relu layers to extract features at different spatial resolutions. Each decoder block consists of transpose convolution, batch-norm, and relu layers.
 The network then concatenates output features at the end of each decoder block, and passes these features through six detection heads with convolutional and sigmoid layers to predict occupancy, location, size, angle, heading, and class.
 
-\textbf{trackerJPDA.}
+\textbf{TrackerJPDA.}
 
 \textbf{ReID.}
 
