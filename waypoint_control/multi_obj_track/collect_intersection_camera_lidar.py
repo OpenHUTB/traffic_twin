@@ -18,32 +18,15 @@ import os
 import cv2
 import random
 import scipy.io
+import argparse
 from queue import Queue
 from queue import Empty
 from scipy.spatial.transform import Rotation as R
+from config import IntersectionConfig, town_configurations
 DATA_MUN = 500
 DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
 FUSION_DETECTION_ACTUAL_DIS = 45  # 多目标跟踪的实际检测距离
 WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
-
-# 路口1的相机位置
-camera_loc = {
-       "back_camera": carla.Transform(carla.Location(x=-46, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-90, roll=0)),  # 后相机
-       "front_camera": carla.Transform(carla.Location(x=-46, y=28, z=3.6), carla.Rotation(pitch=0, yaw=90, roll=0)),  # 前相机
-       "right_camera": carla.Transform(carla.Location(x=-50, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 右相机
-       "front_right_camera": carla.Transform(carla.Location(x=-50, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 前右相机
-       "left_camera": carla.Transform(carla.Location(x=-42, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0)),  # 左相机
-       "front_left_camera": carla.Transform(carla.Location(x=-42, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0))   # 前左相机
-}
-# 路口2的相机位置
-# camera_loc = {
-#        "back_camera": carla.Transform(carla.Location(x=104, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-90, roll=0)),  # 后相机    1
-#        "front_camera": carla.Transform(carla.Location(x=104, y=28, z=3.6), carla.Rotation(pitch=0, yaw=90, roll=0)),  # 前相机    2
-#        "right_camera": carla.Transform(carla.Location(x=100, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 右相机   6
-#        "front_right_camera": carla.Transform(carla.Location(x=100, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-178, roll=0)), # 前右相机  4
-#        "left_camera": carla.Transform(carla.Location(x=108, y=14, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0)),  # 左相机     5
-#        "front_left_camera": carla.Transform(carla.Location(x=108, y=28, z=3.6), carla.Rotation(pitch=0, yaw=-0, roll=0))   # 前左相机    3
-# }
 
 relativePose_to_egoVehicle = {
        "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],
@@ -253,13 +236,9 @@ def sensor_callback(sensor_data, sensor_queue, sensor_name):
 
 
 # 记录雷达和相机数据
-def setup_sensors(world, addtion_param, sensor_queue):
+def setup_sensors(world, addtion_param, sensor_queue, transform, camera_loc):
     lidar = None
     camera_dict = {}
-    # 路口1的雷达位置
-    transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8),carla.Rotation(pitch=0, yaw=90, roll=0))
-    # 路口2的雷达位置
-    # transform = carla.Transform(carla.Location(x=104, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
     # 配置LiDAR传感器
     lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
     lidar_bp.set_attribute('dropoff_general_rate', '0.1')
@@ -381,13 +360,47 @@ def destroy_actor(lidar, camera_dict, vehicles, sensor_queue):
 
 # 主函数
 def main():
+    argparser = argparse.ArgumentParser(
+        description=__doc__)
+    argparser.add_argument(
+        '--host',
+        metavar='H',
+        default='127.0.0.1',
+        help='IP of the host server (default: 127.0.0.1)')
+    argparser.add_argument(
+        '-p', '--port',
+        metavar='P',
+        default=2000,
+        type=int,
+        help='TCP port to listen to (default: 2000)')
+    argparser.add_argument(
+        '-n', '--number-of-vehicles',
+        metavar='N0',
+        default=50,
+        type=int,
+        help='Number of vehicles (default: 50)')
+    argparser.add_argument(
+        '-t', '--town',
+        metavar='TOWN',
+        default='Town 10',
+        choices=town_configurations.keys(),  # 限制用户只能输入已定义的城镇名
+        help='Name of the town to use (e.g., Town01, Town10)'
+    )
+    argparser.add_argument(
+        '-i', '--intersection',
+        metavar='INTERSECTION',
+        default='road_intersection_1',  # 默认路口
+        choices=town_configurations['Town01'].keys() if 'Town01' in town_configurations else [],  # 这里应该动态地根据选择的城镇来设置选择项
+        # 注意：上面的 choices 设置是静态的，为了动态设置，你需要在解析参数后进行检查
+        help='Name of the intersection within the town (default: road_intersection_1)'
+    )
+    args = argparser.parse_args()
+
     # 连接到Carla服务器
-    client = carla.Client('localhost', 2000)
+    client = carla.Client(args.host, args.port)
     client.set_timeout(10.0)
 
     world = client.get_world()
-    # weather = carla.WeatherParameters(cloudiness=10.0, precipitation=10.0, fog_density=10.0)
-    # world.set_weather(weather)
 
     # 仿真设置
     settings = world.get_settings()
@@ -408,16 +421,14 @@ def main():
     try:
         # 设置随机种子
         random_seed = 20
-        # 路口1的静止 ego_vehicle 位置
-        ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
-        # 路口2的静止 ego_vehicle 位置
-        # ego_transform = carla.Transform(carla.Location(x=104, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0))
+        intersection_config = town_configurations[args.town][args.intersection]
+        ego_transform = intersection_config.ego_vehicle_position
+        camera_loc = intersection_config.camera_positions
         # 先生成自动驾驶车辆
-        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
-        # 路口1设置理想化的雷达位置
-        lidar_transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
-        # 路口2设置理想化的雷达位置
-        # lidar_transform = carla.Transform(carla.Location(x=104, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
+        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=args.number_of_vehicles, random_seed=random_seed)
+        lidar_transform = carla.Transform(
+            carla.Location(x=ego_transform.location.x, y=ego_transform.location.y, z=ego_transform.location.z + 0.82),
+            ego_transform.rotation)
         # 获取雷达到世界的变换矩阵（4x4矩阵）
         lidar_to_world = np.array(lidar_transform.get_matrix())
         lidar_to_world_inv = np.linalg.inv(lidar_to_world)
@@ -431,7 +442,7 @@ def main():
             time.sleep(0.05)
         sensor_queue = Queue()
         # 启动相机、雷达传感器
-        lidar, camera_dict = setup_sensors(world, addtion_param, sensor_queue)
+        lidar, camera_dict = setup_sensors(world, addtion_param, sensor_queue, lidar_transform, camera_loc)
         actual_vehicle_num = []
         all_vehicle_labels = []
         for _ in range(DATA_MUN):
