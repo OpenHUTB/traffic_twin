@@ -8,7 +8,7 @@ class IntersectionConfig:
 
 
 town_configurations = {
-    "Town 01": {
+    "Town01": {
         "road_intersection_1": IntersectionConfig(
             carla.Transform(carla.Location(x=336, y=1, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0)),
             {
@@ -44,7 +44,7 @@ town_configurations = {
             }
         )
     },
-    "Town 10": {
+    "Town10": {
         "road_intersection_1": IntersectionConfig(
             carla.Transform(carla.Location(x=-46, y=21, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0)),
             {

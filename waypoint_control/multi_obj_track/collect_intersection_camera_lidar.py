@@ -107,10 +107,10 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
         label = [
             bounding_box_location_lidar[0],  # x
             bounding_box_location_lidar[1],  # y
-            bounding_box_location_lidar[2] + 0.3
-            # length,
-            # width,
-            # height,
+            bounding_box_location_lidar[2] + 0.3,
+            length,
+            width,
+            height
             # pitch_lidar,  # pitch
             # roll_lidar,  # roll
             # yaw_lidar  # yaw
@@ -380,9 +380,14 @@ def main():
         type=int,
         help='Number of vehicles (default: 50)')
     argparser.add_argument(
+        '-w', '--wait',
+        action='store_true',
+        default=False,
+        help='Whether to wait vehicle reach(default: False)')
+    argparser.add_argument(
         '-t', '--town',
         metavar='TOWN',
-        default='Town 10',
+        default='Town10',
         choices=town_configurations.keys(),  # 限制用户只能输入已定义的城镇名
         help='Name of the town to use (e.g., Town01, Town10)'
     )
@@ -390,8 +395,6 @@ def main():
         '-i', '--intersection',
         metavar='INTERSECTION',
         default='road_intersection_1',  # 默认路口
-        choices=town_configurations['Town01'].keys() if 'Town01' in town_configurations else [],  # 这里应该动态地根据选择的城镇来设置选择项
-        # 注意：上面的 choices 设置是静态的，为了动态设置，你需要在解析参数后进行检查
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -400,8 +403,8 @@ def main():
     client = carla.Client(args.host, args.port)
     client.set_timeout(10.0)
 
-    world = client.get_world()
-
+    # 重新加载地图，重置仿真时间
+    world = client.load_world(args.town, True)
     # 仿真设置
     settings = world.get_settings()
     settings.fixed_delta_seconds = 0.05
@@ -432,10 +435,14 @@ def main():
         # 获取雷达到世界的变换矩阵（4x4矩阵）
         lidar_to_world = np.array(lidar_transform.get_matrix())
         lidar_to_world_inv = np.linalg.inv(lidar_to_world)
-        # 记录第二路口数据时，等待车辆到达后开始记录
-        # for _ in range(WAITE_NEXT_INTERSECTION_TIME):
-        #     world.tick()
-        #     time.sleep(0.05)
+
+        # 对于两个路口的测试，第二个路口需要等待车辆到达后开始记录数据
+        if args.wait:
+            # 记录第二路口数据时，等待车辆到达后开始记录
+            for _ in range(WAITE_NEXT_INTERSECTION_TIME):
+                world.tick()
+                time.sleep(0.05)
+
         # 等待车辆落地开始行驶后再开始收集数据集
         for _ in range(DROP_BUFFER_TIME):
             world.tick()
@@ -470,8 +477,16 @@ def main():
         processed_data = []
 
         for entry in flattened_data:
-            timestamp, vehicle_id, position = entry
-            processed_data.append({'Time': timestamp, 'TruthID': vehicle_id, 'Position': position})
+            timestamp, vehicle_id, position_with_dims = entry
+            x, y, z, length, width, height = position_with_dims
+            position = (x, y, z)
+            box = (length, width, height)
+            processed_data.append({
+                'Time': timestamp,
+                'TruthID': vehicle_id,
+                'Position': position,
+                'Box': box
+            })
 
         truths = np.array(processed_data, dtype=object)
         file_path = os.path.join(folder_name, "truths.mat")
