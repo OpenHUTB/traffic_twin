@@ -52,18 +52,22 @@ pip install -r requirements.txt
 
 **2.数据预处理**
 
-- 运行[detect3DBoundingBox.m](./multi_obj_track/detect3DBoundingBox.m)检测点云中的车辆，获取3D标签，
+- [detect3DBoundingBox.m](./multi_obj_track/detect3DBoundingBox.m)检测点云中的车辆，获取3D标签，
 
 
-- 运行[detect2DBoundingBox.m](./multi_obj_track/detect2DBoundingBox.m)检测图片中的车辆，获取2D标签（这里我们直接使用的是预训练的yolov4模型）。
+- [detect2DBoundingBox.m](./multi_obj_track/detect2DBoundingBox.m)检测图片中的车辆，获取2D标签（这里我们直接使用的是预训练的yolov4模型）。
 
 **3.数据融合，获取轨迹**
 
-执行[multiObjectTracking.m](./multi_obj_track/multiObjectTracking.m)可视化跟踪的车辆，输出trackedData.mat。
+[multiObjectTracking.m](./multi_obj_track/multiObjectTracking.m)可视化跟踪的车辆，输出trackedData.mat。
 
 **4.坐标转换**
 
 获取的轨迹是相对于自车的坐标，然而我们假设自车是静止在路口中间（实际不存在），雷达和相机都附着在自车上，也就是说与自车存在一个相对位置，[**示例**](https://ww2.mathworks.cn/help/fusion/ug/object-level-fusion-of-lidar-and-camera-data-for-vehicle-tracking.html)中雷达与车辆的相对位置是[0,0,0]，但本项目中雷达是高出一定的距离。[convertTrackToCarlaCoordinate.m](./multi_obj_track/convertTrackToCarlaCoordinate.m)将坐标转换成CARLA场景中的轨迹，使用的是相对于自车的，因此(x,y)是正确的。
+
+**5.运行**
+
+我们将上述过程都在demo.m中实现，在config.m中设置对应的配置，运行demo.m即可！
 
 **注意！**
 
@@ -95,7 +99,7 @@ pip install -r requirements.txt
 
 **1.生成可作匹配的轨迹**
 
-多目标跟踪[multiObjectTracking.m](./multi_obj_track/multiObjectTracking.m)可视化跟踪的车辆，输出trackedData.mat的同时，也保存了每条轨迹所对应车辆的图片，该图片是通过结合所融合的3D框和Yolo识别的2D框判断为通一辆车后，选择该2D框进行裁剪，重塑生成可作特征提取的224×224大小的图片。
+多目标跟踪[multiObjectTracking.m](./multi_obj_track/multiObjectTracking.m)可视化跟踪的车辆，输出trackedData.mat的同时，也保存了每条轨迹所对应车辆的图片，该图片是通过结合所融合的3D框和Yolo识别的2D框判断为同一辆车后，选择该2D框进行裁剪，重塑生成可作特征提取的224×224大小的图片。
 
 执行[loadAllTraj.m](./multi_obj_track/reID/Utils/loadAllTraj.m) 设置**指定路口**生成轨迹。
 
