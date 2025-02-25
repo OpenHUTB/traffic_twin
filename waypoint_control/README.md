@@ -67,7 +67,7 @@ pip install -r requirements.txt
 
 **5.运行**
 
-我们将上述过程都在demo.m中实现，在config.m中设置对应的配置，运行demo.m即可！
+我们将上述过程都在[demo.m](./multi_obj_track/demo.m)中实现，在[config.m](./multi_obj_track/config.m)中设置对应的配置，运行[demo.m](./multi_obj_track/demo.m)即可！
 
 **注意！**
 
