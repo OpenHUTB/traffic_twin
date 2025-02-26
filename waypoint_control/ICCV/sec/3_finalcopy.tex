@@ -25,51 +25,59 @@ First, consider the class information association between one detection and one 
 Assume the confusion matrix of the detection is $C=\left[c_{i j}\right]$,where $c_{i j}$ denotes the likelihood that the classifier outputs the classification as $j$ if the truth class of the target is $i$.
 Here,$i,j = 1,…, N$, and $N$ is the total number of possible classes.
 At time $k-1$, the probability distribution of a track is given as 
-
-$$\mu(k-1)=\left[\begin{array}{l}
-	\mu_{1}(k-1) \\
-	\vdots \\
-	\mu_{N}(k-1)
-\end{array}\right],$$
+\begin{align}
+	\mu(k-1) & = \left[\begin{array}{l}
+		\mu_{1}(k-1) \\
+		\vdots \\
+		\mu_{N}(k-1)
+	\end{array}\right]
+\end{align}
 where $\mu_{i}$ is the probability that the classification of the track is $i$.
 If the tracker associates the detection to the track at time $k$, then the updated value of $\mu_{i}$ using Bayes' theorem is
-
-$$\mu_{i}(k)=\frac{c_{i j} \mu_{i}(k-1)}{\sum_{l=1}^{N} c_{l j} \mu_{l}(k-1)}.$$
+\begin{align}
+	\mu_{i}(k) = \frac{c_{i j} \mu_{i}(k-1)}{\sum_{l = 1}^{N} c_{l j} \mu_{I}(k-1)}
+\end{align}
 Write this equation in a vector form for all possible classifications as
-
-$$\mu(k)=\frac{c_{j} \otimes \mu(k-1)}{c_{j}^{T} \mu(k-1)}.$$
+\begin{align}
+	\mu(k) & = \frac{c_{j} \otimes \mu(k-1)}{c_{j}^{T} \mu(k-1)}
+\end{align}
 where $c_{j}$ is the $j$-th column of the confusion matrix and $\otimes$ represents element-wise multiplication. 
 This equation represents the updated class probability of a track if the track is associated with the detection of classification $j$.
 
 \textbf{Mixed Association Likelihood in Cluster.}
 The tracker performs gating and clustering by using only the kinematic information between detections and tracks. 
 After that, in each cluster, the tracker calculates the mixed likelihood of association between a detection $m$ and a track $t$ as:
-
-$$\Lambda(m, t)=\Lambda_{k}^{1-\alpha}(m, t) \Lambda_{c}^{\alpha}(m, t),$$
+\begin{align}
+	\Lambda(m, t) & = \Lambda_{k}^{1-\alpha}(m, t) \Lambda_{c}^{\alpha}(m, t)
+\end{align}
 where $\alpha$ represents Weight factor of class likelihood;$\Lambda_{k}$ represents Likelihood of assigning a detection to a track based on the kinematic states;$\Lambda_{c}$ represents Likelihood of assigning a classified detection to a track based on the class information.
 In the equation, $\Lambda_{c}$ takes one of these three forms based on the value of $m$ and $t$.
 
 $\bullet$ $m > 0$ and $t > 0$ — A hypothesis that the measurement is associated with a track in the tracker. 
 In this case,
-
-$$\Lambda_{k}(m, t)=c_{j}^{T} \mu(k-1),$$
+\begin{align}
+	\Lambda_{k}(m, t) & = c_{j}^{T} \mu(k-1)
+\end{align}
 where $c_{j}$ is the $j$-th column in the confusion matrix that detection $m$ corresponds to, and $\mu(k-1)$ is the class probability vector of the track in the previous step.
 
 $\bullet$ $m > 0$ and $t = 0$ — A hypothesis that the measurement is not associated with any track in the tracker. In this case,
-
-$$\Lambda_{k}(m, t)=c_{j}^{T} \mu^{0},$$
+\begin{align}
+	\Lambda_{k}(m, t) & = c_{j}^{T} \mu^{0}
+\end{align}
 where $c_{j}$ is the $j$-th column in the confusion matrix that detection $m$ corresponds to, and $\mu^{0}$ is the a priori class distribution vector of tracks.
 
 $\bullet$ $m = 0$ and $t > 0$ — A hypothesis that the track is not associated with any measurement in the tracker. In this case,
-
-$$\Lambda_{k}(m, t)=1.$$
+\begin{align}
+	\Lambda_{k}(m, t) & = 1
+\end{align}
 Using the mixed likelihoods of association between detections and tracks in a cluster, the tracker generates all the feasible events and then calculates the marginal probability of assigning each detection to each track in the cluster.
 
 \textbf{Update Track Class Probability.}
 Suppose the marginal probabilities of $M$ detections assigned to a track in the cluster are $\left(\beta_{0}, \beta_{1}, \ldots, \beta_{M}\right)$, where $\beta_{0}$ is the marginal probability that no measurements is associated with the track. 
 Then the tracker updates the class probability of the track as
-
-$$\mu_{k}=\left(\sum_{m=1}^{M} \beta_{m} \frac{c_{j(m)} \otimes \mu(k-1)}{c_{j(m)}^{T} \mu(k-1)}\right)+\beta_{0} \mu(k-1),$$
+\begin{align}
+	\mu_{k} & = \left(\sum_{m = 1}^{M} \beta_{m} \frac{c_{j(m)} \otimes \mu(k-1)}{c_{j(m)}^{T} \mu(k-1)}\right)+\beta_{0} \mu(k-1)
+\end{align}
 where $c_{j}(m)$ is the class probability vector of detection $m$, $\otimes$ represents element-wise multiplication, $\mu(k-1)$ is the class probability vector of the track in the $k-1$ step, and $\mu(k)$ is the class probability vector of the track in the $k$ step.
 
 The tracker updates the class properties of tracks cluster by cluster.
@@ -109,8 +117,46 @@ For matching vehicle trajectories between intersections, we currently compute th
 If Intersection 1 has M vehicles and Intersection 2 has N vehicles, a matrix of size M×N is generated. 
 If the similarity exceeds a certain threshold, the two vehicles are considered to be the same vehicle.
 
-\subsection{Trajectory inference and reconstruction}
+\subsection{Trajectory Inference and Reconstruction}
 
+\textbf{Inference of Trajectories in Unknown Regions.}
+Ren et al. proposed an Enhanced Multi-Stream Interaction Network (EMSIN), which utilizes multi-stream inputs (historical trajectories, vehicle interactions, and environmental information) and dynamic interaction modeling (graph neural networks and attention mechanisms) to fuse spatiotemporal features and output the probability distribution of future trajectories, thereby achieving high-precision vehicle trajectory prediction\cite{Alpher24d}. 
+We have made certain modifications to this framework. 
+In the inputs, for vehicle i, its historical trajectory can be represented as:
+\begin{align}
+	\mathbf{X}_{i} & = \left[\mathbf{x}_{i}^{t-T}, \mathbf{x}_{i}^{t-T+1}, \ldots, \mathbf{x}_{i}^{t-1}\right]
+\end{align}
+Here, $\mathbf{x}_{i}^{t}=\left(x_{i}^{t}, y_{i}^{t}\right)$ represents the position coordinates of vehicle $i$ at time $t$.
+The positions and topological structures of the two matched intersections $A$ and $B$ are represented as:
+\begin{align}
+	\mathbf{R}_{A} & = \left(x_{A}, y_{A}, \text { Topology }_{A}\right) \\
+	\mathbf{R}_{B} & = \left(x_{B}, y_{B}, \text { Topology }_{B}\right)
+\end{align}
+The set of possible paths for a vehicle traveling from intersection A to intersection B is represented as:
+\begin{align}
+	\mathcal{P}_{A \rightarrow B} & = \left\{P_{1}, P_{2}, \ldots, P_{K}\right\}
+\end{align}
+The formula for predicting vehicle trajectories in unknown regions is:
+\begin{align}
+\hat{\mathbf{Y}}_{i} = \mathbf{W}_{h} \mathbf{h}_{i}+\mathbf{W}_{r}\left(\mathbf{r}_{A}+\mathbf{r}_{B}\right)+\mathbf{W}_{p} \sum_{k = 1}^{K} \alpha_{k} \mathbf{p}_{k}
+\end{align}
+Where, $\mathbf{W}_{h}, \mathbf{W}_{r}, \mathbf{W}_{p}$ are learnable weight matrices. 
+$\mathbf{h}_{i}$ represents the historical trajectory encoded using LSTM. 
+$\mathbf{r}_{A}$ and $\mathbf{r}_{A}$ are the topological structures of intersections $A$ and $B$ encoded using GNN. 
+$\mathbf{p}_{k}$ is the path feature extracted after encoding each path $P_{k}$. 
+$\alpha_{k}$ is the attention weight of path $P_{k}$, indicating the probability of the vehicle choosing that path.
+
+
+\textbf{All Trajectory Restoration.}
+Through the aforementioned network, we are able to obtain vehicle trajectories in unknown regions. 
+Simultaneously, we have also acquired vehicle trajectories at intersections using the JPDA tracker. 
+At this point, we only need to concatenate all trajectories of the same vehicle in chronological order and place them into a new collection, thereby obtaining the complete trajectory of that vehicle. 
+This method can be represented as: 
+\begin{align}
+	S = \sum_{n = 1}^{k} \left ( x_{t}  \right ) 
+\end{align}
+where $S$ is the trajectory collection, and $x_{t}$ represents the segmented trajectories labeled with time intervals. 
+By organizing the trajectories of all vehicles in this manner, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
 
 \subsection{Twin of Trajectory}
 
