@@ -48,19 +48,21 @@ function loadAllTraj(junc)
         features = extractReidentificationFeatures(net,img);
         % 将特征重塑为 1x2048 的形式
         features = reshape(features, 1, 2048);
+        timestamp = loadedData.allTracks(index).Timestamps;
         trackerOutput.traj{k} = struct( ...
-            'trackID', trackID, ...  % 轨迹 ID
+            'trackID', trackID, ...    % 轨迹 ID
             'wrl_pos', positions, ...  % 位置数据
-            'mean_hsv', features ...  % 特征数据
+            'mean_hsv', features, ...  % 特征数据
+            'timestamp', timestamp ... % 轨迹时间
         );
-       [N, ~] = size(positions);
-       trackerOutput.traj_f(k,:) = [1, N];
+       trackerOutput.traj_f(k,:) = [timestamp(1), timestamp(end)];
     end
+    juncVehicleTraj = processSingleJuncTraj(trackerOutput);
     baseName = 'traj';
     fileName = [junc, '_', baseName, '.mat'];
     % 保存 trackerOutput 到 .mat 文件
     outputFilePath = fullfile(currentPath, fileName);  % 定义保存路径
-    save(outputFilePath, 'trackerOutput');  
+    save(outputFilePath, 'juncVehicleTraj');  
     successMessage = [num2str(junc), ': trackerOutput saved successfully' ];
     disp(successMessage);
 end 
