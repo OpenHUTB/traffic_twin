@@ -160,7 +160,6 @@ By organizing the trajectories of all vehicles in this manner, we can derive the
 
 \subsection{Twin of Trajectory}
 
-We utilize Carla to conduct twin experiments, leveraging its highly realistic virtual environment, flexible sensor configurations, and diverse traffic scenarios, which efficiently simulate complex real-world driving conditions. 
 Through the previous steps, we have obtained the trajectories of all vehicles. 
 Here, we will further optimize these trajectories using a trajectory smoothing algorithm, and then employ a PID controller to control the vehicles, ensuring they follow the optimized trajectories\cite{Alpher22d}. 
 The PID controller consists of three main components: Proportional control (P), Integral control (I), and Derivative control (D). Each component serves a specific purpose, enabling the regulation of different aspects of the system.
@@ -211,7 +210,7 @@ The controller continues to monitor the system state, updates the error in real 
 
 We employed two evaluation metrics.
 
-\textbf{Multiple Object Tracking Accuracy}
+\textbf{Multiple Object Tracking Accuracy.}
 Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA):
 \begin{align}
 	\mathrm{MOTA} & = 1-\frac{F N+F P+M}{T}
@@ -226,7 +225,7 @@ The value of MOTA ranges from 0 to 1, with higher values indicating better track
 A MOTA of 1 means there are no missed detections, false detections, or identity mismatches, representing perfect tracking performance. 
 A MOTA of 0 means the tracking performance is very poor, with all detections being incorrect.
 
-\textbf{Multi Camera Tracking Accuracy}
+\textbf{Multi Camera Tracking Accuracy.}
 The multi-camera object tracking accuracy (MCTA) which condenses all aspects of system performance into one measure\cite{Alpher23b}:
 \begin{align}
 	\mathrm{MCTA} & = \frac{2 P R}{P+R}\left(1-\frac{M^{w}}{T^{w}}\right)\left(1-\frac{M^{h}}{T^{h}}\right)

@@ -2,12 +2,29 @@
 
 We conducted the following experiments: 
 (a) 3D object detection using PointPillars deep learning for LiDAR, 
-(b) object-level fusion of LiDAR and camera data for object tracking, 
+(b) performing multi-target tracking under single-intersection and multi-intersection scenarios, 
 (c) vehicle re-identification between intersections using a ReID network, and 
-(d) controlling the vehicle to achieve trajectory reproduction.
+(d) implementing trajectory digital twins in Carla.
 
 \subsection{preparation}
 
+\textbf{Simulation Environment.}
+We conducted simulation experiments in Carla, whose advantage lies in its provision of a highly realistic virtual environment capable of accurately simulating complex traffic scenarios and diverse driving conditions. 
+Carla supports flexible sensor configurations, such as cameras and LiDAR, facilitating multimodal data acquisition and fusion experiments\cite{Alpher22e}. 
+We selected Town10 and Town1 in Carla as our simulation scenarios, which offer the benefit of providing highly realistic and diverse virtual environments, enabling precise simulation and replication of real traffic scenarios. 
+The complex urban structure and dense traffic flow of Town10 can simulate highly dynamic real traffic environments, while the simple layout and clear rules of Town1 make it easy to construct controlled experimental scenarios.
+
+\textbf{Data Collection.}
+In CARLA's Town10 scenario, a single intersection location is selected, with a LiDAR placed at the center and six cameras arranged around it to achieve 360-degree omnidirectional perception coverage. 
+This setup allows for the acquisition of rich point cloud data and image information, making it suitable for target recognition and tracking in complex traffic environments. 
+By configuring the LiDAR with 64 channels, a detection range of 100 meters, 250,000 points per second, and a rotation frequency of 20 Hz, the radar can efficiently generate high-density and accurate point cloud data. 
+Additionally, one camera is placed at the front and rear of the vehicle, and one camera is positioned on each of the four roads to the left and right. 
+The cameras have a resolution of 1920x1080 pixels and a field of view of 90 degrees, ensuring the capture of wide-angle image data in high definition. 
+The collected data includes point cloud data from the LiDAR and image data from the cameras. 
+The radar data is saved as MAT files with timestamps, while the camera data is saved as images for each frame in six directions. 
+The data structure follows the storage format of the Panda dataset, making the data more standardized for subsequent processing and fusion\cite{Alpher21c}. 
+Each frame of radar data stores information such as point cloud objects, timestamps, positions relative to the ego vehicle, and detected 3D bounding boxes. 
+Each frame of camera data stores image data from six directions, positions relative to the ego vehicle, timestamps, and detected 2D bounding boxes.
 
 \subsection{Experimental effect}
 
