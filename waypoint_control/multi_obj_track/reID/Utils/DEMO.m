@@ -4,6 +4,10 @@ loadAllTraj('test_data_junc2');
 %% 加载轨迹
 junc1Tracks = load('test_data_junc1_traj.mat'); 
 junc2Tracks = load('test_data_junc2_traj.mat'); 
+
+%% 匹配轨迹之前，处理单个路口的轨迹id变化的情况
+% 将变换id的同一条轨迹整合
+
 %% 轨迹匹配
 traj = linkIdentities(junc1Tracks.trackerOutput, junc2Tracks.trackerOutput);
 
