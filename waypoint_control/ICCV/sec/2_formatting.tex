@@ -8,10 +8,10 @@ UVDT mainly uses LiDAR and cameras for vehicle object detection.
 Several recent studies have explored the fusion of LiDAR and camera data for vehicle detection,demonstrating significant improvements in both accuracy and robustness. 
 For instance, MVDNet (2018) utilizes a multi-view fusion approach, where LiDAR point clouds are projected to different views (such as bird’s-eye view and front view) and matched with camera images, combining depth information from LiDAR and texture information from the camera. 
 This method improves detection performance, especially in complex environments. 
-Building on this, PointPillars (2019) introduces a fast encoder for LiDAR data, using a grid-based encoding approach that could potentially be integrated with camera data in future fusion methods to enhance detection speed and efficiency.
-Another study (2020) combines LiDAR and camera data by feeding them into separate convolutional neural networks, where the features extracted from both modalities are fused to perform object detection. 
+Building on this, PointPillars introduces a fast encoder for LiDAR data, using a grid-based encoding approach that could potentially be integrated with camera data in future fusion methods to enhance detection speed and efficiency\cite{Alpher19}.
+Another study combines LiDAR and camera data by feeding them into separate convolutional neural networks, where the features extracted from both modalities are fused to perform object detection\cite{Alpher20e}. 
 This approach has shown significant improvements in detection performance, particularly in dynamic environments with occlusions or sparse LiDAR data.
-Lastly, ST-MVDNet (2021) introduces a self-training framework using a teacher-student mutual learning mechanism, where the teacher network is trained on the fused LiDAR and camera data, while the student network is exposed to strong data augmentation simulating missing sensor modalities. 
+Lastly, ST-MVDNet introduces a self-training framework using a teacher-student mutual learning mechanism, where the teacher network is trained on the fused LiDAR and camera data, while the student network is exposed to strong data augmentation simulating missing sensor modalities\cite{Alpher22f}. 
 
 This approach enhances the model’s robustness against sensor failures by ensuring consistency between the teacher and student models, allowing the system to better handle missing or noisy data during inference.
 These methods collectively highlight the importance of sensor fusion and advanced learning techniques in achieving robust and accurate vehicle detection, even in challenging conditions.
@@ -29,14 +29,11 @@ We use Joint Integrated Probabilistic Data Association (JIPDA), which combines d
 
 
 \textbf{Vehicle re identification.}
-The appearance of vehicles can be described through color, texture, and shape features. 
-While color and texture features are commonly used for identifying the vehicle's appearance, shape features provide important information about the vehicle's structure. 
-The impact of lighting changes is typically adjusted through color normalization, sample-based techniques, or luminance transfer functions, which can be optimized via supervised or unsupervised learning. 
-To enhance distinguishability, salient information about the vehicle or features related to specific body parts are often leveraged. 
-These features can be extracted directly from images or mapped onto 3D vehicle models for improved identification accuracy. 
-Shape features, particularly the contours and structure of the vehicle body, can effectively differentiate between different types of vehicles and provide additional distinguishing information, especially in cases of significant viewpoint variation.
+He and his team proposed a part-based regularization method, which enhances the accuracy of vehicle re-identification by detecting local parts of vehicles, such as lights and wheels\cite{Alpher19b}. 
+Zheng and his colleagues introduced a large-scale vehicle re-identification dataset named VehicleNet and proposed a multi-task learning framework that combines vehicle re-identification and vehicle attribute recognition tasks, improving the model's generalization capability\cite{Alpher20f}. 
+P and the research team proposed a dual-path model that integrates global and local features and incorporates an adaptive attention mechanism to enhance the accuracy of vehicle re-identification\cite{Alpher19c}.
 
-The most advanced technologies in the field of vehicle re-identification currently include the combination of deep convolutional neural networks (CNN) for feature extraction and metric learning, particularly with the integration of cross-view and cross-domain learning techniques, the use of Generative Adversarial Networks (GAN) for image enhancement, and the fusion of multi-sensor data (such as cameras, radar, and LiDAR) to improve the model's robustness and accuracy in complex environments.
+The most advanced technologies in the field of vehicle re-identification currently include the combination of deep convolutional neural networks (CNN) for feature extraction and metric learning\cite{Alpher20g}, particularly with the integration of cross-view and cross-domain learning techniques, the use of Generative Adversarial Networks (GAN) for image enhancement\cite{Alpher21d}, and the fusion of multi-sensor data (such as cameras, radar, and LiDAR) to improve the model's robustness and accuracy in complex environments\cite{Alpher22g}.
 
 We designed a ResNet-50 network for vehicle re-identification by drawing inspiration from Re-ID.
 The network is capable of performing this task effectively.
