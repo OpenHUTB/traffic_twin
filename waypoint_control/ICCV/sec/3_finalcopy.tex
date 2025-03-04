@@ -122,7 +122,7 @@ If the similarity exceeds a certain threshold, the two vehicles are considered t
 \textbf{Inference of Trajectories in Unknown Regions.}
 Ren et al. proposed an Enhanced Multi-Stream Interaction Network (EMSIN), which utilizes multi-stream inputs (historical trajectories, vehicle interactions, and environmental information) and dynamic interaction modeling (graph neural networks and attention mechanisms) to fuse spatiotemporal features and output the probability distribution of future trajectories, thereby achieving high-precision vehicle trajectory prediction\cite{Alpher24d}. 
 We have made certain modifications to this framework. 
-In the inputs, for vehicle i, its historical trajectory can be represented as:
+In the inputs, for vehicle $i$, its historical trajectory can be represented as:
 \begin{align}
 	\mathbf{X}_{i} & = \left[\mathbf{x}_{i}^{t-T}, \mathbf{x}_{i}^{t-T+1}, \ldots, \mathbf{x}_{i}^{t-1}\right]
 \end{align}

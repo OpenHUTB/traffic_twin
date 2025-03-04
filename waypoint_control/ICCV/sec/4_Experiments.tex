@@ -34,3 +34,19 @@ Each frame of camera data stores image data from six directions, positions relat
 
 \subsection{Limitations and Future Directions}
 
+\textbf{Problems Encountered in The Experiment.}
+During our experiments, we encountered the following issues:  
+1.When matching trajectories across multiple intersections, images of vehicles corresponding to each trajectory are needed to extract re-identification appearance features. 
+Acquiring these images is difficult, and the methods used can affect accuracy.  
+2.When matching trajectories, it is necessary to associate trajectories from all intersections. 
+However, due to ID switching, the trajectory of the same vehicle at a single intersection may be fragmented, making integration complex. 
+If only one trajectory is selected as the current intersection's trajectory for a vehicle, issues arise when the same vehicle returns to the intersection.
+
+\textbf{Shortcomings of Current Research.}
+Although our experiments have achieved some success, there are still some limitations. 
+For example, the detection accuracy of PointPillars is not high, resulting in suboptimal tracking performance. 
+Additionally, false detections may occur when acquiring images of vehicles corresponding to current trajectories, potentially leading to trajectory matching errors.
+
+\textbf{Vision of The Future.}
+Our experiments were conducted under offline conditions, meaning they lacked real-time capabilities. 
+In future work, we aim to transition these experiments to an online framework to achieve high real-time performance, thereby enhancing their experimental value.
