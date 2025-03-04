@@ -27,6 +27,8 @@ DATA_MUN = 500
 DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
 FUSION_DETECTION_ACTUAL_DIS = 45  # 多目标跟踪的实际检测距离
 WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
+# 定义全局变量
+global_time = 0.0
 
 relativePose_to_egoVehicle = {
        "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],
@@ -45,9 +47,18 @@ camera_names = [
 ]
 
 
+def create_town_folder(town):
+    folder_name = f"{town}"
+    # 检查文件夹是否已存在，若不存在则创建
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+        print(f"Created folder: {folder_name}")
+    return folder_name
+
+
 # 创建保存雷达数据的文件夹
-def create_radar_folder():
-    folder_name = f"test_data_junc"
+def create_radar_folder(junc, town_folder):
+    folder_name = f"{town_folder}/{junc}"
     # 检查文件夹是否已存在，若不存在则创建
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
@@ -56,12 +67,25 @@ def create_radar_folder():
 
 
 # 创建保存相机数据的文件夹
-def create_camera_folder(camera_id):
-    folder_name = f"test_data_junc/camera/{camera_id}"
+def create_camera_folder(camera_id, junc, town_folder):
+    folder_name = f"{town_folder}/{junc}/camera/{camera_id}"
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
         print(f"Created folder: {folder_name}")
     return folder_name
+
+
+def rename_intersection(input_string):
+    # 检查输入字符串是否以 'road_intersection_' 开头
+    if input_string.startswith('road_intersection_'):
+        # 提取数字部分
+        num_str = input_string.split('_')[-1]  # 分割字符串并取最后一个部分（假设数字总是在最后）
+        # 构建新的字符串
+        new_string = f'test_data_junc{num_str}'
+        return new_string
+    else:
+        # 如果输入字符串不符合预期格式，可以返回原字符串或抛出异常
+        return input_string  # 这里简单返回原字符串，但实际应用中可能需要更复杂的错误处理
 
 
 # 保存车辆标签
@@ -121,11 +145,14 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
 
 
 # 定义函数来保存雷达点云数据
-def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, lidar_to_world_inv, all_vehicle_labels):
+def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, lidar_to_world_inv, all_vehicle_labels, junc, town_folder):
+    global global_time
     # 获取当前帧编号
     current_frame = radar_data.frame
     # 时间戳
-    timestamp = world.get_snapshot().timestamp.elapsed_seconds
+    # timestamp = world.get_snapshot().timestamp.elapsed_seconds
+    timestamp = global_time
+    global_time = timestamp + 0.05
     location = ego_vehicle_transform.location
     save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels)
 
@@ -144,7 +171,7 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     z_limits = [np.min(location[:, 2]), np.max(location[:, 2])]  # z 轴的最小值和最大值
 
     # 创建存储数据的文件夹
-    radar_folder = create_radar_folder()
+    radar_folder = create_radar_folder(junc, town_folder)
     file_name = os.path.join(radar_folder, f"{current_frame}.mat")
     LidarData = {
         'PointCloud': {
@@ -216,12 +243,12 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
 
 
 # 定义函数来保存相机图像数据
-def save_camera_data(image_data, camera_id):
+def save_camera_data(image_data, camera_id, junc, town_folder):
     current_frame = image_data.frame
     image = np.array(image_data.raw_data)
     image = image.reshape((image_data.height, image_data.width, 4))  # 4th channel is alpha
     image = image[:, :, :3]  # 去掉 alpha 通道，只保留 RGB
-    camera_folder = create_camera_folder(camera_id)
+    camera_folder = create_camera_folder(camera_id, junc, town_folder)
     file_name = os.path.join(camera_folder, f"{current_frame}.jpg")
     try:
         cv2.imwrite(file_name, image)  # 使用 OpenCV 保存图像
@@ -387,14 +414,14 @@ def main():
     argparser.add_argument(
         '-t', '--town',
         metavar='TOWN',
-        default='Town10',
+        default='Town10HD_Opt',
         choices=town_configurations.keys(),  # 限制用户只能输入已定义的城镇名
         help='Name of the town to use (e.g., Town01, Town10)'
     )
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_1',  # 默认路口
+        default='road_intersection_5',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -437,12 +464,13 @@ def main():
         lidar_to_world_inv = np.linalg.inv(lidar_to_world)
 
         # 对于两个路口的测试，第二个路口需要等待车辆到达后开始记录数据
-        if args.wait:
-            # 记录第二路口数据时，等待车辆到达后开始记录
-            for _ in range(WAITE_NEXT_INTERSECTION_TIME):
-                world.tick()
-                time.sleep(0.05)
-
+        # if args.wait:
+        #     # 记录第二路口数据时，等待车辆到达后开始记录
+        #     for _ in range(WAITE_NEXT_INTERSECTION_TIME):
+        #         world.tick()
+        #         time.sleep(0.05)
+        town_folder = create_town_folder(args.town)
+        junc = rename_intersection(args.intersection)
         # 等待车辆落地开始行驶后再开始收集数据集
         for _ in range(DROP_BUFFER_TIME):
             world.tick()
@@ -458,11 +486,11 @@ def main():
             for _ in range(1 + len(camera_dict)):
                 data, sensor_name = sensor_queue.get(True, 1.0)
                 if "lidar" in sensor_name:  # lidar数据
-                    save_radar_data(data, world, ego_transform, actual_vehicle_num, lidar_to_world_inv, all_vehicle_labels)
+                    save_radar_data(data, world, ego_transform, actual_vehicle_num, lidar_to_world_inv, all_vehicle_labels, junc, town_folder)
                 else:
-                    save_camera_data(data, sensor_name)
+                    save_camera_data(data, sensor_name, junc, town_folder)
             # time.sleep(0.05)
-        folder_name = f"test_data_junc/vehicle_data"
+        folder_name = f"{town_folder}/{junc}/vehicle_data"
         # 检查文件夹是否已存在，若不存在则创建
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)

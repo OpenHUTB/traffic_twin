@@ -2,7 +2,16 @@ function saveTrackVehiclePicture(trkIDimg2DBox, savedImg, junc)
      currentPath = fileparts(mfilename('fullpath'));
      parentPath = fileparts(currentPath);
      grandparentPath = fileparts(parentPath);
-     dataPath = fullfile(grandparentPath, 'trkIDImg', junc);
+     imgPath = fullfile(grandparentPath, 'trkIDImg');
+     if ~exist(imgPath, 'dir')
+        mkdir(imgPath);
+     end
+     dirParts = strsplit(junc, '\');
+     townPath = fullfile(imgPath, dirParts{1});
+     if ~exist(townPath, 'dir')
+        mkdir(townPath);
+     end
+     dataPath = fullfile(townPath, dirParts{2});
      if ~exist(dataPath, 'dir')
         mkdir(dataPath);
      end
