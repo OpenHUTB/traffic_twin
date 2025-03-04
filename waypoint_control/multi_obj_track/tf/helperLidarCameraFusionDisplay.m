@@ -156,8 +156,11 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                 % Plot camera image and detections
                 % 获取相机图像的路径
                 originalPath = fullfile(dataFolder,dataLog.CameraData(idx(i)).ImagePath);
-                [~, lastFolder, ~] = fileparts(dataFolder);
-                junc = lastFolder;
+                parts = strsplit(dataFolder, '\');
+                parts(ismember(parts, '')) = [];
+                % 获取最后两个元素
+                lastTwoDirs = parts(end-1:end);
+                junc = fullfile(lastTwoDirs{1}, lastTwoDirs{2});
                 % 读取相机图像
                 img = imread(originalPath);
                 savedImg = img;

@@ -200,11 +200,12 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     
     %% 保存全部轨迹，用做计算指标
     % 轨迹文件夹
-    allTracksFolderPath = fullfile(currentPath, 'Evaluation/demo_data');
+    dirParts = strsplit(junc, '/');
+    allTracksFolderPath = fullfile(currentPath, 'Evaluation', dirParts{1});
     if ~exist(allTracksFolderPath, 'dir')
         mkdir(allTracksFolderPath);
     end
-    fileName = [junc, '_trackedTracks.mat'];
+    fileName = [dirParts{2}, '_trackedTracks.mat'];
     allTracksPath = fullfile(allTracksFolderPath, fileName);
     save(allTracksPath, 'evaluationTracks');
     
