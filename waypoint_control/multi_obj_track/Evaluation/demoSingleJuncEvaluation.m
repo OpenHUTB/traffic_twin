@@ -1,4 +1,4 @@
-function demoSingleJuncEvalution(junc, juncNum)
+function demoSingleJuncEvaluation(junc, juncNum)
     % 计算单个路口多个相机多目标跟踪精度（MOTA）
     currentPath = fileparts(mfilename('fullpath'));
     parentPath = fileparts(currentPath);
@@ -12,8 +12,9 @@ function demoSingleJuncEvalution(junc, juncNum)
         truthsStructured_data(i).TruthID = double(truthsData.truths{i}.TruthID); 
         truthsStructured_data(i).Position = double(truthsData.truths{i}.Position); 
     end
-    fileName = [junc, '_trackedTracks.mat'];
-    tracksDataPath = fullfile(currentPath, 'demo_data', fileName);
+    dirParts = strsplit(junc, '/');
+    fileName = [dirParts{2}, '_trackedTracks.mat'];
+    tracksDataPath = fullfile(currentPath, dirParts{1}, fileName);
     % 跟踪到的路口车辆轨迹
     tracksData = load(tracksDataPath);
     tracksData = tracksData.evaluationTracks;
@@ -27,9 +28,13 @@ function demoSingleJuncEvalution(junc, juncNum)
     metric = trackCLEARMetrics(SimilarityMethod="Euclidean",EuclideanScale=2);
     
     metricTable = evaluate(metric,tracksData,truthsStructured_data);
-    
+    avaluationName = [ dirParts{1}, '_Metric'];
+    evaluationPath = fullfile(currentPath, avaluationName);
+    if ~exist(evaluationPath, 'dir')
+        mkdir(evaluationPath);
+    end
     % 定义保存文件的路径
-    metricTablePath = fullfile(currentPath, sprintf('metricTable_%d.mat', juncNum));
+    metricTablePath = fullfile(evaluationPath, sprintf('metricTable_%d.mat', juncNum));
     
     % 保存表格到 MAT 文件
     save(metricTablePath, 'metricTable');

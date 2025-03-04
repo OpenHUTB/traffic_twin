@@ -14,7 +14,7 @@ if isfield(dataset, townName)
         juncConfig = townConfig.(juncField);
         
         % 设置跟踪参数
-        runFrameNum = 200;                             % 设置多目标跟踪帧数
+        runFrameNum = 500;                             % 设置多目标跟踪帧数
         junc = juncConfig.name;                        % 选择跟踪的路口
         initTime = juncConfig.initialTime;             % 跟踪初始时间
         transMatrix = juncConfig.TransformationMatrix; % 转换矩阵
@@ -33,7 +33,11 @@ if isfield(dataset, townName)
         convertTrackToCarlaCoordinate(junc, transMatrix);
         
         %% 计算单个路口跟踪指标并保存
-        demoSingleJuncEvalution(junc, juncConfig.juncNum);
+        currentPath = fileparts(mfilename('fullpath'));
+        folderPath = fullfile(currentPath, 'Evaluation');
+        % 将文件夹添加到路径
+        addpath(folderPath);
+        demoSingleJuncEvaluation(junc, juncConfig.juncNum);
     else
         error('路口编号不存在！');
     end
