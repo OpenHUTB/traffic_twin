@@ -10,7 +10,14 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     addpath(folderPath);
     % 获取所有 .mat 文件
     matFiles = dir(fullfile(dataPath, "*.mat"));
-    [~, idx] = sort({matFiles.name});
+    % 提取文件名，并转换为数值数组用于排序
+    fileNames = {matFiles.name};
+    numericNames = cellfun(@(x) str2double(x), regexp(fileNames, '\d+', 'match'));
+ 
+    % 对数字进行排序，并获取排序索引
+    [~, idx] = sort(numericNames);
+ 
+    % 根据排序索引重新排列 matFiles 结构体数组
     matFiles = matFiles(idx);
     
     % 加载第一帧数据
