@@ -1,14 +1,21 @@
 %% 将生成的轨迹与外观特征绑定
-loadAllTraj('test_data_junc1'); 
-loadAllTraj('test_data_junc2');
-%% 加载轨迹
-junc1Tracks = load('test_data_junc1_traj.mat'); 
-junc2Tracks = load('test_data_junc2_traj.mat'); 
-
 %% 匹配轨迹之前，处理单个路口的轨迹id变化的情况
-% 将变换id的同一条轨迹整合
+dataSets = {'Town10HD_Opt\test_data_junc1', 'Town10HD_Opt\test_data_junc2', 'Town10HD_Opt\test_data_junc3', 'Town10HD_Opt\test_data_junc4', 'Town10HD_Opt\test_data_junc5'};
+for i = 1:length(dataSets)
+    loadAllTraj(dataSets{i});
+end
+%% 加载所有轨迹
+currentPath = fileparts(mfilename('fullpath'));
+dirParts = strsplit(dataSets{1}, '\');
+juncTracksFolderPath = fullfile(currentPath, dirParts{1});
+% 获取所有轨迹文件
+matFiles = dir(fullfile(juncTracksFolderPath, "*.mat"));
+numMatFiles = length(matFiles);
+for file = 1:numMatFiles
+   fileName = fullfile(juncTracksFolderPath, matFiles(file).name);
+end
 
-%% 轨迹匹配
+%% 轨迹匹配，链接全部路口的轨迹
 traj = linkIdentities(junc1Tracks.trackerOutput, junc2Tracks.trackerOutput);
 
 % 获取当前目录

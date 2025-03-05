@@ -44,8 +44,8 @@ function loadAllTraj(junc)
             continue;  % 跳过当前循环，继续下一个
         end
         positions = loadedData.allTracks(index).Positions;
-        features = [];
-        features = extractReidentificationFeatures(net,img);
+        features = zeros(2048,1);
+        features(:,1) = extractReidentificationFeatures(net,img);
         % 将特征重塑为 1x2048 的形式
         features = reshape(features, 1, 2048);
         timestamp = loadedData.allTracks(index).Timestamps;
@@ -59,9 +59,14 @@ function loadAllTraj(junc)
     end
     juncVehicleTraj = processSingleJuncTraj(trackerOutput);
     baseName = 'traj';
-    fileName = [junc, '_', baseName, '.mat'];
+    dirParts = strsplit(junc, '\');
+    fileName = [dirParts{2}, '_', baseName, '.mat'];
+    juncTracksFolderPath = fullfile(currentPath, dirParts{1});
+    if ~exist(juncTracksFolderPath, 'dir')
+        mkdir(juncTracksFolderPath);
+    end
     % 保存 trackerOutput 到 .mat 文件
-    outputFilePath = fullfile(currentPath, fileName);  % 定义保存路径
+    outputFilePath = fullfile(juncTracksFolderPath, fileName);  % 定义保存路径
     save(outputFilePath, 'juncVehicleTraj');  
     successMessage = [num2str(junc), ': trackerOutput saved successfully' ];
     disp(successMessage);

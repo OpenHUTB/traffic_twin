@@ -1,8 +1,8 @@
 % 链接单路口由于轨迹id变化导致的不连续轨迹
 % 通过计算特征间的余弦相似度外还比较时间
 
-function juncVehicleTraj = processSingleJuncTraj(trajStruct)  % 1x1 struct
-    threshold = 0.5;
+function juncVehicleTraj = processSingleJuncTraj(trajStruct)  % 1x1 struct 
+    threshold = 0.75;
     traj = trajStruct.traj;
     traj_f = trajStruct.traj_f;
     numTrajectories = length(traj);
@@ -36,6 +36,7 @@ function juncVehicleTraj = processSingleJuncTraj(trajStruct)  % 1x1 struct
     % 删除空轨迹
     finalTraj = clearNoneTraj(groupedIndices, traj);
     % 同一车的多个轨迹保存航点多的
+    %% 还需要处理同一车辆再次回到该路口
     finalTrajFiltered = filterFinalTraj(finalTraj, traj);
     % 保存最后包含时间的轨迹
     juncVehicleTraj = saveTraj(trajStruct, finalTrajFiltered);

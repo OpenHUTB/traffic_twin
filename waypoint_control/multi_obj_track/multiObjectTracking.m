@@ -218,7 +218,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     
     %% 保存部分较完整的轨迹，用作轨迹复现
     % 过滤掉轨迹数量少于15的车辆
-    allTracks = allTracks(cellfun(@(x) size(x, 1) >= 15, {allTracks.Positions}));
+    allTracks = allTracks(cellfun(@(x) size(x, 1) >= 5, {allTracks.Positions}));
     % 轨迹目录
     tracksDirectory = fullfile(dataPath, "tracks");
     if ~exist(tracksDirectory, 'dir')
