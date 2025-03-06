@@ -1,123 +1,112 @@
-function traj = linkIdentities(current_intersection_traj, next_intersection_traj)
-    threshold = 0.5;
-    % 路口的轨迹
-    this_traj = current_intersection_traj.traj;
-    next_traj = next_intersection_traj.traj;
-    this_features = extractFeatures(this_traj);
-    next_features = extractFeatures(next_traj);
+function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
+    % Town10场景中有5个路口，已经拿到每个路口的车辆轨迹，还包括其外观特征以及轨迹时间
+    % 现需将5个路口的轨迹根据时间串联起来，形成完整的车辆轨迹
+    threshold = matchThreshold;
+    num_roads = length(juncTrajCell);
+    % 用于存储匹配结果的容器
+    matched_trajectories = containers.Map('KeyType', 'char', 'ValueType', 'any');
 
-    % 计算相似度矩阵，使用欧氏距离或余弦相似度
-    similarity_matrix = computeSimilarityMatrix(this_features, next_features);
-    % 使用相似度矩阵进行轨迹匹配
-    matched_trajectories = matchTrajectories(similarity_matrix, threshold);
-    
-
-    ids1 = cell(1, numel(this_traj));  % 创建一个空 cell 数组来存储结果
-    for i = 1:numel(this_traj)
-         if isempty(this_traj{i})  % 如果该 cell 为空
-             ids1{i} = -1;  % 返回 -1
-         else
-             ids1{i} = this_traj{i}.trackID;  % 否则提取 trackID
-         end
+    persistent idCounter; % 定义一个持久的计数器，它会在脚本或函数的不同调用间保持其值
+    if isempty(idCounter)
+       idCounter = 0; % 首次使用时，将计数器初始化为0
     end
-    ids1 = [ids1{:}]';  % 将 ids 转换为列向量
-
-    ids2 = cell(1, numel(next_traj));  % 创建一个空 cell 数组来存储结果
-    for i = 1:numel(next_traj)
-         if isempty(next_traj{i})  % 如果该 cell 为空
-             ids2{i} = -1;  % 返回 -1
-         else
-             ids2{i} = next_traj{i}.trackID;  % 否则提取 trackID
-         end
-    end
-    ids2 = [ids2{:}]';  % 将 ids 转换为列向量
-
-     % 合并匹配结果
-    traj = mergeResults(this_traj, matched_trajectories, next_traj, ids1, ids2);
-
-end
-
-function features = extractFeatures(traj)
-    % 假设每个轨迹的特征是一个 1x2048 的向量
-    num_points = numel(traj);  % 轨迹点的数量
-    features = zeros(num_points, 2048, 'single');  % 创建一个 1x2048 特征矩阵
-
-    for i = 1:num_points
-        if isempty(traj{i})  % 检查轨迹点是否为空
-            features(i, :) = NaN(1, 2048);  % 如果空，返回 NaN 或者可以设置其他默认值
-        else
-            features(i, :) = traj{i}.mean_hsv;  % 提取轨迹点的特征，假设是 1x2048 的向量
-        end
-    end
-end
-
-function similarity_matrix = computeSimilarityMatrix(features1, features2)
-    % 计算相似度矩阵，使用欧氏距离或余弦相似度
-    num_traj_1 = size(features1, 1);
-    num_traj_2 = size(features2, 1);
-    similarity_matrix = zeros(num_traj_1, num_traj_2);
-
-    for i = 1:num_traj_1
-        for j = 1:num_traj_2
-            % 计算余弦相似度为相似度度量
-            similarity_matrix(i, j) = 1-pdist2(features1(i, :),features2(j, :),"cosine");
-        end
-    end
-end
-
-function matched_trajectories = matchTrajectories(similarity_matrix, threshold)
-    % 使用相似度矩阵进行轨迹匹配
-    % 如果相似度大于设定的阈值，则认为是匹配的
-    matched_trajectories = similarity_matrix > threshold;
-end
-
-function traj = mergeResults(this_traj, matched_trajectories, next_traj, ids1, ids2)
-    % 创建一个空的 cell 数组来存储合并后的轨迹
-    merged_traj = {};  % 存储合并后的轨迹
-    merged_ids = {};  % 存储合并后的轨迹 ID
-    % 获取当前路口和下一个路口轨迹的数量
-    num_current_trajectories = numel(this_traj);
-    num_next_trajectories = numel(next_traj);
-    % 遍历 matched_trajectories 矩阵，匹配为 1 的位置
-    for i = 1:num_current_trajectories
-        for j = 1:num_next_trajectories
-            if matched_trajectories(i, j) == 1
-                % 如果当前轨迹和下一个路口的轨迹匹配，合并这两个轨迹
-                merged_traj{end+1} = mergeTwoTrajectories(this_traj{i}, next_traj{j});
-                merged_ids{end+1} = {ids1(i), ids2(j)};  % 这将保存一个 cell，包含两个 ID
+    % 遍历每个路口的数据
+    for road_idx = 1:num_roads
+        road_data = juncTrajCell{road_idx};
+        traj_list = road_data.traj;
+        
+        % 遍历当前路口的每个车辆轨迹
+        for traj_idx = 1:length(traj_list)
+            current_traj = traj_list{traj_idx};
+            current_features = current_traj.mean_hsv; % 提取外观特征
+            
+            % 尝试在当前结果集中找到匹配项
+            is_matched = false;
+            if road_idx > 1
+                for key = keys(matched_trajectories)
+                    matched_traj = matched_trajectories(key{1});
+                    traj_struct = matched_traj{1};
+                    % 这里需要一个函数来计算两个轨迹之间的相似度
+                    % 基于外观特征的余弦相似度
+                    similarity_score = 1 - pdist2(current_features,  traj_struct.mean_hsv, 'cosine'); 
+                    
+                    % 设定一个阈值来决定是否匹配
+                    if similarity_score > threshold 
+                        % 更新匹配轨迹
+                        track = struct( ...
+                            'roadID', road_idx, ...                 % 道路ID
+                            'trackID', current_traj.trackID, ...    % 轨迹 ID
+                            'wrl_pos', current_traj.wrl_pos, ...    % 位置数据
+                            'mean_hsv', current_traj.mean_hsv, ...  % 特征数据
+                            'timestamp', current_traj.timestamp ... % 轨迹时间
+                        );
+                        matched_traj{end+1} = track;
+                        matched_trajectories(key{1}) = matched_traj;
+                        is_matched = true;
+                        break;
+                    end
+                end
+            end
+            % 如果没有找到匹配项，则作为新轨迹加入结果集
+            if ~is_matched
+                idCounter = idCounter + 1;
+                currentTimeStamp = matlab_posixtime; 
+                unique_id = sprintf('ID_%s_%06d', currentTimeStamp, idCounter);
+                track = struct( ...
+                    'roadID', road_idx, ...                 % 道路ID
+                    'trackID', current_traj.trackID, ...    % 轨迹 ID
+                    'wrl_pos', current_traj.wrl_pos, ...    % 位置数据
+                    'mean_hsv', current_traj.mean_hsv, ...  % 特征数据
+                    'timestamp', current_traj.timestamp ... % 轨迹时间
+                );
+                matched_trajectories(unique_id) = {track};
             end
         end
     end
-
-     % 处理当前路口的轨迹没有匹配的情况
-    for i = 1:num_current_trajectories
-        % 如果当前轨迹没有与下一个路口的轨迹匹配，直接保留当前轨迹
-        if all(matched_trajectories(i, :) == 0)  % 当前轨迹没有与任何下一个轨迹匹配
-            merged_traj{end+1} = this_traj{i};
-            merged_ids{end+1} = {ids1(i)};  % 只保存当前轨迹的 ID
-        end
-    end
     
-    % 处理下一个路口的轨迹没有匹配的情况
-    for j = 1:num_next_trajectories
-        % 如果下一个路口的轨迹没有与任何当前轨迹匹配
-        if all(matched_trajectories(:, j) == 0)  % 如果该轨迹没有与任何当前路口轨迹匹配
-            merged_traj{end+1} = next_traj{j};  % 保留下一个路口的轨迹
-            merged_ids{end+1} = {ids2(j) + num_current_trajectories};  % 更新下一个路口轨迹的 ID
-        end
+    % 遍历集合
+    keysList = keys(matched_trajectories);
+    trajNum = length(keysList);
+    trajCell = {};
+    % 遍历所有的键
+    for i = 1:trajNum
+        key = keysList{i};           
+        value = matched_trajectories(key); % 使用键来检索对应的值  
+        trajCell{end+1} = value;
     end
+    % 将匹配的轨迹按时间先后排序
+    traj = sortByTimestamp(trajCell);
 
-     % 返回合并后的结果
-    traj = struct('traj', merged_traj, 'ids', merged_ids);
 end
 
-function merged_trajectory = mergeTwoTrajectories(trajectory1, trajectory2)
-    % 合并两个轨迹的功能函数
-    merged_wrl_pos = [trajectory1.wrl_pos; trajectory2.wrl_pos];
+function posixTime = matlab_posixtime()
+    % 获取当前日期和时间的 datenum 表示
+    currentDateNum = datenum(now);
     
-    % 创建新的结构体来存储合并后的轨迹
-    merged_trajectory = trajectory1;  % 复制第一个轨迹的信息
+    % 将 datenum 转换为自 Unix 纪元以来的秒数
+    % datenum 的基准是 0000-01-01，而 Unix 纪元是 1970-01-01
+    % 因此，我们需要加上这两个日期之间的天数，并将其转换为秒
+    daysToUnixEpoch = datenum(1970, 1, 1) - datenum(0, 0, 0);
+    posixTime = (currentDateNum - daysToUnixEpoch) * 86400; % 一天有 86400 秒
+end
+
+function traj = sortByTimestamp(trajCell)
+    traj = {};
+    Ncell = length(trajCell);
+    for i = 1:Ncell
+        % 访问第 i 个单元数组元素
+        cellElement = trajCell{i};
+        N = length(cellElement);
+        timestamps = arrayfun(@(x) x{1}.timestamp(1), cellElement);
+        [~, sortIdx] = sort(timestamps);
+        % 使用排序后的索引来重新排列 cell 数组中的结构体
+        sortedCellElement = cell(1, N);
+        if N > 1
+           for j = 1:N
+               sortedCellElement{j} = cellElement{sortIdx(j)};
+           end
+        end
+        traj{end+1} = sortedCellElement;
+    end 
     
-    % 更新合并后的 wrl_pos 字段
-    merged_trajectory.wrl_pos = merged_wrl_pos;  % 合并后的位置信息
 end

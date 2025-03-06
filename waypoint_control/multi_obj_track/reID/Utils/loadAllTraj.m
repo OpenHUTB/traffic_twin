@@ -1,9 +1,11 @@
-function loadAllTraj(junc)
+function loadAllTraj(junc, transMatrix)
+    config;
     currentPath = fileparts(mfilename('fullpath'));
     % 获取当前路径的上级目录
     parentPath = fileparts(currentPath);
     % 再次获取上级目录，即上上级目录
     grandparentPath = fileparts(parentPath);
+    addpath(grandparentPath)
     dataPath = fullfile(grandparentPath, junc,'tracks' );
     trackedDataPath = fullfile(dataPath, 'trackedData.mat');
     datasetFolder = "trainedCustomReidNetwork.mat";
@@ -44,6 +46,16 @@ function loadAllTraj(junc)
             continue;  % 跳过当前循环，继续下一个
         end
         positions = loadedData.allTracks(index).Positions;
+        % 将位置转换成Carla中的三维坐标
+        worldPositions = [];
+        for i = 1:size(positions, 1)  % 遍历所有位置点
+            radarPosition = [positions(i, :)'; 1];  % 将位置转换为齐次坐标 (x, y, z, 1)
+            % 使用转换矩阵将雷达坐标系中的位置转换为 CARLA 世界坐标系
+            worldPosition = transMatrix * radarPosition;
+            % 将转换后的世界坐标加入到 worldPositions 数组中
+            worldPositions = [worldPositions; worldPosition(1:3)'];  % 取 x, y, z
+        end
+       
         features = zeros(2048,1);
         features(:,1) = extractReidentificationFeatures(net,img);
         % 将特征重塑为 1x2048 的形式
@@ -51,7 +63,7 @@ function loadAllTraj(junc)
         timestamp = loadedData.allTracks(index).Timestamps;
         trackerOutput.traj{k} = struct( ...
             'trackID', trackID, ...    % 轨迹 ID
-            'wrl_pos', positions, ...  % 位置数据
+            'wrl_pos', worldPositions, ...  % 位置数据
             'mean_hsv', features, ...  % 特征数据
             'timestamp', timestamp ... % 轨迹时间
         );
