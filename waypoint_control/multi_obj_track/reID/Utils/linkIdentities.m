@@ -101,10 +101,8 @@ function traj = sortByTimestamp(trajCell)
         [~, sortIdx] = sort(timestamps);
         % 使用排序后的索引来重新排列 cell 数组中的结构体
         sortedCellElement = cell(1, N);
-        if N > 1
-           for j = 1:N
-               sortedCellElement{j} = cellElement{sortIdx(j)};
-           end
+        for j = 1:N
+            sortedCellElement{j} = cellElement{sortIdx(j)};
         end
         traj{end+1} = sortedCellElement;
     end 
