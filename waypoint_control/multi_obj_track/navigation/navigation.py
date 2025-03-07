@@ -27,6 +27,39 @@ def trace_route(start_waypoint, end_waypoint, global_router):
     return global_router._trace_route(start_location, end_location)
 
 
+def interpolate_trajectory(trajectory, target_length):
+
+    # 计算需要删除或增加的点的数量
+    num_to_remove_or_add = abs(len(trajectory) - target_length)
+    trajectory = np.array(trajectory)
+    add_num = 0
+    while len(trajectory) < target_length:
+        new_points = []
+        for i in range(len(trajectory) - 1):
+            # 添加当前航点
+            new_points.append(trajectory[i])
+            # 插入当前航点和下一个航点的平均值
+            new_points.append((trajectory[i] + trajectory[i + 1]) / 2)
+            add_num += 1
+            if add_num == num_to_remove_or_add:
+                new_points.extend(trajectory[i + 1:])
+                break
+        else:
+            # 添加最后一个航点
+            new_points.append(trajectory[-1])
+        trajectory = np.array(new_points)
+
+    # 如果 trajectory 长度超过 target_length
+    while len(trajectory) > target_length:
+        # 每隔一定间隔删除一个点
+        step = len(trajectory) // num_to_remove_or_add
+        indices_to_remove = [i for i in range(1, len(trajectory), step)][:num_to_remove_or_add]
+        # 删除点
+        trajectory = np.delete(trajectory, indices_to_remove, axis=0)
+
+    return trajectory
+
+
 def main():
     argparser = argparse.ArgumentParser(
         description=__doc__)
@@ -50,7 +83,7 @@ def main():
     _map = world.get_map()
     # start_location = carla.Location(x=-41.668877, y=48.905540, z=0.600000)
     # end_location = carla.Location(x=74.798752, y=28.343533, z=0.600000)
-    sampling_resolution = 0.735
+    sampling_resolution = 0.5
     global_router = GlobalRoutePlanner(_map, sampling_resolution)
 
     # path = set_destination(start_location, end_location, _map, global_router)  # waypoint list
@@ -60,6 +93,7 @@ def main():
     # 读取所有路口的轨迹文件
     data = scipy.io.loadmat('traj.mat')
     traj = data['traj']
+    all_vehicle_traj = []  # 保存所有的车辆轨迹
 
     # 遍历外层的 traj cell 数组
     # traj_cell 是一个 1xN 的 cell 数组
@@ -74,6 +108,15 @@ def main():
             vehicle_path.append(positions)
             timestamp_list.append(timestamp)
 
+        # 排除非车辆轨迹，多目标跟踪和再识别的误差导致轨迹可能是非道路上的点
+        dis_trajectory = vehicle_path[0][0]
+        dis_location = carla.Location(x=dis_trajectory[0], y=dis_trajectory[1], z=dis_trajectory[2])
+        nearest_waypoint = _map.get_waypoint(dis_location)
+        distance = dis_location.distance(nearest_waypoint.transform.location)
+        # 计算 location 与最近的 waypoint 的距离，如果大于一定的阈值，则判断该轨迹是错误的
+        if distance >= 5:
+            continue
+
         # 存储最终的轨迹和时间
         final_vehicle_path = []
         final_timestamp_list = []
@@ -82,17 +125,35 @@ def main():
         # 处理只有一个路口出现该车辆的情况
         # 在这辆车的轨迹的末尾插值
         if length < 2:
-            unique_trajectory = vehicle_path[1]
+            unique_trajectory = vehicle_path[0]
             uni_end_loc = unique_trajectory[-1]
             end_location = carla.Location(x=uni_end_loc[0], y=uni_end_loc[1], z=uni_end_loc[2])
             # 返回距离 end_location 最近的 waypoint
             nearest_waypoint = _map.get_waypoint(end_location)
             road_path = nearest_waypoint.next_until_lane_end(0.5)
-            ###############
-            # 插入时间和轨迹 #
-            ###############
+            trajectory = []
+            for waypoint in road_path:
+                # 获取 waypoint 的位置
+                location = waypoint.transform.location
+                # 提取 x, y, z 值
+                x = location.x
+                y = location.y
+                z = location.z
+                # 添加到轨迹列表中
+                trajectory.append([x, y, z])
+            # 添加轨迹
+            final_vehicle_path.append(unique_trajectory)
+            final_vehicle_path.append(trajectory)
+            # 添加时间
+            unique_time = timestamp_list[0]
+            end_unique_time = unique_time[-1]
+            new_time_list = [end_unique_time + i * 0.05 for i in range(1, len(trajectory) + 1)]
+            final_timestamp_list.append(unique_time)
+            final_timestamp_list.append(new_time_list)
 
-        # 遍历 vehicle_path，处理每一对相邻的轨迹
+            continue
+
+        # 同一车辆在多个路口出现，遍历 vehicle_path，处理每一对相邻的轨迹
         for k in range(len(vehicle_path) - 1):
             # 获取当前轨迹和下一段轨迹
             current_trajectory = vehicle_path[k]
@@ -105,7 +166,6 @@ def main():
             start_location = carla.Location(x=start_loc[0], y=start_loc[1], z=start_loc[2])
             # 使用导航算法生成新轨迹
             interval_trajectory = set_destination(start_location, end_location, _map, global_router)
-
             # 将 waypoint list 转换成[[x, y, z], [x, y, z], ...]
             trajectory = []
             for waypoint in interval_trajectory:
@@ -126,20 +186,33 @@ def main():
             # 生成新轨迹的时间戳，间隔为 0.05
             new_times = np.arange(current_end_time + 0.05, next_start_time, 0.05)
 
-            while len(trajectory) < len(new_times):
-                # 减少采样分辨率以增加航点密度
-                global_router._sampling_resolution -= 0.005
-                # 重新生成航点
-                interval_trajectory = set_destination(start_location, end_location, _map, global_router)
-                # 更新trajectory为新的航点列表
-                trajectory = interval_trajectory
-                # 检查是否满足条件
-                if len(trajectory) >= len(new_times):
-                    break  # 如果航点数量已经足够，则退出循环
+            # 如果轨迹数 > 时间数，删除两个点之间的点，从前往后，直到长度等于new_times的长度
+            # 如果轨迹数 < 时间数, 则在两个点之间插值，从前往后，直到长度等于new_times的长度
+            # 如果轨迹数 = 时间数，则不处理
+            # 获取 new_times 的长度
+            target_length = len(new_times)
+            trajectory_len = len(trajectory)
+            # 处理轨迹长度 == 1的时候
+            if trajectory_len == 1:
+                traj = trajectory[0]
+                loc = carla.Location(x=traj[0], y=traj[1], z=traj[2])
+                waypoint = _map.get_waypoint(loc)
+                road_path = nearest_waypoint.next(0.2)
+                way_p = road_path[0]
+                location = way_p.transform.location
+                # 提取 x, y, z 值
+                x = location.x
+                y = location.y
+                z = location.z
+                # 添加到轨迹列表中
+                trajectory.append([x, y, z])
+
+            # 如果 trajectory 的长度小于 new_times，进行插值
+            in_value_trajectory = interpolate_trajectory(trajectory, target_length)
 
             # 将当前轨迹和新生成的轨迹添加到 final_vehicle_path
             final_vehicle_path.append(current_trajectory)
-            final_vehicle_path.append(trajectory)
+            final_vehicle_path.append(in_value_trajectory)
 
             # 将当前时间戳和新生成的时间戳添加到 final_timestamp_list
             final_timestamp_list.append(timestamp_list[k])
