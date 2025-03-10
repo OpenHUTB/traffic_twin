@@ -75,8 +75,39 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
         trajCell{end+1} = value;
     end
     % 将匹配的轨迹按时间先后排序
-    traj = sortByTimestamp(trajCell);
+    trajByTime = sortByTimestamp(trajCell);
+    % 删除时间重叠的轨迹
+    traj = deleteOverlappingtimeTrajectories(trajByTime);
+end
 
+function traj = deleteOverlappingtimeTrajectories(trajByTime)
+    numSets = numel(trajByTime);
+    newTrajByTime = cell(1,numSets);
+
+    for i = 1:numSets
+        trajectories = trajByTime{i};
+        numTrajectories = numel(trajectories);
+        if numTrajectories > 1
+            valid = true(1, numTrajectories); % 初始化有效标记
+            for j = 1:numTrajectories-1 % 注意这里是 numTrajectories-1
+                if valid(j) % 如果当前轨迹有效
+                    for k = j+1:numTrajectories % 从下一条轨迹开始检查重叠
+                        if valid(k) % 如果下一条轨迹也有效
+                            if trajectories{k}.timestamp(1) < trajectories{j}.timestamp(end)
+                                valid(k) = false; % 标记为无效
+                            end
+                        end
+                    end
+                end
+            end
+            % 保留有效轨迹
+            validTrajectories = trajectories(valid);
+            newTrajByTime{i} = validTrajectories;
+        else
+            newTrajByTime{i} = trajectories;
+        end
+    end
+    traj = newTrajByTime;
 end
 
 function posixTime = matlab_posixtime()
