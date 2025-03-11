@@ -44,6 +44,22 @@ Each frame of camera data stores image data from six directions, positions relat
 
 \subsection{Details Explanation}
 
+We conducted ablation studies on radar detection and multi-intersection multi-target tracking in object detection to ensure that our experiments achieved the desired results.
+
+\textbf{Radar Detection.}
+During radar detection, we established a threshold for the detection results: targets exceeding the threshold were identified as vehicles, while those below the threshold were excluded as other objects. 
+We conducted three experiments with thresholds set at 0.4, 0.5, and 0.6, respectively. 
+The best results were achieved with a threshold of 0.5, which not only maximized the identification of vehicles but also effectively filtered out other clutter. 
+At a threshold of 0.4, some non-vehicle objects, such as large containers and barrels, were mistakenly identified as vehicles, and in some cases, cargo loaded on vehicles was even misclassified as a separate vehicle, significantly reducing recognition accuracy. 
+Conversely, a threshold of 0.6 led to the missed detection of some vehicles, such as smaller cars, which were occasionally misclassified as boxes and overlooked.
+
+\textbf{Multi Intersection and Multi-target Tracking.}
+In the multi-intersection multi-target tracking experiment, the most critical task is the re-identification of vehicles across different intersections. 
+Therefore, we also set a threshold for the re-identification results: if the similarity score exceeds the threshold, the targets are considered the same vehicle; otherwise, they are deemed different vehicles. 
+During the experiment, we adjusted the threshold multiple times, testing values of 0.6, 0.65, 0.7, 0.8, and 0.9. 
+Ultimately, we found that a threshold of 0.65 yielded the best re-identification performance. 
+When the threshold was set higher than 0.65, some vehicles failed to match across intersections, and the higher the threshold, the more vehicles were unable to be successfully matched. 
+Conversely, when the threshold was set lower than 0.65, it led to incorrect matches for some vehicles.
 
 \subsection{Limitations and Future Directions}
 
