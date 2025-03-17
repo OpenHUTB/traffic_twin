@@ -22,7 +22,7 @@ Consequently, the tracker begins to treat the object as a new entity.
 This misidentification leads to errors and inconsistencies in object tracking.
 
 ReID aims to resolve this issue by matching the features of an object in a new frame with those of previously tracked objects, thereby identifying the same object even if it appears in a different location or orientation, or under varying lighting conditions compared to the previous frame. 
-This approach ensures that the tracker can maintain consistent tracking information for a given object\cite{Alpher24e}
+This approach ensures that the tracker can maintain consistent tracking information for a given object\cite{Alpher24d}
 
 \subsection{Single intersection multi-target tracking}
 
@@ -146,7 +146,7 @@ The number of residual blocks and the size of feature maps for each stage are sh
 
 The first residual block in each stage performs downsampling on the size of the feature maps, while the subsequent residual blocks maintain the same feature map size.
 
-ResNet-50 employs a residual block structure known as **Bottleneck**, which aims to reduce computational complexity. 
+ResNet-50 employs a residual block structure known as Bottleneck, which aims to reduce computational complexity. 
 Each residual block consists of the following layers:
 
 $\bullet$ 1$\times$1 Convolutional Layer: Used for dimensionality reduction, decreasing the number of channels.
@@ -163,31 +163,29 @@ Each convolutional layer is followed by batch normalization and a ReLU activatio
 \subsection{Trajectory Inference and Reconstruction}
 
 \textbf{Inference of Trajectories in Unknown Regions.}
-Ren et al. proposed an Enhanced Multi-Stream Interaction Network (EMSIN), which utilizes multi-stream inputs (historical trajectories, vehicle interactions, and environmental information) and dynamic interaction modeling (graph neural networks and attention mechanisms) to fuse spatiotemporal features and output the probability distribution of future trajectories, thereby achieving high-precision vehicle trajectory prediction\cite{Alpher24d}. 
-We have made certain modifications to this framework. 
-In the inputs, for vehicle $i$, its historical trajectory can be represented as:
+Upon completing the tracking of all vehicle trajectories, we chronologically sort the trajectory of each vehicle and select the last waypoint of the same vehicle at the previous intersection along with the first waypoint at the next intersection as the starting and ending points of the unknown region. 
+These two waypoints are then fed into the navigation algorithm module, which subsequently computes the trajectory between them.
+
+In the Carla simulation environment, vehicle trajectory planning is achieved by utilizing the A* algorithm to search for the shortest path within the graph structure constructed from the topological map. 
+The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby efficiently guiding the search process towards the target node. 
+The core of this algorithm lies in the evaluation function 
 \begin{align}
-	\mathbf{X}_{i} & = \left[\mathbf{x}_{i}^{t-T}, \mathbf{x}_{i}^{t-T+1}, \ldots, \mathbf{x}_{i}^{t-1}\right]
+	\mathrm{f}(n) & = g(n)+h(n)
 \end{align}
-Here, $\mathbf{x}_{i}^{t}=\left(x_{i}^{t}, y_{i}^{t}\right)$ represents the position coordinates of vehicle $i$ at time $t$.
-The positions and topological structures of the two matched intersections $A$ and $B$ are represented as:
+where $\mathrm{g}(n)$ represents the actual cost from the start node to the current node, and $\mathrm{h}(n)$ denotes the estimated cost from the current node to the target node.
+During the process of exploring the shortest path using the A* algorithm, if edges with a weight of 0 exist in the graph structure, it may lead to vehicles changing lanes excessively frequently within an extremely short time frame, which contradicts normal driving logic. 
+To mitigate this phenomenon, we have introduced a lane-changing penalty mechanism in path planning. 
+Specifically, for nodes involving different lanes, we have added a penalty term, ensuring that the distance calculation between nodes is not only based on spatial distance but also takes into account the frequency of lane changes. 
+Originally, $\mathrm{h}(n)$ was calculated by directly measuring the distance between nodes, which is represented as
 \begin{align}
-	\mathbf{R}_{A} & = \left(x_{A}, y_{A}, \text { Topology }_{A}\right) \\
-	\mathbf{R}_{B} & = \left(x_{B}, y_{B}, \text { Topology }_{B}\right)
+	\mathrm{h}(n) & = d\left(w p_{1}, w p_{2}\right)
 \end{align}
-The set of possible paths for a vehicle traveling from intersection A to intersection B is represented as:
+where $w p_{1}, w p_{2}$ denote the nodes and $d$ denotes the distance. 
+And in our navigation algorithm,
 \begin{align}
-	\mathcal{P}_{A \rightarrow B} & = \left\{P_{1}, P_{2}, \ldots, P_{K}\right\}
+	\mathrm{h}(n) & = d\left(w p_{1}, w p_{2}\right)+\lambda \cdot\left|l_{1}-l_{2}\right|
 \end{align}
-The formula for predicting vehicle trajectories in unknown regions is:
-\begin{align}
-\hat{\mathbf{Y}}_{i} = \mathbf{W}_{h} \mathbf{h}_{i}+\mathbf{W}_{r}\left(\mathbf{r}_{A}+\mathbf{r}_{B}\right)+\mathbf{W}_{p} \sum_{k = 1}^{K} \alpha_{k} \mathbf{p}_{k}
-\end{align}
-Where, $\mathbf{W}_{h}, \mathbf{W}_{r}, \mathbf{W}_{p}$ are learnable weight matrices. 
-$\mathbf{h}_{i}$ represents the historical trajectory encoded using LSTM. 
-$\mathbf{r}_{A}$ and $\mathbf{r}_{A}$ are the topological structures of intersections $A$ and $B$ encoded using GNN. 
-$\mathbf{p}_{k}$ is the path feature extracted after encoding each path $P_{k}$. 
-$\alpha_{k}$ is the attention weight of path $P_{k}$, indicating the probability of the vehicle choosing that path.
+where $\lambda$ denotes the weights and $l_{1}, l_{2}$ denotes the lanes.
 
 
 \textbf{All Trajectory Restoration.}
