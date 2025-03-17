@@ -25,18 +25,18 @@ from scipy.spatial.transform import Rotation as R
 from config import IntersectionConfig, town_configurations
 DATA_MUN = 500
 DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
-FUSION_DETECTION_ACTUAL_DIS = 45  # 多目标跟踪的实际检测距离
+FUSION_DETECTION_ACTUAL_DIS = 25  # 多目标跟踪的实际检测距离
 WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
 # 定义全局变量
 global_time = 0.0
 
 relativePose_to_egoVehicle = {
-       "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],
-       "front_camera": [7.00, 0.00, 2.62, 0.00, 0.00, 0.00],
-       "right_camera": [0.00, -4.00, 2.62, -90.00, 0.00, 0.00],
-       "front_right_camera": [7.00, -4.00, 2.62, -90.00, 0.00, 0.00],
-       "left_camera": [0.00, 4.00, 2.62, 90.00, 0.00, 0.00],
-       "front_left_camera": [7.00, 4.00, 2.62, 90.00, 0.00, 0.00]
+       "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],    # 1
+       "front_camera": [7.00, 0.00, 2.62, 0.00, 0.00, 0.00],       # 2
+       "right_camera": [0.00, -4.00, 2.62, -90.00, 0.00, 0.00],    # 6
+       "front_right_camera": [7.00, -4.00, 2.62, -90.00, 0.00, 0.00],   # 4
+       "left_camera": [0.00, 4.00, 2.62, 90.00, 0.00, 0.00],            # 5
+       "front_left_camera": [7.00, 4.00, 2.62, 90.00, 0.00, 0.00]   # 3
 }
 relativePose_lidar_to_egoVehicle = [0, 0, 0.82, 0, 0, 0, 0, 0, 0]
 
@@ -414,14 +414,14 @@ def main():
     argparser.add_argument(
         '-t', '--town',
         metavar='TOWN',
-        default='Town10HD_Opt',
+        default='Town01',
         choices=town_configurations.keys(),  # 限制用户只能输入已定义的城镇名
-        help='Name of the town to use (e.g., Town01, Town10)'
+        help='Name of the town to use (e.g., Town01, Town10HD_Opt)'
     )
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_5',  # 默认路口
+        default='road_intersection_1',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -437,6 +437,23 @@ def main():
     settings.fixed_delta_seconds = 0.05
     settings.synchronous_mode = True
     world.apply_settings(settings)
+    # 天气参数
+    new_weather = carla.WeatherParameters(
+        cloudiness=20.000000,
+        precipitation=0.000000,
+        precipitation_deposits=0.000000,
+        wind_intensity=10.000000,
+        sun_azimuth_angle=300.000000,
+        sun_altitude_angle=45.000000,
+        fog_density=2.000000,
+        fog_distance=0.750000,
+        fog_falloff=0.100000,
+        wetness=0.000000,
+        scattering_intensity=1.000000,
+        mie_scattering_scale=0.030000,
+        rayleigh_scattering_scale=0.033100,
+        dust_storm=0.000000)
+    world.set_weather(new_weather)
     print("Connected to Carla server!")
 
     # 创建交通管理器

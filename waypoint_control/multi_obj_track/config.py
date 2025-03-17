@@ -35,11 +35,79 @@ town_configurations = {
                                                 carla.Rotation(pitch=0, yaw=90, roll=0)),
                 "right_camera": carla.Transform(carla.Location(x=332, y=190, z=3.6),
                                                 carla.Rotation(pitch=0, yaw=-180, roll=0)),
-                "front_right_camera": carla.Transform(carla.Location(x=336, y=204, z=3.6),
+                "front_right_camera": carla.Transform(carla.Location(x=332, y=204, z=3.6),
                                                       carla.Rotation(pitch=0, yaw=-178, roll=0)),
                 "left_camera": carla.Transform(carla.Location(x=340, y=190, z=3.6),
                                                carla.Rotation(pitch=0, yaw=-0, roll=0)),
                 "front_left_camera": carla.Transform(carla.Location(x=340, y=204, z=3.6),
+                                                     carla.Rotation(pitch=0, yaw=-0, roll=0))
+            }
+        ),
+        "road_intersection_3": IntersectionConfig(
+            carla.Transform(carla.Location(x=336, y=328, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0)),
+            {
+                "back_camera": carla.Transform(carla.Location(x=336, y=321, z=3.6),
+                                               carla.Rotation(pitch=0, yaw=-90, roll=0)),
+                "front_camera": carla.Transform(carla.Location(x=336, y=335, z=3.6),
+                                                carla.Rotation(pitch=0, yaw=90, roll=0)),
+                "right_camera": carla.Transform(carla.Location(x=332, y=321, z=3.6),
+                                                carla.Rotation(pitch=0, yaw=-180, roll=0)),
+                "front_right_camera": carla.Transform(carla.Location(x=332, y=335, z=3.6),
+                                                      carla.Rotation(pitch=0, yaw=-178, roll=0)),
+                "left_camera": carla.Transform(carla.Location(x=340, y=321, z=3.6),
+                                               carla.Rotation(pitch=0, yaw=-0, roll=0)),
+                "front_left_camera": carla.Transform(carla.Location(x=340, y=335, z=3.6),
+                                                     carla.Rotation(pitch=0, yaw=-0, roll=0))
+            }
+        ),
+        "road_intersection_4": IntersectionConfig(
+            carla.Transform(carla.Location(x=90, y=1, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0)),
+            {
+                "back_camera": carla.Transform(carla.Location(x=90, y=-6, z=3.6),
+                                               carla.Rotation(pitch=0, yaw=-90, roll=0)),
+                "front_camera": carla.Transform(carla.Location(x=90, y=8, z=3.6),
+                                                carla.Rotation(pitch=0, yaw=90, roll=0)),
+                "right_camera": carla.Transform(carla.Location(x=86, y=-6, z=3.6),
+                                                carla.Rotation(pitch=0, yaw=-180, roll=0)),
+                "front_right_camera": carla.Transform(carla.Location(x=86, y=8, z=3.6),
+                                                      carla.Rotation(pitch=0, yaw=-178, roll=0)),
+                "left_camera": carla.Transform(carla.Location(x=94, y=-6, z=3.6),
+                                               carla.Rotation(pitch=0, yaw=-0, roll=0)),
+                "front_left_camera": carla.Transform(carla.Location(x=94, y=8, z=3.6),
+                                                     carla.Rotation(pitch=0, yaw=-0, roll=0))
+            }
+        ),
+        "road_intersection_5": IntersectionConfig(
+            carla.Transform(carla.Location(x=90, y=197, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0)),
+            {
+                "back_camera": carla.Transform(carla.Location(x=90, y=190, z=3.6),
+                                               carla.Rotation(pitch=0, yaw=-90, roll=0)),
+                "front_camera": carla.Transform(carla.Location(x=90, y=204, z=3.6),
+                                                carla.Rotation(pitch=0, yaw=90, roll=0)),
+                "right_camera": carla.Transform(carla.Location(x=86, y=190, z=3.6),
+                                                carla.Rotation(pitch=0, yaw=-180, roll=0)),
+                "front_right_camera": carla.Transform(carla.Location(x=86, y=204, z=3.6),
+                                                      carla.Rotation(pitch=0, yaw=-178, roll=0)),
+                "left_camera": carla.Transform(carla.Location(x=94, y=190, z=3.6),
+                                               carla.Rotation(pitch=0, yaw=-0, roll=0)),
+                "front_left_camera": carla.Transform(carla.Location(x=94, y=204, z=3.6),
+                                                     carla.Rotation(pitch=0, yaw=-0, roll=0))
+            }
+        ),
+        "road_intersection_6": IntersectionConfig(
+            carla.Transform(carla.Location(x=90, y=328, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0)),
+            {
+                "back_camera": carla.Transform(carla.Location(x=90, y=321, z=3.6),
+                                               carla.Rotation(pitch=0, yaw=-90, roll=0)),
+                "front_camera": carla.Transform(carla.Location(x=90, y=335, z=3.6),
+                                                carla.Rotation(pitch=0, yaw=90, roll=0)),
+                "right_camera": carla.Transform(carla.Location(x=86, y=321, z=3.6),
+                                                carla.Rotation(pitch=0, yaw=-180, roll=0)),
+                "front_right_camera": carla.Transform(carla.Location(x=86, y=335, z=3.6),
+                                                      carla.Rotation(pitch=0, yaw=-178, roll=0)),
+                "left_camera": carla.Transform(carla.Location(x=94, y=321, z=3.6),
+                                               carla.Rotation(pitch=0, yaw=-0, roll=0)),
+                "front_left_camera": carla.Transform(carla.Location(x=94, y=335, z=3.6),
                                                      carla.Rotation(pitch=0, yaw=-0, roll=0))
             }
         )
