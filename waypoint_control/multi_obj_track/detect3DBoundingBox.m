@@ -28,7 +28,7 @@ function detect3DBoundingBox(junc)
     
             % 创建点云对象并附加 Intensity 信息
             ptCloud = pointCloud(points, 'Intensity', intensity);
-            
+            %{
             % 点云裁剪
             xMin = -133.3263; xMax = 189.5295;
             yMin = -194.5069; yMax = 129.2551;
@@ -40,14 +40,15 @@ function detect3DBoundingBox(junc)
             % 除去地面点云
             groundIndices = segmentGroundSMRF(ptCloudCropped);
             ptCloudWithoutGround = select(ptCloudCropped, ~groundIndices);
+            %}
             % 将点云重组成有序的
             horizontalResolution = 1024;
             params = lidarParameters('HDL64E',horizontalResolution);
-            ptCloudOrg = pcorganize(ptCloudWithoutGround,params);
+            ptCloudOrg = pcorganize(ptCloud, params);
 
     
             % 增加检测的置信度阈值(路口1使用的0.5) 0.33 0.4 0.8
-            [bboxes, scores, labels] = detect(detector, ptCloudOrg,  'Threshold', 0.5);
+            [bboxes, scores, labels] = detect(detector, ptCloudOrg,  'Threshold',0.5);
             disp('Bounding Boxes:');
             disp(bboxes);
             

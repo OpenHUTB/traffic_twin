@@ -33,6 +33,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     % 显示点云数据
     ax = pcshow(ptCld);
     showShape("Cuboid", lidarBboxes, Color="green", Parent=ax, Opacity=0.15, LineWidth=1);
+    % zoom(ax, 'on'); % 启用缩放
     zoom(ax, 8);
     
     % 提取第一个相机数据
@@ -44,7 +45,6 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     img = insertObjectAnnotation(img, "Rectangle", cameraBBoxes, "Vehicle");
     imshow(img);
     
-    % 设置跟踪器
     tracker = trackerJPDA( ...
         TrackLogic="Integrated", ...
         FilterInitializationFcn=@helperInitLidarCameraFusionFilter, ...
@@ -56,8 +56,8 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         NewTargetDensity=1e-6, ...
         ConfirmationThreshold=0.95, ...      % 确定为目标的概率
         DeletionThreshold=0.45, ...           % 表示一个跟踪目标被删除所需的最大置信度
-        DeathRate=0.5);  
-    
+        DeathRate=0.5);                     
+                          
     % 初始化显示对象
     display = helperLidarCameraFusionDisplay;
     
@@ -103,7 +103,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     % 初始化一个结构体数组来保存每个目标的轨迹
     allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {});
     evaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
-    
+    detectionsBool = false;
     for frame = 1:numFrames
         % 加载当前帧数据
         fileName = fullfile(dataPath, matFiles(frame).name);
@@ -147,7 +147,15 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         else
             detections = [lidarDetections; cameraDetections];
         end
-        
+
+        if ~isempty(detections)
+           detectionsBool = true;
+        end 
+
+        if ~detectionsBool
+           continue;
+        end
+
         % 跟踪目标
         tracks = tracker(detections, time);
         disp(tracks)
@@ -217,7 +225,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     save(allTracksPath, 'evaluationTracks');
     
     %% 保存部分较完整的轨迹，用作轨迹复现
-    % 过滤掉轨迹数量少于15的车辆
+    % 过滤掉轨迹数量少于5的车辆
     allTracks = allTracks(cellfun(@(x) size(x, 1) >= 5, {allTracks.Positions}));
     % 轨迹目录
     tracksDirectory = fullfile(dataPath, "tracks");
