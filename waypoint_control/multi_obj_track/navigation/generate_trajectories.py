@@ -3,6 +3,7 @@ import argparse
 import scipy.io
 import json
 import numpy as np
+from config import IntersectionConfig, town_configurations
 from global_route_planner import GlobalRoutePlanner
 
 
@@ -113,12 +114,20 @@ def main():
         default=2000,
         type=int,
         help='TCP port to listen to (default: 2000)')
+    argparser.add_argument(
+        '-t', '--town',
+        metavar='TOWN',
+        default='Town01',
+        choices=town_configurations.keys(),  # 限制用户只能输入已定义的城镇名
+        help='Name of the town to use (e.g., Town01, Town10HD_Opt)'
+    )
     args = argparser.parse_args()
 
     # 连接到Carla服务器
     client = carla.Client(args.host, args.port)
     client.set_timeout(10.0)
-    world = client.get_world()
+    # 重新加载地图，重置仿真时间
+    world = client.load_world(args.town, True)
     _map = world.get_map()
     # start_location = carla.Location(x=-41.668877, y=48.905540, z=0.600000)
     # end_location = carla.Location(x=74.798752, y=28.343533, z=0.600000)
@@ -185,16 +194,15 @@ def main():
             try:
                 interval_trajectory = set_destination(start_waypoint.transform.location, end_waypoint.transform.location, _map, global_router)
             except Exception as e:
+                is_exception = True
                 if k > 0:
                     # 添加下一段轨迹和时间
                     final_vehicle_path.append(vehicle_path[k])
                     final_timestamp_list.append(timestamp_list[k])
-                    is_exception = True
-                    break
                 else:
                     # 生成第一段轨迹的时候，无法到达，那么就当成只有一段轨迹处理，转换成 length < 2 的情况
                     single_trajectory(vehicle_path, _map, final_vehicle_path, final_timestamp_list, timestamp_list, all_vehicle_traj)
-                    break
+                break
             # 将 waypoint list 转换成[[x, y, z], [x, y, z], ...]
             trajectory = []
             for waypoint in interval_trajectory:
