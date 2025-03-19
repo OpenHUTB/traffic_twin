@@ -130,17 +130,22 @@ ResNet-50 primarily consists of five main components: an initial convolutional l
 Among these, the four stages of residual blocks are the core of ResNet-50. 
 The number of residual blocks and the size of feature maps for each stage are shown in Table 1.
 
-\begin{table}[t] % htbp 表示表格位置（here, top, bottom, page）
-	\centering % 表格居中
-	\caption{Table of the Number of Residual Blocks and Feature Map Sizes for Each Stage} % 表格标题
-	\label{tab:grades} % 表格标签
-	\begin{tabular}{|l|c|r|c|}
+\begin{table}[t]
+	\centering
+	\caption{Table of the Number of Residual Blocks and Feature Map Sizes for Each Stage}
+	\label{tab:improved}
+	\begin{tabular}{|c|c|c|c|}
 		\hline
-		stage & nrb & fms & noc \\ 
-		stage1 & 3 & 56$\times$56 & 256 \\ 
-		stage2 & 4 & 28$\times$28 & 512 \\ 
-		stage3 & 6 & 14$\times$14 & 1024 \\
-		stage4 & 3 & 7$\times$7 & 2048 \\
+		\multicolumn{1}{|c|}{Stage} & \multicolumn{1}{c|}{NRB} & \multicolumn{1}{c|}{FMS} & \multicolumn{1}{c|}{NOC} \\
+		\hline
+		Stage1 & 3 & 56×56 & 256 \\
+		\hline
+		Stage2 & 4 & 28×28 & 512 \\
+		\hline
+		Stage3 & 6 & 14×14 & 1024 \\
+		\hline
+		Stage4 & 3 & 7×7 & 2048 \\
+		\hline
 	\end{tabular}
 \end{table}
 
@@ -170,20 +175,20 @@ In the Carla simulation environment, vehicle trajectory planning is achieved by 
 The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby efficiently guiding the search process towards the target node. 
 The core of this algorithm lies in the evaluation function 
 \begin{align}
-	\mathrm{f}(n) & = g(n)+h(n)
+	\mathit{f}(n) & = g(n)+h(n)
 \end{align}
-where $\mathrm{g}(n)$ represents the actual cost from the start node to the current node, and $\mathrm{h}(n)$ denotes the estimated cost from the current node to the target node.
+where $\mathit{g}(n)$ represents the actual cost from the start node to the current node, and $\mathit{h}(n)$ denotes the estimated cost from the current node to the target node.
 During the process of exploring the shortest path using the A* algorithm, if edges with a weight of 0 exist in the graph structure, it may lead to vehicles changing lanes excessively frequently within an extremely short time frame, which contradicts normal driving logic. 
 To mitigate this phenomenon, we have introduced a lane-changing penalty mechanism in path planning. 
 Specifically, for nodes involving different lanes, we have added a penalty term, ensuring that the distance calculation between nodes is not only based on spatial distance but also takes into account the frequency of lane changes. 
-Originally, $\mathrm{h}(n)$ was calculated by directly measuring the distance between nodes, which is represented as
+Originally, $\mathit{h}(n)$ was calculated by directly measuring the distance between nodes, which is represented as
 \begin{align}
-	\mathrm{h}(n) & = d\left(w p_{1}, w p_{2}\right)
+	\mathit{h}(n) & = d\left(w p_{1}, w p_{2}\right)
 \end{align}
 where $w p_{1}, w p_{2}$ denote the nodes and $d$ denotes the distance. 
 And in our navigation algorithm,
 \begin{align}
-	\mathrm{h}(n) & = d\left(w p_{1}, w p_{2}\right)+\lambda \cdot\left|l_{1}-l_{2}\right|
+	\mathit{h}(n) & = d\left(w p_{1}, w p_{2}\right)+\lambda \cdot\left|l_{1}-l_{2}\right|
 \end{align}
 where $\lambda$ denotes the weights and $l_{1}, l_{2}$ denotes the lanes.
 
@@ -231,7 +236,7 @@ $\bullet$ The derivative control component adjusts the control output based on t
 It predicts future error trends and takes preemptive measures. 
 The formula is as follows:
 \begin{align}
-	u_{\mathrm{D}}(t) & = K_{d} \cdot \frac{d e(t)}{d t}
+	u_{\mathit{D}}(t) & = K_{d} \cdot \frac{d e(t)}{d t}
 \end{align}
 Here, $K_{d}$ is the derivative gain, which determines the strength of the derivative control's response to the rate of change of the error.
 
@@ -254,7 +259,7 @@ We employed two evaluation metrics.
 \textbf{Multiple Object Tracking Accuracy.}
 Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA):
 \begin{align}
-	\mathrm{MOTA} & = 1-\frac{F N+F P+M}{T}
+	\mathit{MOTA} & = 1-\frac{F N+F P+M}{T}
 \end{align}
 Among them:
 $FN$ (False Negatives) represents the number of missed detections, which means targets that truly exist but were not detected.
@@ -269,7 +274,7 @@ A MOTA of 0 means the tracking performance is very poor, with all detections bei
 \textbf{Multi Camera Tracking Accuracy.}
 The multi-camera object tracking accuracy (MCTA) which condenses all aspects of system performance into one measure\cite{Alpher23b}:
 \begin{align}
-	\mathrm{MCTA} & = \frac{2 P R}{P+R}\left(1-\frac{M^{w}}{T^{w}}\right)\left(1-\frac{M^{h}}{T^{h}}\right)
+	\mathit{MCTA} & = \frac{2 P R}{P+R}\left(1-\frac{M^{w}}{T^{w}}\right)\left(1-\frac{M^{h}}{T^{h}}\right)
 \end{align}
 Among them:
 $P$ represents the proportion of correct matches (correctly identifying and tracking targets) across all cameras.  
