@@ -14,7 +14,7 @@ import math
 import numpy as np
 import csv
 import matplotlib
-
+from evaluator import *
 matplotlib.use('agg')
 import configparser
 import warnings
@@ -40,6 +40,7 @@ NUM_PEDESTRIANS        = 0      # total number of pedestrians to spawn
 NUM_VEHICLES           = 3     # total number of vehicles to spawn
 SEED_PEDESTRIANS       = 0      # seed for pedestrian spawn randomizer
 SEED_VEHICLES = 0  # seed for vehicle spawn randomizer
+FRAME_NUM = 500
 
 WEATHERID = {
     "DEFAULT": 0,
@@ -75,7 +76,7 @@ DIST_THRESHOLD_TO_LAST_WAYPOINT = 1.0  # some distance from last position before
 INTERP_MAX_POINTS_PLOT = 10  # number of points used for displaying
 # lookahead path
 INTERP_LOOKAHEAD_DISTANCE = 20  # lookahead in meters
-INTERP_DISTANCE_RES = 0.01  # distance between interpolated points
+INTERP_DISTANCE_RES = 0.005  # distance between interpolated points
 
 # Controller output directory
 CONTROLLER_OUTPUT_FOLDER = os.path.dirname(os.path.realpath(__file__)) + '/Results/'
@@ -136,7 +137,6 @@ def add_vehicle(vehicles, sim_time, waypoints_by_vehicle, vehicle_ids, vehicle_b
             first_waypoint_time = waypoints[0][2]
             if sim_time >= first_waypoint_time and vehicle_id not in vehicle_ids:
                 location = carla.Location(x=waypoints[0][0], y=waypoints[0][1], z=1)
-                world.debug.draw_string(location, str(vehicle_id), life_time=1000, color=carla.Color(255, 0, 0))
                 waypoint = _map.get_waypoint(location)
                 yaw = waypoint.transform.rotation.yaw
                 trans = carla.Transform(location, carla.Rotation(yaw=yaw))
@@ -147,7 +147,6 @@ def add_vehicle(vehicles, sim_time, waypoints_by_vehicle, vehicle_ids, vehicle_b
                 # 添加控制器
                 controller = Controller.Controller(waypoints, args.lateral_controller, args.longitudinal_controller)
                 controllers.append(controller)
-
                 vehicles.append(vehicle)
                 vehicle_ids.append(vehicle_id)
                 x_histories.append([])
@@ -304,7 +303,21 @@ def exec_waypoint_nav_demo(args):
 
     blueprint_library = world.get_blueprint_library()
     vehicle_blueprints = blueprint_library.filter('vehicle.*')
-    vehicle_bp = filter_vehicle_blueprinter(vehicle_blueprints)
+    vehicle_bp = [
+        bp for bp in vehicle_blueprints
+        if not any(excluded in bp.id for excluded in [
+            'vehicle.micro.microlino', 'vehicle.mini.cooper_s_2021',
+            'vehicle.nissan.patrol_2021', 'vehicle.carlamotors.carlacola',
+            'vehicle.carlamotors.european_hgv', 'vehicle.carlamotors.firetruck',
+            'vehicle.tesla.cybertruck', 'vehicle.ford.ambulance',
+            'vehicle.mercedes.sprinter', 'vehicle.volkswagen.t2',
+            'vehicle.volkswagen.t2_2021', 'vehicle.mitsubishi.fusorosa',
+            'vehicle.harley-davidson.low_rider', 'vehicle.kawasaki.ninja',
+            'vehicle.vespa.zx125', 'vehicle.yamaha.yzf',
+            'vehicle.bh.crossbike', 'vehicle.diamondback.century',
+            'vehicle.gazelle.omafiets'
+        ])
+    ]
     # 车辆 车辆id 车辆控制器
     vehicles = []
     vehicle_ids = []
@@ -386,7 +399,9 @@ def exec_waypoint_nav_demo(args):
     last_location = []
     measurement = world.get_snapshot()
     first_time = measurement.timestamp.elapsed_seconds
-    while True:
+    vehicle_twin_trajectories = {}
+    vehicle_traj_id = []
+    for j in range(FRAME_NUM - 1):
         current_timestamp = world.get_snapshot().timestamp.elapsed_seconds
         sim_time = current_timestamp - first_time
         add_vehicle(vehicles, sim_time, waypoints_by_vehicle, vehicle_ids, vehicle_bp, world, args, controllers, _map,
@@ -397,13 +412,12 @@ def exec_waypoint_nav_demo(args):
             dist_to_last_waypoint = 0.0
             if vehicle is not None:
                 current_x, current_y, current_z, current_yaw = get_current_pose(vehicle)
-                # 销毁异常车辆,包括轨迹异常，行驶异常导致的车辆停止
-                # distance_to_last_location = np.linalg.norm(np.array([last_location[i][0] - current_x, last_location[i][1] - current_y, last_location[i][2] - current_z]))
-                # if distance_to_last_location < 0.005:
-                #     reached_the_end[i] = True
-                #     vehicle.destroy()
-                #     vehicles[i] = None
-                #     continue
+                if vehicle.id not in vehicle_traj_id:
+                    vehicle_traj_id.append(vehicle.id)
+                    # 保存孪生的轨迹
+                    vehicle_twin_trajectories[i] = []
+                vehicle_twin_trajectories[i].append((current_x, current_y, current_z))
+
                 last_location[i] = (current_x, current_y, current_z)
                 current_speed = vehicle.get_velocity().length()
                 length = -1.5 if args.lateral_controller == 'PurePursuit' else 1.5 if args.lateral_controller in {'BangBang', 'PID', 'Stanley', 'POP'} else 0.0
@@ -483,6 +497,21 @@ def exec_waypoint_nav_demo(args):
         if reached_the_end and all(reached_the_end):
             break
     cleanup_resources(world)
+    # 跟踪性能
+    mean_tor, mean_error, mean_max_error, mean_fpe = trajectory_metrics(waypoints_by_vehicle, vehicle_twin_trajectories, threshold=0.5)
+    # 控制性能
+    mean_lateral_error, mean_longitudinal_error, mean_delay = mean_metrics(cte_histories, he_histories, latency_histories)
+    # 显示结果
+    print("轨迹指标:")
+    print(f"平均轨迹重合度 (Mean TOR): {mean_tor:.4f}")
+    print(f"平均位置误差 (Mean MPE): {mean_error:.4f}")
+    print(f"平均最大位置误差 (Mean MaxPE): {mean_max_error:.4f}")
+    print(f"平均终点误差 (Mean FPE): {mean_fpe:.4f}")
+
+    print("\n误差和延迟指标:")
+    print(f"平均横向误差 (Mean Lateral Error): {mean_lateral_error:.4f}")
+    print(f"平均纵向误差 (Mean Longitudinal Error): {mean_longitudinal_error:.4f}")
+    print(f"平均延迟 (Mean Delay): {mean_delay:.4f}")
 
 
 def main():
@@ -544,11 +573,9 @@ def main():
 
     args.out_filename_format = '_out/episode_{:0>4d}/{:s}/{:0>6d}'
 
-    while True:
-
-        # 开始运行轨迹跟踪
-        exec_waypoint_nav_demo(args)
-        print('\nSimulation Complete')
+    # 开始运行轨迹跟踪
+    exec_waypoint_nav_demo(args)
+    print('\nSimulation Complete')
 
 
 if __name__ == '__main__':
