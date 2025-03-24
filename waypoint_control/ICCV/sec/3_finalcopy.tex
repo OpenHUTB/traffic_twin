@@ -1,6 +1,6 @@
 \section{Method}
 
-\subsection{Problem definition}
+\subsection{Problem Definition}
 
 In UVDT, the input for single-intersection vehicle detection and tracking consists of point cloud data and images, where the point cloud data is the input from the radar and the images are the input from the camera. 
 The input for multi-intersection object detection is the same as that for a single intersection, but the input for its object tracking includes trajectories and the corresponding vehicle appearance features. 
@@ -24,14 +24,14 @@ This misidentification leads to errors and inconsistencies in object tracking.
 ReID aims to resolve this issue by matching the features of an object in a new frame with those of previously tracked objects, thereby identifying the same object even if it appears in a different location or orientation, or under varying lighting conditions compared to the previous frame. 
 This approach ensures that the tracker can maintain consistent tracking information for a given object\cite{Alpher24d}
 
-\subsection{Single intersection multi-target tracking}
+\subsection{Single Intersection Multi-target Tracking}
 
 \textbf{TrackerJPDA.}
 
 \textbf{Single Detection Class Probability Update.}
 First, consider the class information association between one detection and one track. 
-Assume the confusion matrix of the detection is $C=\left[c_{i j}\right]$,where $c_{i j}$ denotes the likelihood that the classifier outputs the classification as $j$ if the truth class of the target is $i$.
-Here,$i,j = 1,…, N$, and $N$ is the total number of possible classes.
+Assume the confusion matrix of the detection is $C=\left[c_{i j}\right]$, where $c_{i j}$ denotes the likelihood that the classifier outputs the classification as $j$ if the truth class of the target is $i$.
+Here, $i,j = 1,…, N$, and $N$ is the total number of possible classes.
 At time $k-1$, the probability distribution of a track is given as 
 \begin{align}
 	\mu(k-1) & = \left[\begin{array}{l}
@@ -58,7 +58,7 @@ After that, in each cluster, the tracker calculates the mixed likelihood of asso
 \begin{align}
 	\Lambda(m, t) & = \Lambda_{k}^{1-\alpha}(m, t) \Lambda_{c}^{\alpha}(m, t)
 \end{align}
-where $\alpha$ represents Weight factor of class likelihood;$\Lambda_{k}$ represents Likelihood of assigning a detection to a track based on the kinematic states;$\Lambda_{c}$ represents Likelihood of assigning a classified detection to a track based on the class information.
+where $\alpha$ represents Weight factor of class likelihood; $\Lambda_{k}$ represents Likelihood of assigning a detection to a track based on the kinematic states; $\Lambda_{c}$ represents Likelihood of assigning a classified detection to a track based on the class information.
 In the equation, $\Lambda_{c}$ takes one of these three forms based on the value of $m$ and $t$.
 
 $\bullet$ $m > 0$ and $t > 0$ — A hypothesis that the measurement is associated with a track in the tracker. 
@@ -90,6 +90,12 @@ where $c_{j}(m)$ is the class probability vector of detection $m$, $\otimes$ rep
 
 The tracker updates the class properties of tracks cluster by cluster.
 
+\textbf{Reference System.}
+
+We placed an imaginary self-vehicle in the center of the intersection, which serves as a reference system. 
+For multi-target tracking we input not only the detection frame, but also the position of the camera and radar relative to the self-vehicle, as well as the position of the self-vehicle. 
+The position coordinates of the self-vehicle in the experiment were always (0,0,0,), i.e. stationary. 
+The tracking yielded trajectory coordinates initially relative to the radar, which we also fitted to the world coordinates in Carla.
 
 \textbf{Process}
 
@@ -109,19 +115,20 @@ However, if a trajectory fails to receive any detection assignments within a pre
 Through this process, we are ultimately able to obtain the trajectories of vehicles within the intersection.
 
 
-\subsection{Multi intersection and multi-target tracking}
+\subsection{Multi Intersection and Multi-target Tracking}
 
-We generate vehicles at the same location, placing an RGB camera at the vehicle's starting point and a semantic segmentation camera at the vehicle's endpoint.
+We generate the vehicle at the same location and place the RGB camera and semantic segmentation camera at the start and end of the vehicle, respectively.
 We capture images from the front and rear directions of the vehicle for each frame, along with the 2D labels.
- 
-Then, the vehicle images from the front and rear viewpoints are cropped based on the 2D labels, and images from the same type of vehicle from both viewpoints are combined. Finally, the images are reshaped to a size of 224x224.
+
+Subsequently, the vehicle images of the front and rear views are cropped based on 2D tags and the front and rear view images of the same vehicle are combined to form a dataset of that vehicle, to which the vehicle images of the occluded views are added to form the final dataset.
+Finally, the images are reshaped to a size of 224x224.
 The imagePretrainedNetwork function is used to train the model, specifying the ResNet-50 architecture. 
 This neural network has already learned rich feature representations from a large number of images.
 
 Finally, the vehicle images tracked at Intersection 1 and the images from the corresponding viewpoint camera at Intersection 2 are placed together for re-identification. 
 In other words, the first image is the object to be re-identified, and it will be recognized at the next intersection, thus allowing the integration of both trajectories.
 
-For matching vehicle trajectories between intersections, we currently compute the cosine similarity between all corresponding vehicle trajectories at the two intersections. 
+For matching vehicle trajectories between intersections, we use a re-recognition network to extract features from the vehicle images and then compute the cosine similarity of these two features.
 If Intersection 1 has M vehicles and Intersection 2 has N vehicles, a matrix of size M×N is generated. 
 If the similarity exceeds a certain threshold, the two vehicles are considered to be the same vehicle.
 
@@ -194,12 +201,12 @@ where $\lambda$ denotes the weights and $l_{1}, l_{2}$ denotes the lanes.
 
 
 \textbf{All Trajectory Restoration.}
-Through the aforementioned network, we are able to obtain vehicle trajectories in unknown regions. 
+Through the aforementioned algorithmic framework, we are able to obtain vehicle trajectories in unknown regions. 
 Simultaneously, we have also acquired vehicle trajectories at intersections using the JPDA tracker. 
 At this point, we only need to concatenate all trajectories of the same vehicle in chronological order and place them into a new collection, thereby obtaining the complete trajectory of that vehicle. 
 This method can be represented as: 
 \begin{align}
-	S = \sum_{n = 1}^{k} \left ( x_{t}  \right ) 
+	S = \sum_{t = 1}^{k} \left ( x_{t}  \right ) 
 \end{align}
 where $S$ is the trajectory collection, and $x_{t}$ represents the segmented trajectories labeled with time intervals. 
 By organizing the trajectories of all vehicles in this manner, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
