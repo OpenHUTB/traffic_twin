@@ -44,7 +44,7 @@ At time $k-1$, the probability distribution of a track is given as
 where $\mu_{i}$ is the probability that the classification of the track is $i$.
 If the tracker associates the detection to the track at time $k$, then the updated value of $\mu_{i}$ using Bayes' theorem is
 \begin{align}
-	\mu_{i}(k) = \frac{c_{i j} \mu_{i}(k-1)}{\sum_{l = 1}^{N} c_{l j} \mu_{I}(k-1)}
+	\mu_{i}(k) = \frac{c_{i j} \mu_{i}(k-1)}{\sum_{l = 1}^{N} c_{l j} \mu_{i}(k-1)}
 \end{align}
 Write this equation in a vector form for all possible classifications as
 \begin{align}
@@ -190,7 +190,7 @@ Originally, $\mathit{h}(n)$ was calculated by directly measuring the distance be
 \begin{align}
 	\mathit{h}(n) & = d\left(w p_{1}, w p_{2}\right)
 \end{align}
-where $w p_{1}, w p_{2}$ denote the nodes and $d$ denotes the distance. 
+where $w p_{1}, w p_{2}$ denote the nodes and $d$ denotes the Euclidean distance. 
 And in our navigation algorithm,
 \begin{align}
 	\mathit{h}(n) & = d\left(w p_{1}, w p_{2}\right)+\lambda \cdot\left|l_{1}-l_{2}\right|
@@ -204,9 +204,10 @@ Simultaneously, we have also acquired vehicle trajectories at intersections usin
 At this point, we only need to concatenate all trajectories of the same vehicle in chronological order and place them into a new collection, thereby obtaining the complete trajectory of that vehicle. 
 This method can be represented as: 
 \begin{align}
-	S = \sum_{t = 1}^{k} \left ( x_{t}  \right ) 
+	S(t) = \bigcup_{i=1}^{N} \Bigl( T_i(t) \cup f\Bigl( \lim_{\!t \to t_i^+} T_i(t), \lim_{\!t \to t_{i+1}^-} T_{i+1}(t) \Bigr) \Bigr)
 \end{align}
-where $S$ is the trajectory collection, and $x_{t}$ represents the segmented trajectories labeled with time intervals. 
+where $S$ is the trajectory collection, $T_i(t)$ represents the previous trajectory. 
+The limits $\lim_{t \to t_i^+} T_i(t)$ and $\lim_{t \to t_{i+1}^+} T_{i+1}(t)$ correspond to the end waypoint of the $i$-th trajectory and the start waypoint of the $(i+1)$-th trajectory, respectively.
 By organizing the trajectories of all vehicles in this manner, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
 
 \subsection{Twin of Trajectory}
