@@ -63,7 +63,45 @@ The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in
 Overall, the MOTA (Multiple Object Tracking Accuracy) and MOTP (Multiple Object Tracking Precision) metrics indicate that Intersection 4 in Town01 performs well with MOTA (60.2369) and MOTP (89.0919), whereas Intersection 5 in Town10 has a lower MOTA (16.7388), suggesting poorer overall tracking accuracy. 
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
-\textbf{Twin}
+\textbf{Twin.}
+The performance of the digital twin is primarily reflected by two sets of metrics: trajectory metrics, and error and latency metrics (as shown in Tables 3 and 4). 
+These two tables compare the performance evaluation metrics of the digital twin in two scenarios, Town01 and Town10. 
+The trajectory overlap rate (TOR) in Town01 (50.21\%) is significantly higher than that in Town10 (10.89\%), indicating superior path-tracking capability, possibly due to a simpler environment or more stable control algorithms. 
+In terms of mean position error (MPE), the two are close (Town01: 79.58m, Town10: 82.41m). 
+However, the maximum position error (MaxPE: 105.89m) and final position error (FPE: 105.09m) in Town10 far exceed those in Town01 (MaxPE: 33.14m, FPE: 19.90m), revealing severe localization deviations in extreme cases, likely caused by complex environments or dynamic obstacles. 
+For mean lateral error (MLE) and mean longitudinal error (MLOE), Town10 performs slightly better (MLE: 1.98 vs. 2.19, MLOE: 0.26 vs. 0.53), suggesting more precise lateral and longitudinal control, though overall stability is lacking. 
+In terms of mean delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seconds), demonstrating higher task execution efficiency.
+
+
+\begin{table}[t]
+	\centering
+	\caption{Table of the trajectory indicator}
+	\label{tab:improved}
+	\begin{tabular}{|c|c|c|c|c|}
+		\hline
+		\multicolumn{1}{|c|}{Scene} & \multicolumn{1}{c|}{TOR(\%)} & \multicolumn{1}{c|}{MPE(m)} & \multicolumn{1}{c|}{MaxPE(m)} & \multicolumn{1}{c|}{FPE(m)} \\
+		\hline
+		Town01 & 50.21 & 79.5798 & 33.1382 & 19.8970 \\
+		\hline
+		Town10 & 10.89 & 82.4108 & 105.8893 & 105.0854 \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\begin{table}[t]
+	\centering
+	\caption{Table of the error and delay indicators}
+	\label{tab:improved}
+	\begin{tabular}{|c|c|c|c|}
+		\hline
+		\multicolumn{1}{|c|}{Scene} & \multicolumn{1}{c|}{MLE} & \multicolumn{1}{c|}{MLOE} & \multicolumn{1}{c|}{MD(s)} \\
+		\hline
+		Town01 & 2.1889 & 0.5345 & 1.2015 \\
+		\hline
+		Town10 & 1.9835 & 0.2614 & 1.3780 \\
+		\hline
+	\end{tabular}
+\end{table}
 
 \subsection{Details Explanation}
 
@@ -83,6 +121,30 @@ During the experiment, we adjusted the threshold multiple times, testing values 
 Ultimately, we found that a threshold of 0.65 yielded the best re-identification performance. 
 When the threshold was set higher than 0.65, some vehicles failed to match across intersections, and the higher the threshold, the more vehicles were unable to be successfully matched. 
 Conversely, when the threshold was set lower than 0.65, it led to incorrect matches for some vehicles.
+
+\subsection{Parameter Optimization}
+
+\textbf{Background and Objectives.}
+In order to further improve the performance of the tracker highly depends with the hyperparameter setting. 
+Traditional manual parameter tuning is inefficient and difficult to find the global optimal solution. 
+For this reason, we adopt a Bayesian Optimization (BOM) approach to automatically optimize the following key parameters through an intelligent search strategy:
+
+$\bullet$ DetectionProbability: control the reliability of sensor detection.
+
+$\bullet$ ClutterDensity: sensitivity to filtering false detections.
+
+$\bullet$ NewTargetDensity: threshold for target initialization.
+
+$\bullet$ Confirmation/DeletionThreshold: trajectory lifecycle management.
+
+$\bullet$ DeathRate: robustness to handling targets leaving the scene.
+
+Optimization Goal: Maximize Tracking Accuracy (MOTA) while reducing ID Switches and Trajectory Fragmentation.
+
+\textbf{Optimize Processes.}
+Bayesian optimization is a hyper-parametric optimization method based on probabilistic models, which solves the global optimization problem of black-box functions by the strategy of “finding the best parameter with the least number of attempts”.The process is as follows:1.Maximizing tracking performance by fitting existing data with a Gaussian process and constructing an objective function model in a 6-dimensional parameter space; 
+2.A small number of random parameter combinations are selected to calculate the value of the acquisition function, and the next parameter to be tested is selected (e.g., the point with the largest EI); 
+3.Run the experiment to get the MOTA corresponding to the new parameters, add to the dataset, and repeat until the maximum number of iterations is reached or convergence is achieved.
 
 \subsection{Limitations and Future Directions}
 
