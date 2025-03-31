@@ -208,7 +208,13 @@ This method can be represented as:
 \end{align}
 where $S$ is the trajectory collection, $T_i(t)$ represents the previous trajectory. 
 The limits $\lim_{t \to t_i^+} T_i(t)$ and $\lim_{t \to t_{i+1}^+} T_{i+1}(t)$ correspond to the end waypoint of the $i$-th trajectory and the start waypoint of the $(i+1)$-th trajectory, respectively.
-By organizing the trajectories of all vehicles in this manner, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
+As demonstrated in Fig. \ref{fig:3}, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture3.png} 
+	\caption{Trajectory restoration schematic} 
+	\label{fig:3} 
+\end{figure}
 
 \subsection{Twin of Trajectory}
 
