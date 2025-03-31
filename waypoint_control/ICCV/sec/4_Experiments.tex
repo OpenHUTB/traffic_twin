@@ -1,12 +1,12 @@
 \section{Experiments}
 
 We conducted the following experiments: 
-(a) 3D object detection using PointPillars deep learning for LiDAR, 
-(b) performing multi-target tracking under single-intersection and multi-intersection scenarios, 
+(a) using PointPillars combined with YOLOv4 for vehicle detection, 
+(b) performing multi-object tracking at each intersection in the simulation scene,
 (c) vehicle re-identification between intersections using a ReID network, and 
 (d) implementing trajectory digital twins in Carla.
 
-\subsection{preparation}
+\subsection{Preparation}
 
 \begin{table*}[t] 
 	\centering
@@ -16,13 +16,13 @@ We conducted the following experiments:
 		\toprule
 		Scene & Intersection & Rcll & Prcn & FTR & FP & FN & IDS & MT & ML & MOTA & MOTP\\
 		\midrule
-		town01 & 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0 & 37.5000 & 8.2945 & 79.9222\\
+		Town01 & 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0 & 37.5000 & 8.2945 & 79.9222\\
 		& 2 & 64.8065 & 61.5385 & 1.0297 & 450 & 391 & 21 & 55.5556 & 33.3333 & 22.4122 & 86.7746\\
 		& 3 & 63.2135 & 45.4407 & 1.1887 & 359 & 174 & 15 & 0 & 25 & -15.8562 & 86.9053\\
 		& 4 & 65.8206 & 96.7662 & 0.0369 & 13 & 202 & 20 & 40 & 20 & 60.2369 & 89.0919\\
 		& 5 & 41.4035 & 90.0763 & 0.0580 & 13 & 167 & 10 & 50 & 0 & 33.3333 & 88.2471\\
 		\hline
-		town10 & 1 & 30.6653 & 59.7166 & 0.7960 & 398 & 1334 & 28 & 8.3333 & 50 & 8.5239 & 84.6488\\
+		Town10 & 1 & 30.6653 & 59.7166 & 0.7960 & 398 & 1334 & 28 & 8.3333 & 50 & 8.5239 & 84.6488\\
 		& 2 & 56.4410 & 70.6095 & 1.1380 & 569 & 1055 & 29 & 13.3333 & 26.6667 & 31.7506 & 81.0920\\
 		& 3 & 51.9805 & 75.6714 & 0.6160 & 308 & 885 & 17 & 14.2857 & 35.7143 & 34.3462 & 84.2826\\
 		& 4 & 52.1930 & 86.1427 & 0.2680 & 134 & 763 & 50 & 27.2727 & 36.3636 & 40.6642 & 88.6035\\
@@ -34,8 +34,9 @@ We conducted the following experiments:
 \textbf{Simulation Environment.}
 We conducted simulation experiments in Carla, whose advantage lies in its provision of a highly realistic virtual environment capable of accurately simulating complex traffic scenarios and diverse driving conditions. 
 Carla supports flexible sensor configurations, such as cameras and LiDAR, facilitating multimodal data acquisition and fusion experiments\cite{Alpher22e}. 
-We selected Town10 and Town01 in Carla as our simulation scenarios, which offer the benefit of providing highly realistic and diverse virtual environments, enabling precise simulation and replication of real traffic scenarios. 
+We conducted relevant experiments in the Town10 and Town01 scenes in Carla.
 The complex urban structure and dense traffic flow of Town10 can simulate highly dynamic real traffic environments, while the simple layout and clear rules of Town1 make it easy to construct controlled experimental scenarios.
+This scene diversity can effectively verify the generalization ability of the model under different traffic conditions and provide a reliable basis for actual road deployment.
 
 \textbf{Data Collection.}
 In CARLA's Town10 scenario, a single intersection location is selected, with a LiDAR placed at the center and six cameras arranged around it to achieve 360-degree omnidirectional perception coverage. 
@@ -46,37 +47,36 @@ The cameras have a resolution of 1920x1080 pixels and a field of view of 90 degr
 The collected data includes point cloud data from the LiDAR and image data from the cameras. 
 The radar data is saved as MAT files with timestamps, while the camera data is saved as images for each frame in six directions. 
 The data structure follows the storage format of the Panda dataset, making the data more standardized for subsequent processing and fusion\cite{Alpher21c}. 
-Each frame of radar data stores information such as point cloud objects, timestamps, positions relative to the ego vehicle, and detected 3D bounding boxes. 
-Each frame of camera data stores image data from six directions, positions relative to the ego vehicle, timestamps, and detected 2D bounding boxes.
+Each frame of data synchronously collects six-directional camera images and LiDAR data containing point clouds, timestamps, and the coordinates of the sensor relative to the ego-vehicle.
 
-\subsection{Experimental effect}
+\subsection{Experimental Effect}
 
-\textbf{Multi-target Tracking.}
-Table 2 presents the multi-object tracking performance metrics across different scenarios (town01 and town10) and intersections (Intersection 1-5). 
+\textbf{Multi-Object Tracking.}
+Table 2 presents the multi-object tracking performance metrics across different scenarios (Town01 and Town10) and intersections (Intersection 1-5). 
 The data reveals significant variations in performance across different intersections. 
-In town01, Intersection 4 shows better performance in terms of Recall (65.8206) and Precision (96.7662), while Intersection 3 has a higher False Track Ratio (1.1887), indicating a greater proportion of incorrect tracking. 
-In town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and Precision (86.1427), but Intersection 5 has significantly higher False Positives (827) and False Negatives (1640) compared to other intersections, suggesting a higher number of misidentified and missed targets.
+In Town01, Intersection 4 shows better performance in terms of Recall (65.8206) and Precision (96.7662), while Intersection 3 has a higher False Track Ratio (1.1887), indicating a greater proportion of incorrect tracking. 
+In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and Precision (86.1427), but Intersection 5 has significantly higher False Positives (827) and False Negatives (1640) compared to other intersections, suggesting a higher number of misidentified and missed targets.
 
-Identity Switches (IDS) are notably higher in Intersection 4 of both town01 and town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
-The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in town01 has a higher MT (55.5556), while Intersection 1 in town10 has a higher ML (50), reflecting significant differences in tracking stability across these intersections.
+Identity Switches (IDS) are notably higher in Intersection 4 of both Town01 and Town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
+The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50), reflecting significant differences in tracking stability across these intersections.
 
-Overall, the MOTA (Multiple Object Tracking Accuracy) and MOTP (Multiple Object Tracking Precision) metrics indicate that Intersection 4 in town01 performs well with MOTA (60.2369) and MOTP (89.0919), whereas Intersection 5 in town10 has a lower MOTA (16.7388), suggesting poorer overall tracking accuracy. 
+Overall, the MOTA (Multiple Object Tracking Accuracy) and MOTP (Multiple Object Tracking Precision) metrics indicate that Intersection 4 in Town01 performs well with MOTA (60.2369) and MOTP (89.0919), whereas Intersection 5 in Town10 has a lower MOTA (16.7388), suggesting poorer overall tracking accuracy. 
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
 \textbf{Twin}
 
 \subsection{Details Explanation}
 
-We conducted ablation studies on radar detection and multi-intersection multi-target tracking in object detection to ensure that our experiments achieved the desired results.
+We conducted ablation studies on LiDAR detection and multi-intersection multi-object tracking in object detection to ensure that our experiments achieved the desired results.
 
-\textbf{Radar Detection.}
-During radar detection, we established a threshold for the detection results: targets exceeding the threshold were identified as vehicles, while those below the threshold were excluded as other objects. 
+\textbf{LiDAR Detection.}
+During LiDAR detection, we established a threshold for the detection results: targets exceeding the threshold were identified as vehicles, while those below the threshold were excluded as other objects. 
 We conducted three experiments with thresholds set at 0.4, 0.5, and 0.6, respectively. 
 The best results were achieved with a threshold of 0.5, which not only maximized the identification of vehicles but also effectively filtered out other clutter. 
-At a threshold of 0.4, some non-vehicle objects, such as large containers and barrels, were mistakenly identified as vehicles, and in some cases, cargo loaded on vehicles was even misclassified as a separate vehicle, significantly reducing recognition accuracy. 
+At a threshold of 0.4, some non-vehicle objects, such as trees and buildings, were mistakenly identified as vehicles, and in some cases, cargo loaded on vehicles was even misclassified as a separate vehicle, significantly reducing recognition accuracy. 
 Conversely, a threshold of 0.6 led to the missed detection of some vehicles, such as smaller cars, which were occasionally misclassified as boxes and overlooked.
 
-\textbf{Multi Intersection and Multi-target Tracking.}
+\textbf{Multi-Intersection and Multi-Object Tracking.}
 In the multi-intersection multi-target tracking experiment, the most critical task is the re-identification of vehicles across different intersections. 
 Therefore, we also set a threshold for the re-identification results: if the similarity score exceeds the threshold, the targets are considered the same vehicle; otherwise, they are deemed different vehicles. 
 During the experiment, we adjusted the threshold multiple times, testing values of 0.6, 0.65, 0.7, 0.8, and 0.9. 
