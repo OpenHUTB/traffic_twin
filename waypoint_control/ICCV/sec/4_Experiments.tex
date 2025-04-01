@@ -64,7 +64,7 @@ Overall, the MOTA (Multiple Object Tracking Accuracy) and MOTP (Multiple Object 
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
 \textbf{Twin.}
-The performance of the digital twin is primarily reflected by two sets of metrics: trajectory metrics, and error and latency metrics (as shown in Tables 3 and 4). 
+The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Tables 3 and 4). 
 These two tables compare the performance evaluation metrics of the digital twin in two scenarios, Town01 and Town10. 
 The trajectory overlap rate (TOR) in Town01 (50.21\%) is significantly higher than that in Town10 (10.89\%), indicating superior path-tracking capability, possibly due to a simpler environment or more stable control algorithms. 
 In terms of mean position error (MPE), the two are close (Town01: 79.58m, Town10: 82.41m). 
@@ -141,8 +141,10 @@ $\bullet$ DeathRate: robustness to handling targets leaving the scene.
 
 Optimization Goal: Maximize Tracking Accuracy (MOTA) while reducing ID Switches and Trajectory Fragmentation.
 
-\textbf{Optimize Processes.}
-Bayesian optimization is a hyper-parametric optimization method based on probabilistic models, which solves the global optimization problem of black-box functions by the strategy of “finding the best parameter with the least number of attempts”.The process is as follows:1.Maximizing tracking performance by fitting existing data with a Gaussian process and constructing an objective function model in a 6-dimensional parameter space; 
+\textbf{Optimization Processes.}
+Bayesian optimization is a hyper-parametric optimization method based on probabilistic models, which solves the global optimization problem of black-box functions by the strategy of “finding the best parameter with the least number of attempts”.
+The process is as follows:
+1.Maximizing tracking performance by fitting existing data with a Gaussian process and constructing an objective function model in a 6-dimensional parameter space; 
 2.A small number of random parameter combinations are selected to calculate the value of the acquisition function, and the next parameter to be tested is selected (e.g., the point with the largest EI); 
 3.Run the experiment to get the MOTA corresponding to the new parameters, add to the dataset, and repeat until the maximum number of iterations is reached or convergence is achieved.
 
