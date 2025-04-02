@@ -22,7 +22,7 @@ class GlobalRoutePlanner(object):
     This class provides a very high level route plan.
     """
 
-    def __init__(self, wmap, sampling_resolution):
+    def __init__(self, wmap, sampling_resolution, world):
         self._sampling_resolution = sampling_resolution
         self._wmap = wmap
         self._topology = None
@@ -31,12 +31,15 @@ class GlobalRoutePlanner(object):
         self._road_id_to_edge = None
         self._intersection_end_node = -1
         self._previous_decision = RoadOption.VOID
-
+        self._last_change_location = None
+        self._MIN_CHANGE_DISTANCE = 50.0  # 最小变道间隔距离
+        self._world = world
         # Build the graph
         self._build_topology()
         self._build_graph()
         self._find_loose_ends()
         self._lane_change_link()
+
 
     def trace_route(self, origin, destination):
         """
@@ -301,6 +304,10 @@ class GlobalRoutePlanner(object):
             for waypoint in segment['path']:
                 # 检查 segment['entry'] 是否属于交叉路口。如果当前段是交叉路口，则跳过变道逻辑，因为通常在交叉路口不执行变道操作。
                 if not segment['entry'].is_junction:
+                    if (self._last_change_location and
+                            waypoint.transform.location.distance(
+                                self._last_change_location) < self._MIN_CHANGE_DISTANCE):
+                        continue  # 跳过距离不足的变道点
                     next_waypoint, next_road_option, next_segment = None, None, None
                     # 代码检查当前 waypoint 的右侧车道是否允许变道
                     if waypoint.right_lane_marking and waypoint.right_lane_marking.lane_change & carla.LaneChange.Right and not right_found:
@@ -320,6 +327,9 @@ class GlobalRoutePlanner(object):
                                     self._id_map[segment['entryxyz']], next_segment[0], entry_waypoint=waypoint,
                                     exit_waypoint=next_waypoint, intersection=False, exit_vector=None,
                                     path=[], length=0, type=next_road_option, change_waypoint=next_waypoint)
+                                # ========== 更新最后变道位置 ==========
+                                self._last_change_location = waypoint.transform.location
+                                # ================================
                                 right_found = True
                     # 检查左侧车道是否允许变道，并与右侧变道逻辑相似
                     if waypoint.left_lane_marking and waypoint.left_lane_marking.lane_change & carla.LaneChange.Left and not left_found:
@@ -334,6 +344,9 @@ class GlobalRoutePlanner(object):
                                     self._id_map[segment['entryxyz']], next_segment[0], entry_waypoint=waypoint,
                                     exit_waypoint=next_waypoint, intersection=False, exit_vector=None,
                                     path=[], length=0, type=next_road_option, change_waypoint=next_waypoint)
+                                # ========== 更新最后变道位置 ==========
+                                self._last_change_location = waypoint.transform.location
+                                # ================================
                                 left_found = True
                 if left_found and right_found:
                     break

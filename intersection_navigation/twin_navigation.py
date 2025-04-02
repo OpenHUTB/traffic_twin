@@ -1,7 +1,3 @@
-"""
-    版本7.0：
-       将车辆生成时间修改成仿真时间
-"""
 import carla
 import time
 import csv
@@ -11,7 +7,7 @@ import cProfile
 import mysql.connector
 
 from datetime import datetime
-OFFSET_DISTANCE = 3          # 生成车辆失败时，将 location 后移3m
+OFFSET_DISTANCE = 5          # 生成车辆失败时，将 location 后移3m
 RES_SPAWN = 5                # 低距离生成车辆，避免车辆重复生成在一个地方
 TIMEOUT_VALUE = 100          # 设置等待超时时间为10秒
 LOWEST_SPEED = 0.1           # 设置车辆等待超时的最低速度
@@ -22,6 +18,8 @@ from agents.navigation.behavior_agent import BehaviorAgent
 from twin_accuracy_evaluator import *
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 
+ApplyControl = carla.command.ApplyVehicleControl
+
 
 def setting_config(settings, world):
     settings.synchronous_mode = True
@@ -29,7 +27,7 @@ def setting_config(settings, world):
     # settings.max_substep_delta_time = 0.02  # 每个物理子步最多 0.01 秒
     # # 设置每帧最大物理子步数
     # settings.max_substeps = 10  # 每帧最多 10 个物理子步
-    settings.fixed_delta_seconds = 0.03
+    settings.fixed_delta_seconds = 0.05
     world.apply_settings(settings)
 
 
@@ -147,18 +145,21 @@ def spawn_vehicle(vehicle_id, waypoints_by_vehicle, vehicle_waypoint_offset, cur
     vehicle_waypoint_offset[vehicle_id] = 2  # 表示车辆在第二个路口位置
 
 
-def batch_control_vehicles(agent_list, world):
+def batch_control_vehicles(agent_list, world, client):
     batch_size = 20
     agents = list(agent_list.values())  # 获取所有的agent对象
+    commands = []  # 初始化一个空的命令列表
     for i in range(0, len(agents), batch_size):
         batch = agents[i:i + batch_size]  # 获取批次中的agent对象
         for agent in batch:
             vehicle = agent._vehicle
             if not agent.done():
                 control = agent.run_step()
-                vehicle.apply_control(control)
+                commands.append(ApplyControl(vehicle, control))  # 将控制命令添加到命令列表
+                # 使用 apply_batch 批量执行命令
+        client.apply_batch(commands)  # 执行所有命令
+        commands.clear()  # 清空命令列表，准备下一轮批量操作
         world.tick()
-        time.sleep(0.02)
 
 
 def main():
@@ -256,7 +257,7 @@ def main():
         # 创建一个游标对象
         cursor = conn.cursor()
 
-        share_global_planner = GlobalRoutePlanner(_map, SAMPLING_RESOLUTION)
+        share_global_planner = GlobalRoutePlanner(_map, SAMPLING_RESOLUTION, world)
 
         # 默认运行代码则开始最早的一辆车或者一批车辆的孪生
         # 先生成最早的一辆车或者一批车辆，并设置路口终点
@@ -315,10 +316,14 @@ def main():
 
                 vehicle = vehicle_list[vehicle_id]
                 # speed = vehicle.get_velocity().length()  # 获取车辆当前速度
+                control = vehicle.get_control()
 
+                # 提取具体控制值
+                throttle = control.throttle  # 油门 [0.0, 1.0]
+                brake = control.brake  # 刹车 [0.0, 1.0]
+                steer = control.steer  # 转向 [-1.0, 1.0]（左负右正）
                 # 注意：先判断车辆到达了最后一个航点，选择将车辆销毁
-                if agent.done() and vehicle_waypoint_offset[vehicle_id] >= len(waypoints_by_vehicle[vehicle_id]):
-
+                if (agent.done() and vehicle_waypoint_offset[vehicle_id] >= len(waypoints_by_vehicle[vehicle_id])) or abs(steer) > 0.8:
                     # 还得加个判断车辆是否已经销毁，否则，会重复销毁，报错
                     # RuntimeError: trying to operate on a destroyed actor; an actor's function was called,
                     # but the actor is already destroyed.
@@ -342,7 +347,7 @@ def main():
                     # 重新设置agent的终点
                     agent.set_destination(location)
                     vehicle_waypoint_offset[vehicle_id] += 1
-                # # 减少不必要的计算`
+                # # 减少不必要的计算
                 # if not agent.done():
                 #     control = agent.run_step()
                 #     # 应用控制
@@ -356,30 +361,29 @@ def main():
                              vehicle_waypoint_offset, vehicle_plate_list, agent_list)
 
             # 分批控制车辆
-            batch_control_vehicles(agent_list, world)
+            batch_control_vehicles(agent_list, world, client)
             # 清空 need_to_destroy
             need_to_destroy.clear()
             is_to_destroy = False
 
             # 追踪车辆经过的实际路口
-            vehicle_actual_junctions = track_vehicle_actual_junctions(vehicle_list, threshold=20.0)
-
-        # 计算车辆生命周期差异
-        time_differences = calculate_vehicle_lifespan(vehicle_lifetimes, intersection_time)
-        # 将结果保存为csv
-        save_lifespan_to_csv(time_differences, csv_filename='vehicle_lifespan_differences.csv')
-        # 显示结果图
-        plot_lifespan_differences_line(time_differences, image_filename='vehicle_lifespan_differences.png', limit=100)
-
-        # 比较vehicle_middle_junctions 和 vehicle_actual_junctions 来评估孪生路径误差
-        path_errors = evaluate_path_error(vehicle_middle_junctions, vehicle_actual_junctions)
-        # 生成图表
-        plot_path_errors(path_errors)
+        #     vehicle_actual_junctions = track_vehicle_actual_junctions(vehicle_list, threshold=20.0)
+        #
+        # # 计算车辆生命周期差异
+        # time_differences = calculate_vehicle_lifespan(vehicle_lifetimes, intersection_time)
+        # # 将结果保存为csv
+        # save_lifespan_to_csv(time_differences, csv_filename='vehicle_lifespan_differences.csv')
+        # # 显示结果图
+        # plot_lifespan_differences_line(time_differences, image_filename='vehicle_lifespan_differences.png', limit=100)
+        #
+        # # 比较vehicle_middle_junctions 和 vehicle_actual_junctions 来评估孪生路径误差
+        # path_errors = evaluate_path_error(vehicle_middle_junctions, vehicle_actual_junctions)
+        # # 生成图表
+        # plot_path_errors(path_errors)
 
     finally:
         actor_list = world.get_actors().filter('vehicle.*')
-        for actor in actor_list:
-            actor.destroy()
+        client.apply_batch([carla.command.DestroyActor(x) for x in actor_list ])
         world.apply_settings(origin_settings)
 
 
