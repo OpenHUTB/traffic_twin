@@ -3,6 +3,7 @@ import argparse
 import scipy.io
 import json
 import numpy as np
+from fastdtw import fastdtw
 from config import IntersectionConfig, town_configurations
 from global_route_planner import GlobalRoutePlanner
 
@@ -258,6 +259,75 @@ def main():
                     combine = [tra[0], tra[1], tra[2], t]
                     result.append(combine)
             all_vehicle_traj.append(result)
+
+    # 读取groundtruth
+    data_truth = scipy.io.loadmat('ground_truth.mat')
+    traj_truth = data_truth['vehicle_cells']
+    all_ground_truth = []  # 保存所有的车辆轨迹
+    for i in range(len(traj_truth[0])):
+        struct = traj_truth[0][i]    # 获取第 i 个 struct
+        positions = struct[0][0][1]     # 获取单个的轨迹
+        array_3d = np.array(positions)  # 形状为(N,3,1)
+        converted_data = array_3d.squeeze(axis=2).tolist()  # 移除最后一个维度
+        all_ground_truth.append(converted_data)
+    # 评估真实轨迹与跟踪轨迹
+    # 保存对齐后的真实轨迹
+    # 初始化累加器
+    total_MPE = 0.0
+    total_MaxPE = 0.0
+    total_MFPE = 0.0
+    total_overlap = 0.0
+    valid_trajectories = 0  # 有效轨迹计数
+
+    for ge_traj in all_vehicle_traj:
+        max_overlap = -1
+        best_truth_traj = None
+        track_points = np.array([[point[0], point[1]] for point in ge_traj])
+
+        for truth_traj in all_ground_truth:
+            truth_points = np.array([[point[0], point[1]] for point in truth_traj])
+
+            min_length = min(len(track_points), len(truth_points))
+            aligned_truth = truth_points[:min_length]
+            aligned_track = track_points[:min_length]
+
+            distance, _ = fastdtw(aligned_truth, aligned_track)
+            max_distance = np.max(np.linalg.norm(aligned_truth - aligned_track, axis=1)) * min_length
+            overlap_ratio = 1 - (distance / max_distance) if max_distance > 0 else 0
+            overlap = max(0, min(1, overlap_ratio))
+
+            if overlap > max_overlap:
+                max_overlap = overlap
+                best_truth_traj = truth_points
+
+        if best_truth_traj is not None:
+            min_len = min(len(track_points), len(best_truth_traj))
+            truth_pts = best_truth_traj[:min_len]
+            track_pts = track_points[:min_len]
+
+            errors = np.linalg.norm(truth_pts - track_pts, axis=1)
+
+            # 累加各项指标
+            total_MPE += np.mean(errors)
+            total_MaxPE += np.max(errors)
+            total_MFPE += errors[-1] if len(errors) > 0 else 0
+            total_overlap += max_overlap
+            valid_trajectories += 1
+
+    # 计算全局平均值
+    if valid_trajectories > 0:
+        avg_MPE = total_MPE / valid_trajectories
+        avg_MaxPE = total_MaxPE / valid_trajectories
+        avg_MFPE = total_MFPE / valid_trajectories
+        avg_overlap = total_overlap / valid_trajectories
+
+        print("\n==== 全局平均指标 ====")
+        print(f"平均MPE: {avg_MPE:.4f} 米")
+        print(f"平均MaxPE: {avg_MaxPE:.4f} 米")
+        print(f"平均MFPE: {avg_MFPE:.4f} 米")
+        print(f"平均重合度: {avg_overlap:.2%}")
+    else:
+        print("警告: 没有有效的轨迹匹配")
 
     # 保存全部车辆轨迹到waypoint.txt
     with open('Waypoints.txt', 'w') as file:
