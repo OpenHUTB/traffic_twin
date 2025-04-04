@@ -1,30 +1,35 @@
-% 路口间多相机跟踪指标(MCTA)
-currentPath = fileparts(mfilename('fullpath'));
-parentPath = fileparts(currentPath);
-
-motaJunc1Path = fullfile(currentPath, 'metricTable_1.mat');
-motaJunc2Path = fullfile(currentPath, 'metricTable_2.mat');
-
-motaJunc1 = load(motaJunc1Path);
-motaJunc2 = load(motaJunc2Path);
-
-motaJunc1Data = motaJunc1.metricTable;
-motaJunc2Data = motaJunc2.metricTable;
-GT1 = calculateGT(motaJunc1Data);
-GT2 = calculateGT(motaJunc2Data);
-
-idPath = fullfile(parentPath, 'reID/trkIDImg');
-junc1IDPath = fullfile(idPath,'test_data_junc1'); 
-junc2IDPath = fullfile(idPath,'test_data_junc2'); 
-datasetFolder = "trainedCustomReidNetwork.mat";
-netFolder = fullfile(parentPath, datasetFolder);
-data = load(netFolder);
-net = data.net;
-threshold = 0.5;
-IDSWinter = calculateIDSWinter(junc1IDPath, junc2IDPath, net, threshold);
-
-MCTP = calculateMCTP(GT1, GT2, motaJunc1Data, motaJunc2Data, IDSWinter);
-
+function  MCTPResults = demoMultiSensorEvaluation(town)
+    % 路口间多相机跟踪指标(MCTA)
+    currentPath = fileparts(mfilename('fullpath'));
+    parentPath = fileparts(currentPath);
+    motaJunc1Path = fullfile(currentPath, town, 'metricTable_1.mat');
+    numJunctions = 5;
+    MCTPResults = zeros(1, numJunctions - 1); % 存储 MCTA 结果
+    for i = 2:numJunctions 
+        motaJunc2Path = fullfile(currentPath, town, sprintf('metricTable_%d.mat', i));
+        
+        motaJunc1 = load(motaJunc1Path);
+        motaJunc2 = load(motaJunc2Path);
+        
+        motaJunc1Data = motaJunc1.metricTable;
+        motaJunc2Data = motaJunc2.metricTable;
+        GT1 = calculateGT(motaJunc1Data);
+        GT2 = calculateGT(motaJunc2Data);
+        
+        idPath = fullfile(parentPath, 'reID/trkIDImg');
+        junc1IDPath = fullfile(idPath,'test_data_junc1'); 
+        junc2IDPath = fullfile(idPath,'test_data_junc2'); 
+        datasetFolder = "trainedCustomReidNetwork.mat";
+        netFolder = fullfile(parentPath, datasetFolder);
+        data = load(netFolder);
+        net = data.net;
+        threshold = 0.65;
+        IDSWinter = calculateIDSWinter(junc1IDPath, junc2IDPath, net, threshold);
+        
+        MCTP = calculateMCTP(GT1, GT2, motaJunc1Data, motaJunc2Data, IDSWinter);
+        MCTPResults(i - 1) = MCTP; % 存储结果
+    end 
+end
 function IDSWinter = calculateIDSWinter(IDPath1, IDPath2, net, threshold)
     features1 = extraFeatures(IDPath1, net);
     uniqueFeatures1 = filterUniqueImages(features1, threshold);
