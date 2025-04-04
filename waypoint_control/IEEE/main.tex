@@ -9,6 +9,7 @@
 \usepackage{verbatim}
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{multirow}  
 \hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -454,21 +455,24 @@ We conducted the following experiments:
 
 \subsection{Preparation}
 
-\begin{table*}[t] 
+\begin{table*}[t]
 	\centering
-	\caption{Multi-objective tracking evaluation indicators}
-	\label{tab:example}
-	\begin{tabular}{cccccccccccc}
+	\caption{MULTI-OBJECTIVE TRACKING EVALUATION}
+	\label{tab:tracking_eval}
+	\small
+	\begin{tabular}{@{}l@{\hspace{1em}}c@{\hspace{0.5em}}*{10}{r}@{}}
 		\toprule
-		Scene & Intersection & Rcll & Prcn & FTR & FP & FN & IDS & MT & ML & MOTA & MOTP\\
+		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{MOTA} & \textbf{MOTP} \\
 		\midrule
-		Town01 & 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0 & 37.5000 & 8.2945 & 79.9222\\
+		\multirow{5}{*}{\shortstack[l]{Town01 \\ (16 int., flat roads, \\ sparsely popu- \\ lated buildings)}} 
+		& 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0.0000 & 37.5000 & 8.2945 & 79.9222\\
 		& 2 & 64.8065 & 61.5385 & 1.0297 & 450 & 391 & 21 & 55.5556 & 33.3333 & 22.4122 & 86.7746\\
-		& 3 & 63.2135 & 45.4407 & 1.1887 & 359 & 174 & 15 & 0 & 25 & -15.8562 & 86.9053\\
-		& 4 & 65.8206 & 96.7662 & 0.0369 & 13 & 202 & 20 & 40 & 20 & 60.2369 & 89.0919\\
-		& 5 & 41.4035 & 90.0763 & 0.0580 & 13 & 167 & 10 & 50 & 0 & 33.3333 & 88.2471\\
-		\hline
-		Town10 & 1 & 30.6653 & 59.7166 & 0.7960 & 398 & 1334 & 28 & 8.3333 & 50 & 8.5239 & 84.6488\\
+		& 3 & 63.2135 & 45.4407 & 1.1887 & 359 & 174 & 15 & 0.0000 & 25.0000 & -15.8562 & 86.9053\\
+		& 4 & 65.8206 & 96.7662 & 0.0369 & 13 & 202 & 20 & 40.0000 & 20.0000 & 60.2369 & 89.0919\\
+		& 5 & 41.4035 & 90.0763 & 0.0580 & 13 & 167 & 10 & 50.0000 & 0.0000 & 33.3333 & 88.2471\\
+		\midrule
+		\multirow{5}{*}{\shortstack[l]{Town10 \\ (7 int., high-density, \\ including steep \\ slopes)}} 
+		& 1 & 30.6653 & 59.7166 & 0.7960 & 398 & 1334 & 28 & 8.3333 & 50.0000 & 8.5239 & 84.6488\\
 		& 2 & 56.4410 & 70.6095 & 1.1380 & 569 & 1055 & 29 & 13.3333 & 26.6667 & 31.7506 & 81.0920\\
 		& 3 & 51.9805 & 75.6714 & 0.6160 & 308 & 885 & 17 & 14.2857 & 35.7143 & 34.3462 & 84.2826\\
 		& 4 & 52.1930 & 86.1427 & 0.2680 & 134 & 763 & 50 & 27.2727 & 36.3636 & 40.6642 & 88.6035\\
@@ -523,13 +527,17 @@ In terms of mean delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 	\centering
 	\caption{Table of the trajectory indicator}
 	\label{tab:improved}
-	\begin{tabular}{|c|c|c|c|c|}
+	\begin{tabular}{|c|c|c|c|c|c|}
 		\hline
-		\multicolumn{1}{|c|}{Scene} & \multicolumn{1}{c|}{TOR(\%)} & \multicolumn{1}{c|}{MPE(m)} & \multicolumn{1}{c|}{MaxPE(m)} & \multicolumn{1}{c|}{FPE(m)} \\
+		Type & Scene & TOR(\%) & MPE(m) & MaxPE(m) & FPE(m) \\
 		\hline
-		Town01 & 50.21 & 79.5798 & 33.1382 & 19.8970 \\
+		\multirow{2}{*}{TRACK-DT} & Town01 & 50.2143 & 79.5798 & 33.1382 & 19.8970 \\
+		\cline{2-6}
+		& Town10 & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
 		\hline
-		Town10 & 10.89 & 82.4108 & 105.8893 & 105.0854 \\
+		\multirow{2}{*}{TRACK-GT} & Town01 & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\
+		\cline{2-6}
+		& Town10 & 34.4533 & 52.5575 & 36.0566 & 31.4600 \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -593,6 +601,13 @@ The process is as follows:
 1.Maximizing tracking performance by fitting existing data with a Gaussian process and constructing an objective function model in a 6-dimensional parameter space; 
 2.A small number of random parameter combinations are selected to calculate the value of the acquisition function, and the next parameter to be tested is selected (e.g., the point with the largest EI); 
 3.Run the experiment to get the MOTA corresponding to the new parameters, add to the dataset, and repeat until the maximum number of iterations is reached or convergence is achieved.
+The improvement results after optimization compared with before optimization are shown in Fig. \ref{fig:4}.   
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture4.png} 
+	\caption{Trajectory restoration schematic} 
+	\label{fig:4} 
+\end{figure}
 
 \subsection{Limitations and Future Directions}
 
