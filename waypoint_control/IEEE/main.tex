@@ -328,25 +328,18 @@ Upon completing the tracking of all vehicle trajectories, we chronologically sor
 These two waypoints are then fed into the navigation algorithm module, which subsequently computes the trajectory between them.
 
 In the Carla simulation environment, vehicle trajectory planning is achieved by utilizing the A* algorithm to search for the shortest path within the graph structure constructed from the topological map. 
-The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby efficiently guiding the search process towards the target node. 
+The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby effectively guiding the current node $p_{n}$ to search for the target node $p_{g}$.
 The core of this algorithm lies in the evaluation function 
 \begin{align}
-	\mathit{f}(n) & = g(n)+h(n)
+	f(n) = \sum_{k = 1}^{n} \frac{d_{k} \cdot\left(1+\alpha \phi_{k}\right)}{1 + \frac{\gamma}{\kappa_k + \epsilon}}+\left\|\left[\begin{array}{c}
+		p_{n}-p_{g} \\
+		\sqrt{\lambda}\left(l_{n}-l_{g}\right)
+	\end{array}\right]\right\|_{2}
 \end{align}
-where $\mathit{g}(n)$ represents the actual cost from the start node to the current node, and $\mathit{h}(n)$ denotes the estimated cost from the current node to the target node.
-During the process of exploring the shortest path using the A* algorithm, if edges with a weight of 0 exist in the graph structure, it may lead to vehicles changing lanes excessively frequently within an extremely short time frame, which contradicts normal driving logic. 
-To mitigate this phenomenon, we have introduced a lane-changing penalty mechanism in path planning. 
-Specifically, for nodes involving different lanes, we have added a penalty term, ensuring that the distance calculation between nodes is not only based on spatial distance but also takes into account the frequency of lane changes. 
-Originally, $\mathit{h}(n)$ was calculated by directly measuring the distance between nodes, which is represented as
-\begin{align}
-	\mathit{h}(n) & = d\left(w p_{1}, w p_{2}\right)
-\end{align}
-where $w p_{1}, w p_{2}$ denote the nodes and $d$ denotes the Euclidean distance. 
-And in our navigation algorithm,
-\begin{align}
-	\mathit{h}(n) & = d\left(w p_{1}, w p_{2}\right)+\lambda \cdot\left|l_{1}-l_{2}\right|
-\end{align}
-where $\lambda$ denotes the weights and $l_{1}, l_{2}$ denotes the lanes.
+Its purpose is to calculate the actual cost from the starting node to the current node and the estimated cost from the current node to the target node. 
+In the process of exploring the shortest path using the A* algorithm, if there are edges with a weight of 0 in the graph structure, it may cause the vehicle to change lanes too frequently in a very short time, which contradicts the normal driving logic. 
+To alleviate this phenomenon, we introduced a lane change penalty mechanism in path planning. Specifically, when the current lane $l_{n}$ is inconsistent with the target lane $l_{g}$, the calculation cost will be increased to ensure that the distance calculation between nodes is not only based on the spatial distance, but also takes into account the frequency of lane changes. Not only that, we also added a road type penalty $\phi_{k}$ and a curvature penalty $\kappa_k$. When planning the route globally, the vehicle prefers the main road and the road with smaller curves. 
+Among them, $\alpha$ represents the road attribute weight, $\gamma$ controls the curvature penalty intensity, $\lambda$ is the lane matching weight, and $\epsilon$ is used as a regularization parameter to ensure numerical stability.
 
 
 \textbf{All Trajectory Restoration.}
