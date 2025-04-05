@@ -411,42 +411,43 @@ The controller continues to monitor the system state, updates the error in real 
 
 \subsection{Evaluation}
 
-We employed two evaluation metrics.
+We employed three evaluation metrics.
 
 \textbf{Multiple Object Tracking Accuracy.}
-Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA):
+Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA)\cite{Alpher23b}.
+We use an improved evaluation metric Robust Multi-Object Tracking Accuracy (R-MOTA) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
+The tracking sequence is divided into $W$ time windows, and each window independently calculates the local MOTA score to avoid the serious error of a single frame affecting the overall evaluation.
+In addition, the penalty for identity mismatching is amplified by the coefficient $\alpha$ to reflect the key impact of ID continuity on tracking quality.
 \begin{align}
-	\mathit{MOTA} & = 1-\frac{F N+F P+M}{T}
+	\text{R-MOTA} = \underset{i=1}{\overset{W}{\mathrm{median}}} \left(1 - \frac{FN^{(i)} + FP^{(i)} + \alpha M^{(i)}}{T^{(i)}}\right) 
 \end{align}
-Among them:
-$FN$ (False Negatives) represents the number of missed detections, which means targets that truly exist but were not detected.
-$FP$ (False Positives) represents the number of false detections, which means targets that were detected but do not actually exist.
-$M$ (Mismatches) represents the number of identity mismatches, which means cases where the tracking ID of a target was incorrectly assigned during the tracking process.
-$T$ (Total number of true detections) represents the total number of true detections, which means the number of targets correctly detected across all frames.
+Among them,
+$FN^{(i)}$ (False Negatives) represents the number of missed detections in the $i$-th window, which means targets that truly exist but were not detected.
+$FP^{(i)}$ (False Positives) represents the number of false detections in the $i$-th window, which means targets that were detected but do not actually exist.
+$M^{(i)}$ (Mismatches) represents the number of identity mismatches in the $i$-th window, which means cases where the tracking ID of a target was incorrectly assigned during the tracking process.
+$T^{(i)}$ (Total number of true detections) represents the total number of true detections in the $i$-th window, which means the number of targets correctly detected across all frames.
 
-The value of MOTA ranges from 0 to 1, with higher values indicating better tracking performance. 
-A MOTA of 1 means there are no missed detections, false detections, or identity mismatches, representing perfect tracking performance. 
-A MOTA of 0 means the tracking performance is very poor, with all detections being incorrect.
+The metric ranges from 0 to 1, with higher values indicating better tracking performance. 
+A perfect score of 1 represents flawless tracking with zero missed detections, false alarms, or identity mismatches, while 0 indicates complete tracking failure.
 
-\textbf{Multi Camera Tracking Accuracy.}
-The multi-camera object tracking accuracy (MCTA) which condenses all aspects of system performance into one measure\cite{Alpher23b}:
+\textbf{Cross-Sensor Tracking Accuracy.}
+Multi-camera object tracking accuracy (MCTA)\cite{Alpher23b} condenses all aspects of system performance into a metric that measures cross-camera tracking.
+On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (E-MCTA), which is defined as follows:
 \begin{align}
-	\mathit{MCTA} & = \frac{2 P R}{P+R}\left(1-\frac{M^{w}}{T^{w}}\right)\left(1-\frac{M^{h}}{T^{h}}\right)
+	\text{I-MCTA} = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
 \end{align}
-Among them:
+by decomposing the cross-camera error into missing association $M_k$ and ID switching $E_k^{\text{ID}}$, accurate diagnosis of system defects is achieved.
+Among them,
 $P$ represents the proportion of correct matches (correctly identifying and tracking targets) across all cameras.  
 $R$ represents the recall rate, which is the proportion of all true targets that are correctly tracked.  
-$M^{w}$ represents the number of weak matching errors, which is the number of times a target is incorrectly matched to another target during the tracking process.  
-$T^{w}$ represents the total number of weak matching attempts, which is the total number of possible matching attempts.  
-$M^{h}$ represents the number of strong matching errors, which is the number of times a target is incorrectly matched to another target during the tracking process, but here it may refer to a stricter standard for matching errors.  
-$T^{h}$ represents the total number of strong matching attempts, which is the total number of possible matching attempts.
+$\lambda$ is the penalty coefficient for ID switching error and $T^{k}$ represents the total number of potential correct associations in the $k$-th dimension, but the association thresholds for different dimensions are different.
 
-MCTA evaluates tracking accuracy by considering the proportion of correct matches and the recall rate, while also assessing tracking consistency by penalizing weak and strong matching errors. 
-The higher the MCTA value, the better the performance of the multi-camera tracking system.
+Compared with MCTA, I-MCTA intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
+The higher the value, the better the performance of the multi-camera tracking system.
 
 \textbf{Twin Accuracy.}
 In the twin experimental evaluation, we verify the effectiveness of the system by comparing the comprehensive performance of the following three key trajectories: (1) the actual trajectory of the vehicle, (2) the observed trajectory reconstructed based on the multi-target tracking algorithm, and (3) the expected trajectory generated by the control system.
-This study uses trajectory overlap ratio (TOR) for comprehensive evaluation, which quantifies both the shape similarity of the trajectory and the spatiotemporal consistency of the waypoints:
+This study uses trajectory overlap ratio (TOR) for comprehensive evaluation, which quantifies both the shape similarity of the trajectory and the spatiotemporal consistency of the waypoints.
 \begin{align}
 	TOR & = \left(1 - \frac{D_{dtw}}{D_{max}}\right) \times \Lambda(t)
 \end{align}
