@@ -432,7 +432,7 @@ A perfect score of 1 represents flawless tracking with zero missed detections, f
 
 \textbf{Cross-Sensor Tracking Accuracy.}
 Multi-camera object tracking accuracy (MCTA)\cite{Alpher23b} condenses all aspects of system performance into a metric that measures cross-camera tracking.
-On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (E-MCTA), which is defined as follows:
+On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (I-MCTA), which is defined as follows:
 \begin{align}
 	\text{I-MCTA} = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
 \end{align}
@@ -481,20 +481,20 @@ We conducted the following experiments:
 \begin{table*}[t]
 	\centering
 	\caption{MULTI-OBJECTIVE TRACKING EVALUATION}
-	\label{tab:tracking_eval}
+	\label{tab:2}
 	\small
 	\begin{tabular}{@{}l@{\hspace{1em}}c@{\hspace{0.5em}}*{10}{r}@{}}
 		\toprule
-		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{MOTA} & \textbf{MOTP} \\
+		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{R-MOTA} & \textbf{R-MOTP} \\
 		\midrule
-		\multirow{5}{*}{\shortstack[l]{Town01 \\ (16 int., flat roads, \\ sparsely popu- \\ lated buildings)}} 
+		\multirow{5}{*}{\shortstack[l]{Town01 \\ (16 int., flat roads, \\ sparsely populated \\ buildings)}} 
 		& 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0.0000 & 37.5000 & 8.2945 & 79.9222\\
 		& 2 & 64.8065 & 61.5385 & 1.0297 & 450 & 391 & 21 & 55.5556 & 33.3333 & 22.4122 & 86.7746\\
 		& 3 & 63.2135 & 45.4407 & 1.1887 & 359 & 174 & 15 & 0.0000 & 25.0000 & -15.8562 & 86.9053\\
 		& 4 & 65.8206 & 96.7662 & 0.0369 & 13 & 202 & 20 & 40.0000 & 20.0000 & 60.2369 & 89.0919\\
 		& 5 & 41.4035 & 90.0763 & 0.0580 & 13 & 167 & 10 & 50.0000 & 0.0000 & 33.3333 & 88.2471\\
 		\midrule
-		\multirow{5}{*}{\shortstack[l]{Town10 \\ (7 int., high-density, \\ including steep \\ slopes)}} 
+		\multirow{5}{*}{\shortstack[l]{Town10 \\ (7 int., high-density, \\ including steep slo- \\ pes)}} 
 		& 1 & 30.6653 & 59.7166 & 0.7960 & 398 & 1334 & 28 & 8.3333 & 50.0000 & 8.5239 & 84.6488\\
 		& 2 & 56.4410 & 70.6095 & 1.1380 & 569 & 1055 & 29 & 13.3333 & 26.6667 & 31.7506 & 81.0920\\
 		& 3 & 51.9805 & 75.6714 & 0.6160 & 308 & 885 & 17 & 14.2857 & 35.7143 & 34.3462 & 84.2826\\
@@ -525,7 +525,7 @@ Each frame of data synchronously collects six-directional camera images and LiDA
 \subsection{Experimental Effect}
 
 \textbf{Multi-Object Tracking.}
-Table 2 presents the multi-object tracking performance metrics across different scenarios (Town01 and Town10) and intersections (Intersection 1-5). 
+Table. \ref{tab:2} presents the multi-object tracking performance metrics across different scenarios (Town01 and Town10) and intersections (Intersection 1-5). 
 The data reveals significant variations in performance across different intersections. 
 In Town01, Intersection 4 shows better performance in terms of Recall (65.8206) and Precision (96.7662), while Intersection 3 has a higher False Track Ratio (1.1887), indicating a greater proportion of incorrect tracking. 
 In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and Precision (86.1427), but Intersection 5 has significantly higher False Positives (827) and False Negatives (1640) compared to other intersections, suggesting a higher number of misidentified and missed targets.
@@ -533,13 +533,15 @@ In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and
 Identity Switches (IDS) are notably higher in Intersection 4 of both Town01 and Town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
 The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50), reflecting significant differences in tracking stability across these intersections.
 
-Overall, the MOTA (Multiple Object Tracking Accuracy) and MOTP (Multiple Object Tracking Precision) metrics indicate that Intersection 4 in Town01 performs well with MOTA (60.2369) and MOTP (89.0919), whereas Intersection 5 in Town10 has a lower MOTA (16.7388), suggesting poorer overall tracking accuracy. 
+Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (R-MOTA: 60.2369; R-MOTP: 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (R-MOTA: 16.7388), indicating weaker tracking reliability.
+However, detection accuracy is also affected by the number of vehicles passing through the intersection, and the system accuracy improves significantly in low traffic conditions.
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
 \textbf{Twin.}
-The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Tables 3 and 4). 
+The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Table. \ref{tab:3} and \ref{tab:4}). 
 These two tables compare the performance evaluation metrics of the digital twin in two scenarios, Town01 and Town10. 
-The trajectory overlap rate (TOR) in Town01 (50.21\%) is significantly higher than that in Town10 (10.89\%), indicating superior path-tracking capability, possibly due to a simpler environment or more stable control algorithms. 
+The TOR in Town01 is significantly higher than that in Town10 in the comparison of the tracking trajectory with the digital twin trajectory (TR-DT), indicating that it has a superior path tracking ability, which may be due to the simpler environment or the more stable control algorithm.
+However, for the comparison between the tracked trajectory and ground truth (TR-GT), it is higher in Town10, probably because our point cloud dataset was collected in Town10 and is more suitable for vehicle detection in this scenario.
 In terms of mean position error (MPE), the two are close (Town01: 79.58m, Town10: 82.41m). 
 However, the maximum position error (MaxPE: 105.89m) and final position error (FPE: 105.09m) in Town10 far exceed those in Town01 (MaxPE: 33.14m, FPE: 19.90m), revealing severe localization deviations in extreme cases, likely caused by complex environments or dynamic obstacles. 
 For mean lateral error (MLE) and mean longitudinal error (MLOE), Town10 performs slightly better (MLE: 1.98 vs. 2.19, MLOE: 0.26 vs. 0.53), suggesting more precise lateral and longitudinal control, though overall stability is lacking. 
@@ -548,27 +550,27 @@ In terms of mean delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 
 \begin{table}[t]
 	\centering
-	\caption{Table of the trajectory indicator}
-	\label{tab:improved}
+	\caption{Table of the Trajectory Indicator}
+	\label{tab:3}
 	\begin{tabular}{|c|c|c|c|c|c|}
 		\hline
-		Type & Scene & TOR(\%) & MPE(m) & MaxPE(m) & FPE(m) \\
+		Scene & Type & TOR(\%) & MPE(m) & MaxPE(m) & FPE(m) \\
 		\hline
-		\multirow{2}{*}{TRACK-DT} & Town01 & 50.2143 & 79.5798 & 33.1382 & 19.8970 \\
+		\multirow{2}{*}{Town01} & TR-DT & 50.2143 & 79.5798 & 33.1382 & 19.8970 \\
 		\cline{2-6}
-		& Town10 & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
+		& TR-GT & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\
 		\hline
-		\multirow{2}{*}{TRACK-GT} & Town01 & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\
+		\multirow{2}{*}{Town10} & TR-DT & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
 		\cline{2-6}
-		& Town10 & 34.4533 & 52.5575 & 36.0566 & 31.4600 \\
+		& TR-GT & 34.4533 & 52.5575 & 36.0566 & 31.4600 \\
 		\hline
 	\end{tabular}
 \end{table}
 
 \begin{table}[t]
 	\centering
-	\caption{Table of the error and delay indicators}
-	\label{tab:improved}
+	\caption{Table of the Vehicle Control Indicator}
+	\label{tab:4}
 	\begin{tabular}{|c|c|c|c|}
 		\hline
 		\multicolumn{1}{|c|}{Scene} & \multicolumn{1}{c|}{MLE} & \multicolumn{1}{c|}{MLOE} & \multicolumn{1}{c|}{MD(s)} \\
