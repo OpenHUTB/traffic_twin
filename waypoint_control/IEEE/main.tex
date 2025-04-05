@@ -366,46 +366,20 @@ As demonstrated in Fig. \ref{fig:3}, we can derive the complete vehicle trajecto
 Through the previous steps, we have obtained the trajectories of all vehicles. 
 Here, we will further optimize these trajectories using a trajectory smoothing algorithm, and then employ a PID controller to control the vehicles, ensuring they follow the optimized trajectories\cite{Alpher22d}. 
 The PID controller consists of three main components: Proportional control (P), Integral control (I), and Derivative control (D). Each component serves a specific purpose, enabling the regulation of different aspects of the system.
-
-$\bullet$ The proportional control component adjusts the control output directly based on the current error. 
-The control output is proportional to the error, meaning that the larger the error, the stronger the control action. 
-The formula is as follows:
 \begin{align}
-	u_{P}(t) & = K_{p} \cdot e(t)
+	u = K_p e + K_i \int \left( e - \frac{\text{sat}(u)-u}{K_p} \right) dt + K_d \dot{e}
 \end{align}
-Here, $K_{p}$ is the proportional gain, which determines the strength of the proportional control's response to the error.
-
-Proportional control can quickly respond to errors and reduce their magnitude.
-However, using only proportional control may not completely eliminate steady-state error, which is the small error that remains after the system has stabilized.
-
-$\bullet$ The integral control component accumulates the sum of errors and adjusts the control output based on this accumulated value. 
-The integral term takes into account historical errors and is capable of eliminating steady-state errors. 
-The formula is as follows:
-\begin{align}
-	u_{I}(t) & = K_{i} \int_{0}^{t} e(\tau) d \tau
-\end{align}
-Here, $K_{i}$ is the integral gain, which determines the strength of the integral control's response to the accumulated error. 
-
-By considering the accumulated error, integral control can eliminate steady-state errors, enabling the system to achieve the target value over the long term. 
-However, excessively high integral gain may lead to system overshoot or oscillation.
-
-$\bullet$ The derivative control component adjusts the control output based on the rate of change of the error. 
-It predicts future error trends and takes preemptive measures. 
-The formula is as follows:
-\begin{align}
-	u_{\mathit{D}}(t) & = K_{d} \cdot \frac{d e(t)}{d t}
-\end{align}
-Here, $K_{d}$ is the derivative gain, which determines the strength of the derivative control's response to the rate of change of the error.
-
-Derivative control can suppress rapid changes in errors, reduce system overshoot and oscillation, and make the system response smoother. 
-However, derivative control is sensitive to noise and can amplify high-frequency noise.
-
+This study proposes an improved PID control algorithm, whose control output $u$ consists of proportional term, anti-saturation integral term, and differential term, where $K_p$, $K_i$ and $K_d$ are proportional gain, integral gain and differential gain respectively.
+The algorithm achieves rapid error response through the proportional term, eliminates steady-state errors using the integral term, and suppresses the error change rate through the differential term.
+Experimental studies have shown that traditional PID control has an integral saturation phenomenon in the vehicle steering system, resulting in random extreme deflections of the steering wheel (±1 rad).
+To this end, this algorithm introduces a compensation term, and the saturation function sat(u) limits the controller output $u$ to a preset interval [$u_{min}$, $u_{max}$].
+When the control output reaches the saturation limit, the integral accumulation rate is automatically adjusted, which effectively solves the integral saturation problem.
 
 The tuning process of the PID controller is as follows:  
-1. Calculate the error $e(t)$ between the target value (setpoint) and the current system output in real time.  
-2. Compute the proportional action $K_{p} \cdot e(t)$ based on the current error, the integral action $K_{i} \int_{0}^{t} e(\tau) d \tau$ based on historical errors, and the derivative action $K_{d} \cdot \frac{d e(t)}{d t}$ based on the rate of change of the error.  
-3. Sum the results of the proportional, integral, and derivative components to obtain the final control output $u(t)$, which is then applied to the system (for example, adjusting the vehicle's acceleration or direction). 
-4. The system adjusts based on the control output $u(t)$, changing its state (for example, speed, position, etc.). 
+1. Calculate the error $e$ between the target value (setpoint) and the current system output in real time.  
+2. Compute the proportional action based on the current error, the integral action based on historical errors, and the derivative action based on the rate of change of the error.  
+3. Sum the results of the proportional, integral, and derivative components to obtain the final control output, which is then applied to the system (for example, adjusting the vehicle's acceleration or direction). 
+4. The system adjusts based on the control output, changing its state (for example, speed, position, etc.). 
 The controller continues to monitor the system state, updates the error in real time, and repeats the above steps until the system stabilizes near the target value.
 
 
