@@ -185,22 +185,10 @@ This approach ensures that the tracker can maintain consistent tracking informat
 First, consider the class information association between one detection and one track. 
 Assume the confusion matrix of the detection is $C=\left[c_{i j}\right]$, where $c_{i j}$ denotes the likelihood that the classifier outputs the classification as $j$ if the truth class of the target is $i$.
 Here, $i,j = 1,…, N$, and $N$ is the total number of possible classes.
-At time $k-1$, the probability distribution of a track is given as 
-\begin{align}
-	\mu(k-1) & = \left[\begin{array}{l}
-		\mu_{1}(k-1) \\
-		\vdots \\
-		\mu_{N}(k-1)
-	\end{array}\right]
-\end{align}
-where $\mu_{i}$ is the probability that the classification of the track is $i$.
+At time $k-1$, the probability that the trajectory is classified as $i$ is $\mu_{i}(k-1)$.
 If the tracker associates the detection to the track at time $k$, then the updated value of $\mu_{i}$ using Bayes' theorem is
 \begin{align}
-	\mu_{i}(k) = \frac{c_{i j} \mu_{i}(k-1)}{\sum_{l = 1}^{N} c_{l j} \mu_{i}(k-1)}
-\end{align}
-Write this equation in a vector form for all possible classifications as
-\begin{align}
-	\mu(k) & = \frac{c_{j} \otimes \mu(k-1)}{c_{j}^{T} \mu(k-1)}
+	\mu(k) & = \frac{c_{j} \otimes [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}{c_{j}^{T} [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}
 \end{align}
 where $c_{j}$ is the $j$-th column of the confusion matrix and $\otimes$ represents element-wise multiplication. 
 This equation represents the updated class probability of a track if the track is associated with the detection of classification $j$.
