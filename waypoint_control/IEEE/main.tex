@@ -218,13 +218,6 @@ where $c_{j}(m)$ is the class probability vector of detection $m$, $\otimes$ rep
 
 The tracker updates the class properties of tracks cluster by cluster.
 
-\textbf{Reference System.}
-
-We placed an imaginary ego-vehicle in the center of the intersection, which serves as a reference system. 
-For multi-object tracking we input not only the detection frame, but also the position of the camera and radar relative to the self-vehicle, as well as the position of the ego-vehicle. 
-The position coordinates of the self-vehicle in the experiment were always (0,0,0,), i.e. stationary. 
-The tracking yielded trajectory coordinates initially relative to the LiDAR, which we also fitted to the world coordinates in Carla.
-
 \textbf{Process.}
 
 In this process, we employ a tracker to handle the 2D and 3D bounding boxes obtained from target detection, along with their corresponding timestamps. 
@@ -241,6 +234,18 @@ However, if a trajectory fails to receive any detection assignments within a pre
 
 Through this process, we are ultimately able to obtain the trajectories of vehicles within the intersection.
 
+\textbf{Reference System.}
+
+We placed an imaginary ego-vehicle in the center of the intersection, which serves as a reference system, as shown in Fig. \ref{fig:3}. 
+For multi-object tracking we input not only the detection frame, but also the position of the camera and radar relative to the self-vehicle, as well as the position of the ego-vehicle. 
+The position coordinates of the self-vehicle in the experiment were always (0,0,0,), i.e. stationary. 
+The tracking yielded trajectory coordinates initially relative to the LiDAR, which we also fitted to the world coordinates in Carla.
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture3.png} 
+	\caption{Data collection sensor suite.} 
+	\label{fig:3} 
+\end{figure}
 
 \subsection{Multi Intersection and Multi-Object Tracking}
 
@@ -328,12 +333,12 @@ This method can be represented as:
 \end{align}
 where $S$ is the trajectory collection, $T_i(t)$ represents the previous trajectory. 
 The limits $\lim_{t \to t_i^+} T_i(t)$ and $\lim_{t \to t_{i+1}^+} T_{i+1}(t)$ correspond to the end waypoint of the $i$-th trajectory and the start waypoint of the $(i+1)$-th trajectory, respectively.
-As demonstrated in Fig. \ref{fig:3}, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
+As demonstrated in Fig. \ref{fig:5}, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
 \begin{figure}[t]
 	\centering
-	\includegraphics[width=\linewidth]{picture/picture3.png} 
+	\includegraphics[width=\linewidth]{picture/picture5.png} 
 	\caption{Trajectory restoration schematic} 
-	\label{fig:3} 
+	\label{fig:5} 
 \end{figure}
 
 \subsection{Twin of Trajectory}
