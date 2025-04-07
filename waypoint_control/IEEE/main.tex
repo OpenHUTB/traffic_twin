@@ -337,7 +337,7 @@ As demonstrated in Fig. \ref{fig:5}, we can derive the complete vehicle trajecto
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture5.png} 
-	\caption{Trajectory restoration schematic} 
+	\caption{Trajectory restoration schematic.} 
 	\label{fig:5} 
 \end{figure}
 
@@ -383,7 +383,7 @@ We use an improved evaluation metric Robust Multi-Object Tracking Accuracy (R-MO
 The tracking sequence is divided into $W$ time windows, and each window independently calculates the local MOTA score to avoid the serious error of a single frame affecting the overall evaluation.
 In addition, the penalty for identity mismatching is amplified by the coefficient $\alpha$ to reflect the key impact of ID continuity on tracking quality.
 \begin{align}
-	\text{R-MOTA} = \underset{i=1}{\overset{W}{\mathrm{median}}} \left(1 - \frac{FN^{(i)} + FP^{(i)} + \alpha M^{(i)}}{T^{(i)}}\right) 
+	RMOTA = \underset{i=1}{\overset{W}{\mathrm{median}}} \left(1 - \frac{FN^{(i)} + FP^{(i)} + \alpha M^{(i)}}{T^{(i)}}\right) 
 \end{align}
 Among them,
 $FN^{(i)}$ (False Negatives) represents the number of missed detections in the $i$-th window, which means targets that truly exist but were not detected.
@@ -398,7 +398,7 @@ A perfect score of 1 represents flawless tracking with zero missed detections, f
 Multi-camera object tracking accuracy (MCTA)\cite{Alpher23b} condenses all aspects of system performance into a metric that measures cross-camera tracking.
 On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (I-MCTA), which is defined as follows:
 \begin{align}
-	\text{I-MCTA} = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
+	IMCTA = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
 \end{align}
 by decomposing the cross-camera error into missing association $M_k$ and ID switching $E_k^{\text{ID}}$, accurate diagnosis of system defects is achieved.
 Among them,
@@ -449,7 +449,7 @@ We conducted the following experiments:
 	\small
 	\begin{tabular}{@{}l@{\hspace{1em}}c@{\hspace{0.5em}}*{10}{r}@{}}
 		\toprule
-		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{R-MOTA} & \textbf{R-MOTP} \\
+		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{RMOTA} & \textbf{RMOTP} \\
 		\midrule
 		\multirow{5}{*}{\shortstack[l]{Town01 \\ (16 int., flat roads, \\ sparsely populated \\ buildings)}} 
 		& 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0.0000 & 37.5000 & 8.2945 & 79.9222\\
@@ -594,7 +594,7 @@ The improvement results after optimization compared with before optimization are
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture4.png} 
-	\caption{Trajectory restoration schematic} 
+	\caption{RMOTA improvement percentage.} 
 	\label{fig:4} 
 \end{figure}
 
