@@ -25,7 +25,7 @@ citecolor=blue]{hyperref}
 \usepackage{color,xcolor}
 \usepackage{makecell}
 \begin{document}
-\title{UVDT: Digital Twin of Urban Vehicles Based on LiDAR-Camera Fusion in Multi-Intersection Scenarios}
+\title{UVDT: A Baseline Benchmark for Vehicle Digital Twins via LiDAR-Camera Fusion in Multi-Intersection Scenarios}
 \author{IEEE Publication Technology Department
 
 \thanks{Manuscript created October, 2020; This work was developed by the IEEE Publication Technology Department. This work is distributed under the \LaTeX \ Project Public License (LPPL) ( http://www.latex-project.org/ ) version 1.3. A copy of the LPPL, version 1.3, is included in the base \LaTeX \ documentation of all distributions of \LaTeX \ released 2003/12/01 or later. The opinions expressed here are entirely that of the author. No warranty is expressed or implied. User assumes all risk.}}
@@ -265,12 +265,12 @@ If the similarity exceeds a certain threshold, the two vehicles are considered t
 \textbf{ResNet-50.}
 ResNet-50 primarily consists of five main components: an initial convolutional layer, a max-pooling layer, four stages of residual blocks, a global average pooling layer, and a fully connected layer, totaling 50 layers (including convolutional layers, pooling layers, and fully connected layers). 
 Among these, the four stages of residual blocks are the core of ResNet-50. 
-The number of residual blocks and the size of feature maps for each stage are shown in Table 1.
+The number of residual blocks and the size of feature maps for each stage are shown in Table. \ref{tab:1}.
 
 \begin{table}[t]
 	\centering
 	\caption{Table of the number of residual blocks and feature map sizes for each stage}
-	\label{tab:improved}
+	\label{tab:1}
 	\begin{tabular}{|c|c|c|c|}
 		\hline
 		\multicolumn{1}{|c|}{Stage} & \multicolumn{1}{c|}{NRB} & \multicolumn{1}{c|}{FMS} & \multicolumn{1}{c|}{NOC} \\
@@ -379,7 +379,7 @@ We employed three evaluation metrics.
 
 \textbf{Multiple Object Tracking Accuracy.}
 Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA)\cite{Alpher23b}.
-We use an improved evaluation metric Robust Multi-Object Tracking Accuracy (R-MOTA) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
+We use an improved evaluation metric Robust Multi-Object Tracking Accuracy (RMOTA) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
 The tracking sequence is divided into $W$ time windows, and each window independently calculates the local MOTA score to avoid the serious error of a single frame affecting the overall evaluation.
 In addition, the penalty for identity mismatching is amplified by the coefficient $\alpha$ to reflect the key impact of ID continuity on tracking quality.
 \begin{align}
@@ -396,7 +396,7 @@ A perfect score of 1 represents flawless tracking with zero missed detections, f
 
 \textbf{Cross-Sensor Tracking Accuracy.}
 Multi-camera object tracking accuracy (MCTA)\cite{Alpher23b} condenses all aspects of system performance into a metric that measures cross-camera tracking.
-On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (I-MCTA), which is defined as follows:
+On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (IMCTA), which is defined as follows:
 \begin{align}
 	IMCTA = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
 \end{align}
@@ -406,7 +406,7 @@ $P$ represents the proportion of correct matches (correctly identifying and trac
 $R$ represents the recall rate, which is the proportion of all true targets that are correctly tracked.  
 $\lambda$ is the penalty coefficient for ID switching error and $T^{k}$ represents the total number of potential correct associations in the $k$-th dimension, but the association thresholds for different dimensions are different.
 
-Compared with MCTA, I-MCTA intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
+Compared with MCTA, IMCTA intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
 The higher the value, the better the performance of the multi-camera tracking system.
 
 \textbf{Twin Accuracy.}
@@ -433,12 +433,6 @@ Therefore, calculating the positional relationship between waypoints is very imp
 $\Lambda(\tau)$ counts the proportion of matching points in the two trajectories whose distance is less than the threshold $\tau$ to reflect the overlap accuracy of the two trajectories within the allowable error range.
 where $p_{\pi_{1}(k)}$ and $q_{\pi_{2}(k)}$ represent the three-dimensional coordinates of the $\pi_{1}(k)$th point of trajectory 1 and the $\pi_{2}(k)$th point of trajectory 2, respectively, and $\mathbb{I}(\cdot)$ is the indicator function (which takes the value of 1 when the Euclidean distance between two points does not exceed the threshold $\tau$, otherwise it takes the value of 0).
 \section{Experiments}
-
-We conducted the following experiments: 
-(a) using PointPillars combined with YOLOv4 for vehicle detection, 
-(b) performing multi-object tracking at each intersection in the simulation scene,
-(c) vehicle re-identification between intersections using a ReID network, and 
-(d) implementing trajectory digital twins in Carla.
 
 \subsection{Preparation}
 
@@ -497,7 +491,7 @@ In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and
 Identity Switches (IDS) are notably higher in Intersection 4 of both Town01 and Town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
 The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50), reflecting significant differences in tracking stability across these intersections.
 
-Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (R-MOTA: 60.2369; R-MOTP: 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (R-MOTA: 16.7388), indicating weaker tracking reliability.
+Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (RMOTA: 60.2369; RMOTP: 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (RMOTA: 16.7388), indicating weaker tracking reliability.
 However, detection accuracy is also affected by the number of vehicles passing through the intersection, and the system accuracy improves significantly in low traffic conditions.
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
@@ -565,7 +559,7 @@ Ultimately, we found that a threshold of 0.65 yielded the best re-identification
 When the threshold was set higher than 0.65, some vehicles failed to match across intersections, and the higher the threshold, the more vehicles were unable to be successfully matched. 
 Conversely, when the threshold was set lower than 0.65, it led to incorrect matches for some vehicles.
 
-\subsection{Parameter Optimization}
+\subsection{Adaptive Data Association Threshold}
 
 \textbf{Background and Objectives.}
 In order to further improve the performance of the tracker highly depends with the hyperparameter setting. 
