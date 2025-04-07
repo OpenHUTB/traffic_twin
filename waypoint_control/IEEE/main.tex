@@ -200,26 +200,13 @@ After that, in each cluster, the tracker calculates the mixed likelihood of asso
 	\Lambda(m, t) & = \Lambda_{k}^{1-\alpha}(m, t) \Lambda_{c}^{\alpha}(m, t)
 \end{align}
 where $\alpha$ represents Weight factor of class likelihood; $\Lambda_{k}$ represents Likelihood of assigning a detection to a track based on the kinematic states; $\Lambda_{c}$ represents Likelihood of assigning a classified detection to a track based on the class information.
-In the equation, $\Lambda_{c}$ takes one of these three forms based on the value of $m$ and $t$.
-
-$\bullet$ $m > 0$ and $t > 0$ — A hypothesis that the measurement is associated with a track in the tracker. 
-In this case,
 \begin{align}
-	\Lambda_{k}(m, t) & = c_{j}^{T} \mu(k-1)
+	\Lambda_{c}(m, t) = \left\{\begin{array}{ll}
+		c_{j}^{T}\left[\mathbb{I}_t \mu(k-1)+\mathbb{I}_{t = 0} \mu^{0}\right] & \text { if } m>0 \\
+		1 & \text { if } m = 0
+	\end{array}\right.
 \end{align}
-where $c_{j}$ is the $j$-th column in the confusion matrix that detection $m$ corresponds to, and $\mu(k-1)$ is the class probability vector of the track in the previous step.
-
-$\bullet$ $m > 0$ and $t = 0$ — A hypothesis that the measurement is not associated with any track in the tracker. In this case,
-\begin{align}
-	\Lambda_{k}(m, t) & = c_{j}^{T} \mu^{0}
-\end{align}
-where $c_{j}$ is the $j$-th column in the confusion matrix that detection $m$ corresponds to, and $\mu^{0}$ is the a priori class distribution vector of tracks.
-
-$\bullet$ $m = 0$ and $t > 0$ — A hypothesis that the track is not associated with any measurement in the tracker. In this case,
-\begin{align}
-	\Lambda_{k}(m, t) & = 1
-\end{align}
-Using the mixed likelihoods of association between detections and tracks in a cluster, the tracker generates all the feasible events and then calculates the marginal probability of assigning each detection to each track in the cluster.
+The hybrid association likelihood function achieves multi-scenario adaptive matching through a triple mechanism: for valid associated targets ($m>0$ and $t>0$), the system corrects the trajectory category probability distribution $\mu(k-1)$ in real time through Bayesian updating, and uses the confusion matrix column vector $c_j$ of the detection m corresponding to category $j$ to calculate the matching degree, thereby dynamically adapting to changes in target categories; for new targets ($m>0$ and $t=0$), the prior distribution $\mu^{0}$ based on the statistical characteristics of the data set is used for initialization to effectively solve the cold start problem; for unmatched trajectories ($m=0$), a fixed value of 1 is returned to avoid false termination caused by sensor noise. The design achieves the optimal fusion of kinematics and category information through the $\alpha$ parameter, significantly improving the tracking robustness in complex scenarios while ensuring real-time performance.
 
 \textbf{Update Track Class Probability.}
 Suppose the marginal probabilities of $M$ detections assigned to a track in the cluster are $\left(\beta_{0}, \beta_{1}, \ldots, \beta_{M}\right)$, where $\beta_{0}$ is the marginal probability that no measurements is associated with the track. 
