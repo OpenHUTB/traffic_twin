@@ -25,7 +25,7 @@ citecolor=blue]{hyperref}
 \usepackage{color,xcolor}
 \usepackage{makecell}
 \begin{document}
-\title{UVDT: Digital Twin of Urban Vehicles Based on LiDAR-Camera Fusion in Multi-Intersection Scenarios}
+\title{UVDT: A Baseline Benchmark for Vehicle Digital Twins via LiDAR-Camera Fusion in Multi-Intersection Scenarios}
 \author{IEEE Publication Technology Department
 
 \thanks{Manuscript created October, 2020; This work was developed by the IEEE Publication Technology Department. This work is distributed under the \LaTeX \ Project Public License (LPPL) ( http://www.latex-project.org/ ) version 1.3. A copy of the LPPL, version 1.3, is included in the base \LaTeX \ documentation of all distributions of \LaTeX \ released 2003/12/01 or later. The opinions expressed here are entirely that of the author. No warranty is expressed or implied. User assumes all risk.}}
@@ -185,22 +185,10 @@ This approach ensures that the tracker can maintain consistent tracking informat
 First, consider the class information association between one detection and one track. 
 Assume the confusion matrix of the detection is $C=\left[c_{i j}\right]$, where $c_{i j}$ denotes the likelihood that the classifier outputs the classification as $j$ if the truth class of the target is $i$.
 Here, $i,j = 1,…, N$, and $N$ is the total number of possible classes.
-At time $k-1$, the probability distribution of a track is given as 
-\begin{align}
-	\mu(k-1) & = \left[\begin{array}{l}
-		\mu_{1}(k-1) \\
-		\vdots \\
-		\mu_{N}(k-1)
-	\end{array}\right]
-\end{align}
-where $\mu_{i}$ is the probability that the classification of the track is $i$.
+At time $k-1$, the probability that the trajectory is classified as $i$ is $\mu_{i}(k-1)$.
 If the tracker associates the detection to the track at time $k$, then the updated value of $\mu_{i}$ using Bayes' theorem is
 \begin{align}
-	\mu_{i}(k) = \frac{c_{i j} \mu_{i}(k-1)}{\sum_{l = 1}^{N} c_{l j} \mu_{i}(k-1)}
-\end{align}
-Write this equation in a vector form for all possible classifications as
-\begin{align}
-	\mu(k) & = \frac{c_{j} \otimes \mu(k-1)}{c_{j}^{T} \mu(k-1)}
+	\mu(k) & = \frac{c_{j} \otimes [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}{c_{j}^{T} [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}
 \end{align}
 where $c_{j}$ is the $j$-th column of the confusion matrix and $\otimes$ represents element-wise multiplication. 
 This equation represents the updated class probability of a track if the track is associated with the detection of classification $j$.
@@ -212,26 +200,13 @@ After that, in each cluster, the tracker calculates the mixed likelihood of asso
 	\Lambda(m, t) & = \Lambda_{k}^{1-\alpha}(m, t) \Lambda_{c}^{\alpha}(m, t)
 \end{align}
 where $\alpha$ represents Weight factor of class likelihood; $\Lambda_{k}$ represents Likelihood of assigning a detection to a track based on the kinematic states; $\Lambda_{c}$ represents Likelihood of assigning a classified detection to a track based on the class information.
-In the equation, $\Lambda_{c}$ takes one of these three forms based on the value of $m$ and $t$.
-
-$\bullet$ $m > 0$ and $t > 0$ — A hypothesis that the measurement is associated with a track in the tracker. 
-In this case,
 \begin{align}
-	\Lambda_{k}(m, t) & = c_{j}^{T} \mu(k-1)
+	\Lambda_{c}(m, t) = \left\{\begin{array}{ll}
+		c_{j}^{T}\left[\mathbb{I}_t \mu(k-1)+\mathbb{I}_{t = 0} \mu^{0}\right] & \text { if } m>0 \\
+		1 & \text { if } m = 0
+	\end{array}\right.
 \end{align}
-where $c_{j}$ is the $j$-th column in the confusion matrix that detection $m$ corresponds to, and $\mu(k-1)$ is the class probability vector of the track in the previous step.
-
-$\bullet$ $m > 0$ and $t = 0$ — A hypothesis that the measurement is not associated with any track in the tracker. In this case,
-\begin{align}
-	\Lambda_{k}(m, t) & = c_{j}^{T} \mu^{0}
-\end{align}
-where $c_{j}$ is the $j$-th column in the confusion matrix that detection $m$ corresponds to, and $\mu^{0}$ is the a priori class distribution vector of tracks.
-
-$\bullet$ $m = 0$ and $t > 0$ — A hypothesis that the track is not associated with any measurement in the tracker. In this case,
-\begin{align}
-	\Lambda_{k}(m, t) & = 1
-\end{align}
-Using the mixed likelihoods of association between detections and tracks in a cluster, the tracker generates all the feasible events and then calculates the marginal probability of assigning each detection to each track in the cluster.
+The hybrid association likelihood function achieves multi-scenario adaptive matching through a triple mechanism: for valid associated targets ($m>0$ and $t>0$), the system corrects the trajectory category probability distribution $\mu(k-1)$ in real time through Bayesian updating, and uses the confusion matrix column vector $c_j$ of the detection m corresponding to category $j$ to calculate the matching degree, thereby dynamically adapting to changes in target categories; for new targets ($m>0$ and $t=0$), the prior distribution $\mu^{0}$ based on the statistical characteristics of the data set is used for initialization to effectively solve the cold start problem; for unmatched trajectories ($m=0$), a fixed value of 1 is returned to avoid false termination caused by sensor noise. The design achieves the optimal fusion of kinematics and category information through the $\alpha$ parameter, significantly improving the tracking robustness in complex scenarios while ensuring real-time performance.
 
 \textbf{Update Track Class Probability.}
 Suppose the marginal probabilities of $M$ detections assigned to a track in the cluster are $\left(\beta_{0}, \beta_{1}, \ldots, \beta_{M}\right)$, where $\beta_{0}$ is the marginal probability that no measurements is associated with the track. 
@@ -242,13 +217,6 @@ Then the tracker updates the class probability of the track as
 where $c_{j}(m)$ is the class probability vector of detection $m$, $\otimes$ represents element-wise multiplication, $\mu(k-1)$ is the class probability vector of the track in the $k-1$ step, and $\mu(k)$ is the class probability vector of the track in the $k$ step.
 
 The tracker updates the class properties of tracks cluster by cluster.
-
-\textbf{Reference System.}
-
-We placed an imaginary ego-vehicle in the center of the intersection, which serves as a reference system. 
-For multi-object tracking we input not only the detection frame, but also the position of the camera and radar relative to the self-vehicle, as well as the position of the ego-vehicle. 
-The position coordinates of the self-vehicle in the experiment were always (0,0,0,), i.e. stationary. 
-The tracking yielded trajectory coordinates initially relative to the LiDAR, which we also fitted to the world coordinates in Carla.
 
 \textbf{Process.}
 
@@ -266,6 +234,18 @@ However, if a trajectory fails to receive any detection assignments within a pre
 
 Through this process, we are ultimately able to obtain the trajectories of vehicles within the intersection.
 
+\textbf{Reference System.}
+
+We placed an imaginary ego-vehicle in the center of the intersection, which serves as a reference system, as shown in Fig. \ref{fig:3}. 
+For multi-object tracking we input not only the detection frame, but also the position of the camera and radar relative to the self-vehicle, as well as the position of the ego-vehicle. 
+The position coordinates of the self-vehicle in the experiment were always O(0,0,0), i.e. stationary. 
+Tracking initially generates trajectory coordinates $\text P_1$ relative to the LiDAR, which we also fit to the world coordinates $\text P_2$ in Carla.
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture3.png} 
+	\caption{Data collection sensor suite.} 
+	\label{fig:3} 
+\end{figure}
 
 \subsection{Multi Intersection and Multi-Object Tracking}
 
@@ -285,12 +265,12 @@ If the similarity exceeds a certain threshold, the two vehicles are considered t
 \textbf{ResNet-50.}
 ResNet-50 primarily consists of five main components: an initial convolutional layer, a max-pooling layer, four stages of residual blocks, a global average pooling layer, and a fully connected layer, totaling 50 layers (including convolutional layers, pooling layers, and fully connected layers). 
 Among these, the four stages of residual blocks are the core of ResNet-50. 
-The number of residual blocks and the size of feature maps for each stage are shown in Table 1.
+The number of residual blocks and the size of feature maps for each stage are shown in Table. \ref{tab:1}.
 
 \begin{table}[t]
 	\centering
 	\caption{Table of the number of residual blocks and feature map sizes for each stage}
-	\label{tab:improved}
+	\label{tab:1}
 	\begin{tabular}{|c|c|c|c|}
 		\hline
 		\multicolumn{1}{|c|}{Stage} & \multicolumn{1}{c|}{NRB} & \multicolumn{1}{c|}{FMS} & \multicolumn{1}{c|}{NOC} \\
@@ -353,18 +333,28 @@ This method can be represented as:
 \end{align}
 where $S$ is the trajectory collection, $T_i(t)$ represents the previous trajectory. 
 The limits $\lim_{t \to t_i^+} T_i(t)$ and $\lim_{t \to t_{i+1}^+} T_{i+1}(t)$ correspond to the end waypoint of the $i$-th trajectory and the start waypoint of the $(i+1)$-th trajectory, respectively.
-As demonstrated in Fig. \ref{fig:3}, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
+As demonstrated in Fig. \ref{fig:5}, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
 \begin{figure}[t]
 	\centering
-	\includegraphics[width=\linewidth]{picture/picture3.png} 
-	\caption{Trajectory restoration schematic} 
-	\label{fig:3} 
+	\includegraphics[width=\linewidth]{picture/picture5.png} 
+	\caption{Trajectory restoration schematic.} 
+	\label{fig:5} 
 \end{figure}
 
 \subsection{Twin of Trajectory}
 
 Through the previous steps, we have obtained the trajectories of all vehicles. 
 Here, we will further optimize these trajectories using a trajectory smoothing algorithm, and then employ a PID controller to control the vehicles, ensuring they follow the optimized trajectories\cite{Alpher22d}. 
+
+A trajectory smoothing method based on linear interpolation is adopted in this work.
+Given the original trajectory point set $W = \{w_1,w_2 ,…,w_n\}$, where $w_i \in R^2$ represents the coordinates of the $i$-th track point, the smoothed track $\widetilde{W}$ is generated by:
+\begin{align}
+	\widetilde{W} = \bigcup_{i = 1}^{n-1} \left( w_i \cup \left\{ w_i + k\delta \cdot \frac{w_{i+1} - w_i}{d_i} \ \middle|\ k \in \mathbb{N}^+\right\} \right)
+\end{align}
+Precise control of trajectory density is achieved through a step size parameter $\delta$ in this method, which maintains strict adherence to the original trajectory geometry and ensures all interpolation points are positioned on line segments connecting adjacent original waypoints.
+Specifically, for any adjacent waypoint pair, the algorithm uniformly inserts new waypoints on its connection line. The number of insertion points is dynamically determined by the ratio of distance $d_i$ to step $\delta$, and the constraint $k\delta < d_i$ is satisfied, thereby ensuring the adaptive matching of the interpolation density and the local geometric features of the trajectory.
+It is worth noting that the current method assumes that the input waypoints are all on the real trajectory, and for the filtering of possible external or noise points, an additional robust processing mechanism is needed, which will be an important direction for future research.
+
 The PID controller consists of three main components: Proportional control (P), Integral control (I), and Derivative control (D). Each component serves a specific purpose, enabling the regulation of different aspects of the system.
 
 \begin{align}
@@ -390,11 +380,11 @@ We employed three evaluation metrics.
 
 \textbf{Multiple Object Tracking Accuracy.}
 Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA)\cite{Alpher23b}.
-We use an improved evaluation metric Robust Multi-Object Tracking Accuracy (R-MOTA) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
+We use an improved evaluation metric Robust Multi-Object Tracking Accuracy (RMOTA) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
 The tracking sequence is divided into $W$ time windows, and each window independently calculates the local MOTA score to avoid the serious error of a single frame affecting the overall evaluation.
 In addition, the penalty for identity mismatching is amplified by the coefficient $\alpha$ to reflect the key impact of ID continuity on tracking quality.
 \begin{align}
-	\text{R-MOTA} = \underset{i=1}{\overset{W}{\mathrm{median}}} \left(1 - \frac{FN^{(i)} + FP^{(i)} + \alpha M^{(i)}}{T^{(i)}}\right) 
+	RMOTA = \underset{i=1}{\overset{W}{\mathrm{median}}} \left(1 - \frac{FN^{(i)} + FP^{(i)} + \alpha M^{(i)}}{T^{(i)}}\right) 
 \end{align}
 Among them,
 $FN^{(i)}$ (False Negatives) represents the number of missed detections in the $i$-th window, which means targets that truly exist but were not detected.
@@ -407,9 +397,9 @@ A perfect score of 1 represents flawless tracking with zero missed detections, f
 
 \textbf{Cross-Sensor Tracking Accuracy.}
 Multi-camera object tracking accuracy (MCTA)\cite{Alpher23b} condenses all aspects of system performance into a metric that measures cross-camera tracking.
-On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (I-MCTA), which is defined as follows:
+On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (IMCTA), which is defined as follows:
 \begin{align}
-	\text{I-MCTA} = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
+	IMCTA = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
 \end{align}
 by decomposing the cross-camera error into missing association $M_k$ and ID switching $E_k^{\text{ID}}$, accurate diagnosis of system defects is achieved.
 Among them,
@@ -417,7 +407,7 @@ $P$ represents the proportion of correct matches (correctly identifying and trac
 $R$ represents the recall rate, which is the proportion of all true targets that are correctly tracked.  
 $\lambda$ is the penalty coefficient for ID switching error and $T^{k}$ represents the total number of potential correct associations in the $k$-th dimension, but the association thresholds for different dimensions are different.
 
-Compared with MCTA, I-MCTA intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
+Compared with MCTA, IMCTA intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
 The higher the value, the better the performance of the multi-camera tracking system.
 
 \textbf{Twin Accuracy.}
@@ -447,12 +437,6 @@ where $p_{\pi_{1}(k)}$ and $q_{\pi_{2}(k)}$ represent the three-dimensional coor
 
 \section{Experiments}
 
-We conducted the following experiments: 
-(a) using PointPillars combined with YOLOv4 for vehicle detection, 
-(b) performing multi-object tracking at each intersection in the simulation scene,
-(c) vehicle re-identification between intersections using a ReID network, and 
-(d) implementing trajectory digital twins in Carla.
-
 \subsection{Preparation}
 
 \begin{table*}[t]
@@ -462,7 +446,7 @@ We conducted the following experiments:
 	\small
 	\begin{tabular}{@{}l@{\hspace{1em}}c@{\hspace{0.5em}}*{10}{r}@{}}
 		\toprule
-		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{R-MOTA} & \textbf{R-MOTP} \\
+		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{RMOTA} & \textbf{RMOTP} \\
 		\midrule
 		\multirow{5}{*}{\shortstack[l]{Town01 \\ (16 int., flat roads, \\ sparsely populated \\ buildings)}} 
 		& 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0.0000 & 37.5000 & 8.2945 & 79.9222\\
@@ -499,6 +483,13 @@ The radar data is saved as MAT files with timestamps, while the camera data is s
 The data structure follows the storage format of the Panda dataset, making the data more standardized for subsequent processing and fusion\cite{Alpher21c}. 
 Each frame of data synchronously collects six-directional camera images and LiDAR data containing point clouds, timestamps, and the coordinates of the sensor relative to the ego-vehicle.
 
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture6.png} 
+	\caption{Analysis of the impact of point cloud detection threshold on multi-object tracking performance.} 
+	\label{fig:6} 
+\end{figure}
+
 \subsection{Experimental Effect}
 
 \textbf{Multi-Object Tracking.}
@@ -510,7 +501,7 @@ In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and
 Identity Switches (IDS) are notably higher in Intersection 4 of both Town01 and Town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
 The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50), reflecting significant differences in tracking stability across these intersections.
 
-Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (R-MOTA: 60.2369; R-MOTP: 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (R-MOTA: 16.7388), indicating weaker tracking reliability.
+Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (RMOTA: 60.2369; RMOTP: 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (RMOTA: 16.7388), indicating weaker tracking reliability.
 However, detection accuracy is also affected by the number of vehicles passing through the intersection, and the system accuracy improves significantly in low traffic conditions.
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
@@ -564,11 +555,11 @@ In terms of mean delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 We conducted ablation studies on LiDAR detection and multi-intersection multi-object tracking in object detection to ensure that our experiments achieved the desired results.
 
 \textbf{LiDAR Detection.}
-During LiDAR detection, we established a threshold for the detection results: targets exceeding the threshold were identified as vehicles, while those below the threshold were excluded as other objects. 
-We conducted three experiments with thresholds set at 0.4, 0.5, and 0.6, respectively. 
-The best results were achieved with a threshold of 0.5, which not only maximized the identification of vehicles but also effectively filtered out other clutter. 
-At a threshold of 0.4, some non-vehicle objects, such as trees and buildings, were mistakenly identified as vehicles, and in some cases, cargo loaded on vehicles was even misclassified as a separate vehicle, significantly reducing recognition accuracy. 
-Conversely, a threshold of 0.6 led to the missed detection of some vehicles, such as smaller cars, which were occasionally misclassified as boxes and overlooked.
+During the LiDAR detection process, we set a threshold for the detection results. Targets exceeding the threshold are identified as vehicles, and targets below the threshold are excluded as other objects.
+Before optimizing the tracker hyperparameters, we conducted multiple experiments in the Town10 scene, and the experimental results are shown in Fig. \ref{fig:6}.
+When the threshold is too low, some non-vehicle objects, such as trees and buildings, will be mistaken for vehicles. In some cases, even the cargo loaded on the vehicle will be mistaken for a vehicle, and the recognition accuracy will be greatly reduced.
+On the contrary, if the threshold is too high, some vehicles will be missed, such as smaller cars, which are occasionally mistaken for boxes and ignored.
+When the threshold is 0.6, there is obvious feature crossover, which is the best choice for comprehensive tracking performance.
 
 \textbf{Multi-Intersection and Multi-Object Tracking.}
 In the multi-intersection multi-target tracking experiment, the most critical task is the re-identification of vehicles across different intersections. 
@@ -578,7 +569,7 @@ Ultimately, we found that a threshold of 0.65 yielded the best re-identification
 When the threshold was set higher than 0.65, some vehicles failed to match across intersections, and the higher the threshold, the more vehicles were unable to be successfully matched. 
 Conversely, when the threshold was set lower than 0.65, it led to incorrect matches for some vehicles.
 
-\subsection{Parameter Optimization}
+\subsection{Adaptive Data Association Threshold}
 
 \textbf{Background and Objectives.}
 In order to further improve the performance of the tracker highly depends with the hyperparameter setting. 
@@ -607,7 +598,7 @@ The improvement results after optimization compared with before optimization are
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture4.png} 
-	\caption{Trajectory restoration schematic} 
+	\caption{RMOTA improvement percentage.} 
 	\label{fig:4} 
 \end{figure}
 
