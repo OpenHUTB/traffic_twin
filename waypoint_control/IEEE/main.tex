@@ -9,6 +9,7 @@
 \usepackage{verbatim}
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{multirow}  
 \hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -328,25 +329,18 @@ Upon completing the tracking of all vehicle trajectories, we chronologically sor
 These two waypoints are then fed into the navigation algorithm module, which subsequently computes the trajectory between them.
 
 In the Carla simulation environment, vehicle trajectory planning is achieved by utilizing the A* algorithm to search for the shortest path within the graph structure constructed from the topological map. 
-The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby efficiently guiding the search process towards the target node. 
+The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby effectively guiding the current node $p_{n}$ to search for the target node $p_{g}$.
 The core of this algorithm lies in the evaluation function 
 \begin{align}
-	\mathit{f}(n) & = g(n)+h(n)
+	f(n) = \sum_{k = 1}^{n} \frac{d_{k} \cdot\left(1+\alpha \phi_{k}\right)}{1 + \frac{\gamma}{\kappa_k + \epsilon}}+\left\|\left[\begin{array}{c}
+		p_{n}-p_{g} \\
+		\sqrt{\lambda}\left(l_{n}-l_{g}\right)
+	\end{array}\right]\right\|_{2}
 \end{align}
-where $\mathit{g}(n)$ represents the actual cost from the start node to the current node, and $\mathit{h}(n)$ denotes the estimated cost from the current node to the target node.
-During the process of exploring the shortest path using the A* algorithm, if edges with a weight of 0 exist in the graph structure, it may lead to vehicles changing lanes excessively frequently within an extremely short time frame, which contradicts normal driving logic. 
-To mitigate this phenomenon, we have introduced a lane-changing penalty mechanism in path planning. 
-Specifically, for nodes involving different lanes, we have added a penalty term, ensuring that the distance calculation between nodes is not only based on spatial distance but also takes into account the frequency of lane changes. 
-Originally, $\mathit{h}(n)$ was calculated by directly measuring the distance between nodes, which is represented as
-\begin{align}
-	\mathit{h}(n) & = d\left(w p_{1}, w p_{2}\right)
-\end{align}
-where $w p_{1}, w p_{2}$ denote the nodes and $d$ denotes the Euclidean distance. 
-And in our navigation algorithm,
-\begin{align}
-	\mathit{h}(n) & = d\left(w p_{1}, w p_{2}\right)+\lambda \cdot\left|l_{1}-l_{2}\right|
-\end{align}
-where $\lambda$ denotes the weights and $l_{1}, l_{2}$ denotes the lanes.
+Its purpose is to calculate the actual cost from the starting node to the current node and the estimated cost from the current node to the target node. 
+In the process of exploring the shortest path using the A* algorithm, if there are edges with a weight of 0 in the graph structure, it may cause the vehicle to change lanes too frequently in a very short time, which contradicts the normal driving logic. 
+To alleviate this phenomenon, we introduced a lane change penalty mechanism in path planning. Specifically, when the current lane $l_{n}$ is inconsistent with the target lane $l_{g}$, the calculation cost will be increased to ensure that the distance calculation between nodes is not only based on the spatial distance, but also takes into account the frequency of lane changes. Not only that, we also added a road type penalty $\phi_{k}$ and a curvature penalty $\kappa_k$. When planning the route globally, the vehicle prefers the main road and the road with smaller curves. 
+Among them, $\alpha$ represents the road attribute weight, $\gamma$ controls the curvature penalty intensity, $\lambda$ is the lane matching weight, and $\epsilon$ is used as a regularization parameter to ensure numerical stability.
 
 
 \textbf{All Trajectory Restoration.}
@@ -373,82 +367,82 @@ Through the previous steps, we have obtained the trajectories of all vehicles.
 Here, we will further optimize these trajectories using a trajectory smoothing algorithm, and then employ a PID controller to control the vehicles, ensuring they follow the optimized trajectories\cite{Alpher22d}. 
 The PID controller consists of three main components: Proportional control (P), Integral control (I), and Derivative control (D). Each component serves a specific purpose, enabling the regulation of different aspects of the system.
 
-$\bullet$ The proportional control component adjusts the control output directly based on the current error. 
-The control output is proportional to the error, meaning that the larger the error, the stronger the control action. 
-The formula is as follows:
 \begin{align}
-	u_{P}(t) & = K_{p} \cdot e(t)
+	u = K_p e + K_i \int \left( e - \frac{\text{sat}(u)-u}{K_p} \right) dt + K_d \dot{e}
 \end{align}
-Here, $K_{p}$ is the proportional gain, which determines the strength of the proportional control's response to the error.
-
-Proportional control can quickly respond to errors and reduce their magnitude.
-However, using only proportional control may not completely eliminate steady-state error, which is the small error that remains after the system has stabilized.
-
-$\bullet$ The integral control component accumulates the sum of errors and adjusts the control output based on this accumulated value. 
-The integral term takes into account historical errors and is capable of eliminating steady-state errors. 
-The formula is as follows:
-\begin{align}
-	u_{I}(t) & = K_{i} \int_{0}^{t} e(\tau) d \tau
-\end{align}
-Here, $K_{i}$ is the integral gain, which determines the strength of the integral control's response to the accumulated error. 
-
-By considering the accumulated error, integral control can eliminate steady-state errors, enabling the system to achieve the target value over the long term. 
-However, excessively high integral gain may lead to system overshoot or oscillation.
-
-$\bullet$ The derivative control component adjusts the control output based on the rate of change of the error. 
-It predicts future error trends and takes preemptive measures. 
-The formula is as follows:
-\begin{align}
-	u_{\mathit{D}}(t) & = K_{d} \cdot \frac{d e(t)}{d t}
-\end{align}
-Here, $K_{d}$ is the derivative gain, which determines the strength of the derivative control's response to the rate of change of the error.
-
-Derivative control can suppress rapid changes in errors, reduce system overshoot and oscillation, and make the system response smoother. 
-However, derivative control is sensitive to noise and can amplify high-frequency noise.
-
+This study proposes an improved PID control algorithm, whose control output $u$ consists of proportional term, anti-saturation integral term, and differential term, where $K_p$, $K_i$ and $K_d$ are proportional gain, integral gain and differential gain respectively.
+The algorithm achieves rapid error response through the proportional term, eliminates steady-state errors using the integral term, and suppresses the error change rate through the differential term.
+Experimental studies have shown that traditional PID control has an integral saturation phenomenon in the vehicle steering system, resulting in random extreme deflections of the steering wheel (±1 rad).
+To this end, this algorithm introduces a compensation term, and the saturation function sat(u) limits the controller output $u$ to a preset interval [$u_{min}$, $u_{max}$].
+When the control output reaches the saturation limit, the integral accumulation rate is automatically adjusted, which effectively solves the integral saturation problem.
 
 The tuning process of the PID controller is as follows:  
-1. Calculate the error $e(t)$ between the target value (setpoint) and the current system output in real time.  
-2. Compute the proportional action $K_{p} \cdot e(t)$ based on the current error, the integral action $K_{i} \int_{0}^{t} e(\tau) d \tau$ based on historical errors, and the derivative action $K_{d} \cdot \frac{d e(t)}{d t}$ based on the rate of change of the error.  
-3. Sum the results of the proportional, integral, and derivative components to obtain the final control output $u(t)$, which is then applied to the system (for example, adjusting the vehicle's acceleration or direction). 
-4. The system adjusts based on the control output $u(t)$, changing its state (for example, speed, position, etc.). 
+1. Calculate the error $e$ between the target value (setpoint) and the current system output in real time.  
+2. Compute the proportional action based on the current error, the integral action based on historical errors, and the derivative action based on the rate of change of the error.  
+3. Sum the results of the proportional, integral, and derivative components to obtain the final control output, which is then applied to the system (for example, adjusting the vehicle's acceleration or direction). 
+4. The system adjusts based on the control output, changing its state (for example, speed, position, etc.). 
 The controller continues to monitor the system state, updates the error in real time, and repeats the above steps until the system stabilizes near the target value.
 
 
 \subsection{Evaluation}
 
-We employed two evaluation metrics.
+We employed three evaluation metrics.
 
 \textbf{Multiple Object Tracking Accuracy.}
-Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA):
+Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA)\cite{Alpher23b}.
+We use an improved evaluation metric Robust Multi-Object Tracking Accuracy (R-MOTA) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
+The tracking sequence is divided into $W$ time windows, and each window independently calculates the local MOTA score to avoid the serious error of a single frame affecting the overall evaluation.
+In addition, the penalty for identity mismatching is amplified by the coefficient $\alpha$ to reflect the key impact of ID continuity on tracking quality.
 \begin{align}
-	\mathit{MOTA} & = 1-\frac{F N+F P+M}{T}
+	\text{R-MOTA} = \underset{i=1}{\overset{W}{\mathrm{median}}} \left(1 - \frac{FN^{(i)} + FP^{(i)} + \alpha M^{(i)}}{T^{(i)}}\right) 
 \end{align}
-Among them:
-$FN$ (False Negatives) represents the number of missed detections, which means targets that truly exist but were not detected.
-$FP$ (False Positives) represents the number of false detections, which means targets that were detected but do not actually exist.
-$M$ (Mismatches) represents the number of identity mismatches, which means cases where the tracking ID of a target was incorrectly assigned during the tracking process.
-$T$ (Total number of true detections) represents the total number of true detections, which means the number of targets correctly detected across all frames.
+Among them,
+$FN^{(i)}$ (False Negatives) represents the number of missed detections in the $i$-th window, which means targets that truly exist but were not detected.
+$FP^{(i)}$ (False Positives) represents the number of false detections in the $i$-th window, which means targets that were detected but do not actually exist.
+$M^{(i)}$ (Mismatches) represents the number of identity mismatches in the $i$-th window, which means cases where the tracking ID of a target was incorrectly assigned during the tracking process.
+$T^{(i)}$ (Total number of true detections) represents the total number of true detections in the $i$-th window, which means the number of targets correctly detected across all frames.
 
-The value of MOTA ranges from 0 to 1, with higher values indicating better tracking performance. 
-A MOTA of 1 means there are no missed detections, false detections, or identity mismatches, representing perfect tracking performance. 
-A MOTA of 0 means the tracking performance is very poor, with all detections being incorrect.
+The metric ranges from 0 to 1, with higher values indicating better tracking performance. 
+A perfect score of 1 represents flawless tracking with zero missed detections, false alarms, or identity mismatches, while 0 indicates complete tracking failure.
 
-\textbf{Multi Camera Tracking Accuracy.}
-The multi-camera object tracking accuracy (MCTA) which condenses all aspects of system performance into one measure\cite{Alpher23b}:
+\textbf{Cross-Sensor Tracking Accuracy.}
+Multi-camera object tracking accuracy (MCTA)\cite{Alpher23b} condenses all aspects of system performance into a metric that measures cross-camera tracking.
+On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (I-MCTA), which is defined as follows:
 \begin{align}
-	\mathit{MCTA} & = \frac{2 P R}{P+R}\left(1-\frac{M^{w}}{T^{w}}\right)\left(1-\frac{M^{h}}{T^{h}}\right)
+	\text{I-MCTA} = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
 \end{align}
-Among them:
+by decomposing the cross-camera error into missing association $M_k$ and ID switching $E_k^{\text{ID}}$, accurate diagnosis of system defects is achieved.
+Among them,
 $P$ represents the proportion of correct matches (correctly identifying and tracking targets) across all cameras.  
 $R$ represents the recall rate, which is the proportion of all true targets that are correctly tracked.  
-$M^{w}$ represents the number of weak matching errors, which is the number of times a target is incorrectly matched to another target during the tracking process.  
-$T^{w}$ represents the total number of weak matching attempts, which is the total number of possible matching attempts.  
-$M^{h}$ represents the number of strong matching errors, which is the number of times a target is incorrectly matched to another target during the tracking process, but here it may refer to a stricter standard for matching errors.  
-$T^{h}$ represents the total number of strong matching attempts, which is the total number of possible matching attempts.
+$\lambda$ is the penalty coefficient for ID switching error and $T^{k}$ represents the total number of potential correct associations in the $k$-th dimension, but the association thresholds for different dimensions are different.
 
-MCTA evaluates tracking accuracy by considering the proportion of correct matches and the recall rate, while also assessing tracking consistency by penalizing weak and strong matching errors. 
-The higher the MCTA value, the better the performance of the multi-camera tracking system.
+Compared with MCTA, I-MCTA intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
+The higher the value, the better the performance of the multi-camera tracking system.
+
+\textbf{Twin Accuracy.}
+In the twin experimental evaluation, we verify the effectiveness of the system by comparing the comprehensive performance of the following three key trajectories: (1) the actual trajectory of the vehicle, (2) the observed trajectory reconstructed based on the multi-target tracking algorithm, and (3) the expected trajectory generated by the control system.
+This study uses trajectory overlap ratio (TOR) for comprehensive evaluation, which quantifies both the shape similarity of the trajectory and the spatiotemporal consistency of the waypoints.
+\begin{align}
+	TOR & = \left(1 - \frac{D_{dtw}}{D_{max}}\right) \times \Lambda(t)
+\end{align}
+Among them, the shape similarity term is calculated based on the ratio of the dynamic time warping distance $D_{dtw}$ to the maximum scale distance $D_{max}$, reflecting the overall geometric difference of the trajectory, while the spatial alignment term $\Lambda(\tau)$ evaluates the static matching accuracy of the waypoint through the position offset penalty.
+This evaluation mechanism can not only capture the morphological differences of macroscopic paths, but also characterize the spatiotemporal consistency of discrete waypoints at the micro level, providing a multi-dimensional quantitative basis for the trajectory consistency of the digital twin system.
+\begin{align}
+	D_{dtw} = \min_{\pi \in P} \sqrt{\sum_{(i,j)\in\pi} \|p_i - q_j\|^2}
+\end{align}
+\begin{align}
+	D_{max} = \max_{i,j} \|p_i - q_j\| \cdot \max(n,m)
+\end{align}
+$D_{dtw}$ compares the similarity of non-aligned sequences through a dynamic curved path $\pi$, and finds the matching solution that minimizes the cumulative distance from all possible path sets $P$, while $D_{max}$ quantifies the spatial deviation of the two trajectories in the worst case and normalizes it by the trajectory length. Among them, $p_{i}$ and $p_{j}$ represent the matching point pairs of the two trajectories, and $m$ and $n$ are the lengths of the two trajectories respectively.
+
+\begin{align}
+	\Lambda(\tau) = \frac{1}{n} \sum_{k=1}^{n} \mathbb{I}\left(\left\|p_{\pi_{1}(k)}-q_{\pi_{2}(k)}\right\| \leq \tau\right)
+\end{align}
+The trajectory we finally get is the coordinates of Carla, which means that the trajectory is actually discrete.
+Therefore, calculating the positional relationship between waypoints is very important to reflect the overlap between two trajectories.
+$\Lambda(\tau)$ counts the proportion of matching points in the two trajectories whose distance is less than the threshold $\tau$ to reflect the overlap accuracy of the two trajectories within the allowable error range.
+where $p_{\pi_{1}(k)}$ and $q_{\pi_{2}(k)}$ represent the three-dimensional coordinates of the $\pi_{1}(k)$th point of trajectory 1 and the $\pi_{2}(k)$th point of trajectory 2, respectively, and $\mathbb{I}(\cdot)$ is the indicator function (which takes the value of 1 when the Euclidean distance between two points does not exceed the threshold $\tau$, otherwise it takes the value of 0).
 
 
 \section{Experiments}
@@ -461,21 +455,24 @@ We conducted the following experiments:
 
 \subsection{Preparation}
 
-\begin{table*}[t] 
+\begin{table*}[t]
 	\centering
-	\caption{Multi-objective tracking evaluation indicators}
-	\label{tab:example}
-	\begin{tabular}{cccccccccccc}
+	\caption{MULTI-OBJECTIVE TRACKING EVALUATION}
+	\label{tab:2}
+	\small
+	\begin{tabular}{@{}l@{\hspace{1em}}c@{\hspace{0.5em}}*{10}{r}@{}}
 		\toprule
-		Scene & Intersection & Rcll & Prcn & FTR & FP & FN & IDS & MT & ML & MOTA & MOTP\\
+		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{R-MOTA} & \textbf{R-MOTP} \\
 		\midrule
-		Town01 & 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0 & 37.5000 & 8.2945 & 79.9222\\
+		\multirow{5}{*}{\shortstack[l]{Town01 \\ (16 int., flat roads, \\ sparsely populated \\ buildings)}} 
+		& 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0.0000 & 37.5000 & 8.2945 & 79.9222\\
 		& 2 & 64.8065 & 61.5385 & 1.0297 & 450 & 391 & 21 & 55.5556 & 33.3333 & 22.4122 & 86.7746\\
-		& 3 & 63.2135 & 45.4407 & 1.1887 & 359 & 174 & 15 & 0 & 25 & -15.8562 & 86.9053\\
-		& 4 & 65.8206 & 96.7662 & 0.0369 & 13 & 202 & 20 & 40 & 20 & 60.2369 & 89.0919\\
-		& 5 & 41.4035 & 90.0763 & 0.0580 & 13 & 167 & 10 & 50 & 0 & 33.3333 & 88.2471\\
-		\hline
-		Town10 & 1 & 30.6653 & 59.7166 & 0.7960 & 398 & 1334 & 28 & 8.3333 & 50 & 8.5239 & 84.6488\\
+		& 3 & 63.2135 & 45.4407 & 1.1887 & 359 & 174 & 15 & 0.0000 & 25.0000 & -15.8562 & 86.9053\\
+		& 4 & 65.8206 & 96.7662 & 0.0369 & 13 & 202 & 20 & 40.0000 & 20.0000 & 60.2369 & 89.0919\\
+		& 5 & 41.4035 & 90.0763 & 0.0580 & 13 & 167 & 10 & 50.0000 & 0.0000 & 33.3333 & 88.2471\\
+		\midrule
+		\multirow{5}{*}{\shortstack[l]{Town10 \\ (7 int., high-density, \\ including steep slo- \\ pes)}} 
+		& 1 & 30.6653 & 59.7166 & 0.7960 & 398 & 1334 & 28 & 8.3333 & 50.0000 & 8.5239 & 84.6488\\
 		& 2 & 56.4410 & 70.6095 & 1.1380 & 569 & 1055 & 29 & 13.3333 & 26.6667 & 31.7506 & 81.0920\\
 		& 3 & 51.9805 & 75.6714 & 0.6160 & 308 & 885 & 17 & 14.2857 & 35.7143 & 34.3462 & 84.2826\\
 		& 4 & 52.1930 & 86.1427 & 0.2680 & 134 & 763 & 50 & 27.2727 & 36.3636 & 40.6642 & 88.6035\\
@@ -505,7 +502,7 @@ Each frame of data synchronously collects six-directional camera images and LiDA
 \subsection{Experimental Effect}
 
 \textbf{Multi-Object Tracking.}
-Table 2 presents the multi-object tracking performance metrics across different scenarios (Town01 and Town10) and intersections (Intersection 1-5). 
+Table. \ref{tab:2} presents the multi-object tracking performance metrics across different scenarios (Town01 and Town10) and intersections (Intersection 1-5). 
 The data reveals significant variations in performance across different intersections. 
 In Town01, Intersection 4 shows better performance in terms of Recall (65.8206) and Precision (96.7662), while Intersection 3 has a higher False Track Ratio (1.1887), indicating a greater proportion of incorrect tracking. 
 In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and Precision (86.1427), but Intersection 5 has significantly higher False Positives (827) and False Negatives (1640) compared to other intersections, suggesting a higher number of misidentified and missed targets.
@@ -513,13 +510,15 @@ In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and
 Identity Switches (IDS) are notably higher in Intersection 4 of both Town01 and Town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
 The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50), reflecting significant differences in tracking stability across these intersections.
 
-Overall, the MOTA (Multiple Object Tracking Accuracy) and MOTP (Multiple Object Tracking Precision) metrics indicate that Intersection 4 in Town01 performs well with MOTA (60.2369) and MOTP (89.0919), whereas Intersection 5 in Town10 has a lower MOTA (16.7388), suggesting poorer overall tracking accuracy. 
+Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (R-MOTA: 60.2369; R-MOTP: 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (R-MOTA: 16.7388), indicating weaker tracking reliability.
+However, detection accuracy is also affected by the number of vehicles passing through the intersection, and the system accuracy improves significantly in low traffic conditions.
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
 \textbf{Twin.}
-The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Tables 3 and 4). 
+The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Table. \ref{tab:3} and \ref{tab:4}). 
 These two tables compare the performance evaluation metrics of the digital twin in two scenarios, Town01 and Town10. 
-The trajectory overlap rate (TOR) in Town01 (50.21\%) is significantly higher than that in Town10 (10.89\%), indicating superior path-tracking capability, possibly due to a simpler environment or more stable control algorithms. 
+The TOR in Town01 is significantly higher than that in Town10 in the comparison of the tracking trajectory with the digital twin trajectory (TR-DT), indicating that it has a superior path tracking ability, which may be due to the simpler environment or the more stable control algorithm.
+However, for the comparison between the tracked trajectory and ground truth (TR-GT), it is higher in Town10, probably because our point cloud dataset was collected in Town10 and is more suitable for vehicle detection in this scenario.
 In terms of mean position error (MPE), the two are close (Town01: 79.58m, Town10: 82.41m). 
 However, the maximum position error (MaxPE: 105.89m) and final position error (FPE: 105.09m) in Town10 far exceed those in Town01 (MaxPE: 33.14m, FPE: 19.90m), revealing severe localization deviations in extreme cases, likely caused by complex environments or dynamic obstacles. 
 For mean lateral error (MLE) and mean longitudinal error (MLOE), Town10 performs slightly better (MLE: 1.98 vs. 2.19, MLOE: 0.26 vs. 0.53), suggesting more precise lateral and longitudinal control, though overall stability is lacking. 
@@ -528,23 +527,27 @@ In terms of mean delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 
 \begin{table}[t]
 	\centering
-	\caption{Table of the trajectory indicator}
-	\label{tab:improved}
-	\begin{tabular}{|c|c|c|c|c|}
+	\caption{Table of the Trajectory Indicator}
+	\label{tab:3}
+	\begin{tabular}{|c|c|c|c|c|c|}
 		\hline
-		\multicolumn{1}{|c|}{Scene} & \multicolumn{1}{c|}{TOR(\%)} & \multicolumn{1}{c|}{MPE(m)} & \multicolumn{1}{c|}{MaxPE(m)} & \multicolumn{1}{c|}{FPE(m)} \\
+		Scene & Type & TOR(\%) & MPE(m) & MaxPE(m) & FPE(m) \\
 		\hline
-		Town01 & 50.21 & 79.5798 & 33.1382 & 19.8970 \\
+		\multirow{2}{*}{Town01} & TR-DT & 50.2143 & 79.5798 & 33.1382 & 19.8970 \\
+		\cline{2-6}
+		& TR-GT & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\
 		\hline
-		Town10 & 10.89 & 82.4108 & 105.8893 & 105.0854 \\
+		\multirow{2}{*}{Town10} & TR-DT & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
+		\cline{2-6}
+		& TR-GT & 34.4533 & 52.5575 & 36.0566 & 31.4600 \\
 		\hline
 	\end{tabular}
 \end{table}
 
 \begin{table}[t]
 	\centering
-	\caption{Table of the error and delay indicators}
-	\label{tab:improved}
+	\caption{Table of the Vehicle Control Indicator}
+	\label{tab:4}
 	\begin{tabular}{|c|c|c|c|}
 		\hline
 		\multicolumn{1}{|c|}{Scene} & \multicolumn{1}{c|}{MLE} & \multicolumn{1}{c|}{MLOE} & \multicolumn{1}{c|}{MD(s)} \\
@@ -600,6 +603,13 @@ The process is as follows:
 1.Maximizing tracking performance by fitting existing data with a Gaussian process and constructing an objective function model in a 6-dimensional parameter space; 
 2.A small number of random parameter combinations are selected to calculate the value of the acquisition function, and the next parameter to be tested is selected (e.g., the point with the largest EI); 
 3.Run the experiment to get the MOTA corresponding to the new parameters, add to the dataset, and repeat until the maximum number of iterations is reached or convergence is achieved.
+The improvement results after optimization compared with before optimization are shown in Fig. \ref{fig:4}.   
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture4.png} 
+	\caption{Trajectory restoration schematic} 
+	\label{fig:4} 
+\end{figure}
 
 \subsection{Limitations and Future Directions}
 

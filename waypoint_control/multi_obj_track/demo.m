@@ -38,6 +38,12 @@ if isfield(dataset, townName)
         % 将文件夹添加到路径
         addpath(folderPath);
         demoSingleJuncEvaluation(junc, juncConfig.juncNum);
+        if strcmp(townName, 'Town10')
+            townPath = [townName 'HD_Opt_Metric'];
+        else
+            townPath = [townName '_Metric'];
+        end
+        MCTPResults = demoMultiSensorEvaluation(townPath);
     else
         error('路口编号不存在！');
     end

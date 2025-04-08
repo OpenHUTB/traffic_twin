@@ -414,7 +414,7 @@ def main():
     argparser.add_argument(
         '-t', '--town',
         metavar='TOWN',
-        default='Town01',
+        default='Town10HD_Opt',
         choices=town_configurations.keys(),  # 限制用户只能输入已定义的城镇名
         help='Name of the town to use (e.g., Town01, Town10HD_Opt)'
     )
@@ -497,8 +497,21 @@ def main():
         lidar, camera_dict = setup_sensors(world, addtion_param, sensor_queue, lidar_transform, camera_loc)
         actual_vehicle_num = []
         all_vehicle_labels = []
+        vehicles_traj = {}
         for _ in range(DATA_MUN):
             world.tick()
+            actor_list = world.get_actors().filter('vehicle.*')
+            for actor in actor_list:
+                vehicle_id = actor.id
+                location = actor.get_location()
+                x = location.x,
+                y = location.y,
+                z = location.z,
+                # 如果该车辆ID不存在于字典中，则初始化一个空列表
+                if vehicle_id not in vehicles_traj:
+                    vehicles_traj[vehicle_id] = [[x, y, z]]
+                else:
+                    vehicles_traj[vehicle_id].append([x, y, z])
             # 同步保存多传感器数据
             for _ in range(1 + len(camera_dict)):
                 data, sensor_name = sensor_queue.get(True, 1.0)
@@ -536,6 +549,41 @@ def main():
         truths = np.array(processed_data, dtype=object)
         file_path = os.path.join(folder_name, "truths.mat")
         scipy.io.savemat(file_path, {'truths': truths})
+
+        # 保存全部车辆ground_truth
+        ground_truth_file_path = os.path.join(town_folder, "ground_truth.mat")
+        # 转换为MATLAB兼容格式
+        # 转换为目标结构
+        mat_data = []
+        for vehicle_id, trajectory in vehicles_traj.items():
+            # 创建结构化数组
+            vehicle_struct = np.zeros((1,), dtype=[
+                ('vehicleID', np.uint32),
+                ('wrl_pos', 'O')  # 'O'表示Python对象
+            ])
+
+            # 填充数据 - 关键修正点
+            vehicle_struct[0]['vehicleID'] = np.uint32(vehicle_id)
+            # 确保轨迹是二维数组
+            trajectory_array = np.array(trajectory, dtype=np.float64)
+            if trajectory_array.ndim == 1:
+                trajectory_array = trajectory_array.reshape(-1, 3)
+            vehicle_struct[0]['wrl_pos'] = trajectory_array
+
+            mat_data.append(vehicle_struct)
+
+        # 转换为MATLAB兼容的cell数组
+        # 关键修正：使用np.empty而不是np.array
+        cell_array = np.empty((1, len(mat_data)), dtype=object)
+        for i, item in enumerate(mat_data):
+            cell_array[0, i] = item
+
+        # 保存为MAT文件
+        scipy.io.savemat(ground_truth_file_path,
+                         {'vehicle_cells': cell_array},
+                         format='5',
+                         do_compression=True,
+                         long_field_names=True)  # 确保MATLAB兼容性
 
         destroy_actor(lidar, camera_dict, vehicles, sensor_queue)
     except Exception as e:
