@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.15)  8 APR 2025 17:49
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2025.1.15)  8 APR 2025 18:33
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -587,37 +587,62 @@ File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 
 LaTeX Warning: Command \textellipsis invalid in math mode on input line 187.
 
-[4] [5]
-<picture/picture3.png, id=175, 485.31313pt x 322.20375pt>
+[4]
+<picture/picture3.png, id=167, 418.56375pt x 443.15562pt>
 File: picture/picture3.png Graphic file (type png)
 <use picture/picture3.png>
-Package pdftex.def Info: picture/picture3.png  used on input line 359.
+Package pdftex.def Info: picture/picture3.png  used on input line 245.
+(pdftex.def)             Requested size: 252.0pt x 266.80151pt.
+
+
+LaTeX Warning: Reference `tab:1' on page 5 undefined on input line 268.
+
+[5 <./picture/picture3.png>]
+
+LaTeX Warning: Reference `fig:5' on page 6 undefined on input line 336.
+
+<picture/picture5.png, id=175, 485.31313pt x 322.20375pt>
+File: picture/picture5.png Graphic file (type png)
+<use picture/picture5.png>
+Package pdftex.def Info: picture/picture5.png  used on input line 339.
 (pdftex.def)             Requested size: 252.0pt x 167.306pt.
 
-Underfull \hbox (badness 2753) in paragraph at lines 391--396
+LaTeX Warning: Command \textellipsis invalid in math mode on input line 350.
+
+[6 <./picture/picture5.png>]
+Underfull \hbox (badness 2753) in paragraph at lines 381--386
 []\OT1/ptm/b/n/10 Multiple Ob-ject Track-ing Ac-cu-racy. \OT1/ptm/m/n/10 Single
 -camera,
  []
 
-[6 <./picture/picture3.png>]
-Underfull \hbox (badness 1789) in paragraph at lines 436--438
+[7]
+Underfull \hbox (badness 1789) in paragraph at lines 426--428
 $\OML/cmm/m/it/10 D[]$ \OT1/ptm/m/n/10 com-pares the sim-i-lar-ity of non-align
 ed se-quences
  []
 
-[7]
-Underfull \hbox (badness 1540) in paragraph at lines 504--509
+<picture/picture6.png, id=205, 786.68906pt x 533.74406pt>
+File: picture/picture6.png Graphic file (type png)
+<use picture/picture6.png>
+Package pdftex.def Info: picture/picture6.png  used on input line 488.
+(pdftex.def)             Requested size: 252.0pt x 170.97261pt.
+
+Underfull \hbox (badness 1540) in paragraph at lines 495--500
 []\OT1/ptm/b/n/10 Multi-Object Track-ing. \OT1/ptm/m/n/10 Ta-ble. [][]II[][] pr
 esents the multi-
  []
 
 [8]
-<picture/picture4.png, id=219, 263.48438pt x 192.72pt>
+
+LaTeX Warning: Reference `fig:6' on page 9 undefined on input line 559.
+
+[9 <./picture/picture6.png>]
+<picture/picture4.png, id=228, 268.00125pt x 192.72pt>
 File: picture/picture4.png Graphic file (type png)
 <use picture/picture4.png>
-Package pdftex.def Info: picture/picture4.png  used on input line 609.
-(pdftex.def)             Requested size: 252.0pt x 184.32979pt.
- [9] (./main.bbl
+Package pdftex.def Info: picture/picture4.png  used on input line 600.
+(pdftex.def)             Requested size: 252.0pt x 181.21268pt.
+ (./main.bbl [10 <./picture/picture4.png>]
 Underfull \hbox (badness 3872) in paragraph at lines 70--72
 \OT1/ptm/m/n/8 ti-mal speed and ac-cu-racy of ob-ject de-tec-tion,'' \OT1/ptm/m
 /it/8 arXiv preprint
@@ -634,28 +659,35 @@ Underfull \hbox (badness 3407) in paragraph at lines 146--151
 -ial
  []
 
-[10 <./picture/picture4.png>]) [11
-
-] (./main.aux)
+) [11] (./main.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-02-20>
  ***********
 
 
+LaTeX Warning: There were undefined references.
+
+
 LaTeX Warning: There were multiply-defined labels.
 
-Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 92FD7DE2A198C87A0ACE039B6BB28075;2629.
+
+Package rerunfilecheck Warning: File `main.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `main.out':
+(rerunfilecheck)             Before: 92FD7DE2A198C87A0ACE039B6BB28075;2629
+(rerunfilecheck)             After:  2B2AA9BE653E044A38EA27E803C8612E;2700.
  ) 
 Here is how much of TeX's memory you used:
- 12322 strings out of 474115
- 197623 string characters out of 5744678
- 1953190 words of memory out of 5000000
- 34409 multiletter control sequences out of 15000+600000
+ 12338 strings out of 474115
+ 197997 string characters out of 5744678
+ 1955190 words of memory out of 5000000
+ 34426 multiletter control sequences out of 15000+600000
  601125 words of font info for 116 fonts, out of 8000000 for 9000
  1145 hyphenation exceptions out of 8191
- 75i,16n,79p,588b,587s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,16n,79p,1038b,591s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <f:/latex/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb><
 f:/latex/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb><f:/
 latex/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb><f:/late
@@ -670,10 +702,10 @@ ts/type1/public/amsfonts/symbols/msbm10.pfb><f:/latex/texlive/2024/texmf-dist/f
 onts/type1/urw/times/utmb8a.pfb><f:/latex/texlive/2024/texmf-dist/fonts/type1/u
 rw/times/utmbi8a.pfb><f:/latex/texlive/2024/texmf-dist/fonts/type1/urw/times/ut
 mr8a.pfb><f:/latex/texlive/2024/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (11 pages, 850095 bytes).
+Output written on main.pdf (11 pages, 1063493 bytes).
 PDF statistics:
- 322 PDF objects out of 1000 (max. 8388607)
- 268 compressed objects within 3 object streams
- 85 named destinations out of 1000 (max. 500000)
- 157 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 324 PDF objects out of 1000 (max. 8388607)
+ 266 compressed objects within 3 object streams
+ 84 named destinations out of 1000 (max. 500000)
+ 167 words of extra memory for PDF output out of 10000 (max. 10000000)
 
