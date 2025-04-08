@@ -183,38 +183,38 @@ This approach ensures that the tracker can maintain consistent tracking informat
 
 \textbf{Single Detection Class Probability Update.}
 First, consider the class information association between one detection and one track. 
-Assume the confusion matrix of the detection is $C=\left[c_{i j}\right]$, where $c_{i j}$ denotes the likelihood that the classifier outputs the classification as $j$ if the truth class of the target is $i$.
-Here, $i,j = 1,…, N$, and $N$ is the total number of possible classes.
-At time $k-1$, the probability that the trajectory is classified as $i$ is $\mu_{i}(k-1)$.
-If the tracker associates the detection to the track at time $k$, then the updated value of $\mu_{i}$ using Bayes' theorem is
+Assume the confusion matrix of the detection is \(C=\left[c_{i j}\right]\), where \(c_{i j}\) denotes the likelihood that the classifier outputs the classification as \(j\) if the truth class of the target is \(i\).
+Here, \(i,j = 1,…, N\), and \(N\) is the total number of possible classes.
+At time \(k-1\), the probability that the trajectory is classified as \(i\) is \(\mu_{i}(k-1)\).
+If the tracker associates the detection to the track at time \(k\), then the updated value of \(\mu_{i}\) using Bayes' theorem is
 \begin{align}
 	\mu(k) & = \frac{c_{j} \otimes [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}{c_{j}^{T} [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}
 \end{align}
-where $c_{j}$ is the $j$-th column of the confusion matrix and $\otimes$ represents element-wise multiplication. 
-This equation represents the updated class probability of a track if the track is associated with the detection of classification $j$.
+where \(c_{j}\) is the \(j\)-th column of the confusion matrix and \(\otimes\) represents element-wise multiplication. 
+This equation represents the updated class probability of a track if the track is associated with the detection of classification \(j\).
 
 \textbf{Mixed Association Likelihood in Cluster.}
 The tracker performs gating and clustering by using only the kinematic information between detections and tracks. 
-After that, in each cluster, the tracker calculates the mixed likelihood of association between a detection $m$ and a track $t$ as:
+After that, in each cluster, the tracker calculates the mixed likelihood of association between a detection \(m\) and a track \(t\) as:
 \begin{align}
 	\Lambda(m, t) & = \Lambda_{k}^{1-\alpha}(m, t) \Lambda_{c}^{\alpha}(m, t)
 \end{align}
-where $\alpha$ represents Weight factor of class likelihood; $\Lambda_{k}$ represents Likelihood of assigning a detection to a track based on the kinematic states; $\Lambda_{c}$ represents Likelihood of assigning a classified detection to a track based on the class information.
+where \(\alpha\) represents Weight factor of class likelihood; \(\Lambda_{k}\) represents Likelihood of assigning a detection to a track based on the kinematic states; \(\Lambda_{c}\) represents Likelihood of assigning a classified detection to a track based on the class information.
 \begin{align}
 	\Lambda_{c}(m, t) = \left\{\begin{array}{ll}
 		c_{j}^{T}\left[\mathbb{I}_t \mu(k-1)+\mathbb{I}_{t = 0} \mu^{0}\right] & \text { if } m>0 \\
 		1 & \text { if } m = 0
 	\end{array}\right.
 \end{align}
-The hybrid association likelihood function achieves multi-scenario adaptive matching through a triple mechanism: for valid associated targets ($m>0$ and $t>0$), the system corrects the trajectory category probability distribution $\mu(k-1)$ in real time through Bayesian updating, and uses the confusion matrix column vector $c_j$ of the detection m corresponding to category $j$ to calculate the matching degree, thereby dynamically adapting to changes in target categories; for new targets ($m>0$ and $t=0$), the prior distribution $\mu^{0}$ based on the statistical characteristics of the data set is used for initialization to effectively solve the cold start problem; for unmatched trajectories ($m=0$), a fixed value of 1 is returned to avoid false termination caused by sensor noise. The design achieves the optimal fusion of kinematics and category information through the $\alpha$ parameter, significantly improving the tracking robustness in complex scenarios while ensuring real-time performance.
+The hybrid association likelihood function achieves multi-scenario adaptive matching through a triple mechanism: for valid associated targets (\(m>0\) and \(t>0\)), the system corrects the trajectory category probability distribution \(\mu(k-1)\) in real time through Bayesian updating, and uses the confusion matrix column vector \(c_j\) of the detection m corresponding to category \(j\) to calculate the matching degree, thereby dynamically adapting to changes in target categories; for new targets (\(m>0\) and \(t=0\)), the prior distribution \(\mu^{0}\) based on the statistical characteristics of the data set is used for initialization to effectively solve the cold start problem; for unmatched trajectories (\(m=0\)), a fixed value of 1 is returned to avoid false termination caused by sensor noise. The design achieves the optimal fusion of kinematics and category information through the \(\alpha\) parameter, significantly improving the tracking robustness in complex scenarios while ensuring real-time performance.
 
 \textbf{Update Track Class Probability.}
-Suppose the marginal probabilities of $M$ detections assigned to a track in the cluster are $\left(\beta_{0}, \beta_{1}, \ldots, \beta_{M}\right)$, where $\beta_{0}$ is the marginal probability that no measurements is associated with the track. 
+Suppose the marginal probabilities of \(M\) detections assigned to a track in the cluster are \(\left(\beta_{0}, \beta_{1}, \ldots, \beta_{M}\right)\), where \(\beta_{0}\) is the marginal probability that no measurements is associated with the track. 
 Then the tracker updates the class probability of the track as
 \begin{align}
 	\mu_{k} & = \left(\sum_{m = 1}^{M} \beta_{m} \frac{c_{j(m)} \otimes \mu(k-1)}{c_{j(m)}^{T} \mu(k-1)}\right)+\beta_{0} \mu(k-1)
 \end{align}
-where $c_{j}(m)$ is the class probability vector of detection $m$, $\otimes$ represents element-wise multiplication, $\mu(k-1)$ is the class probability vector of the track in the $k-1$ step, and $\mu(k)$ is the class probability vector of the track in the $k$ step.
+where \(c_{j}(m)\) is the class probability vector of detection \(m\), \(\otimes\) represents element-wise multiplication, \(\mu(k-1)\) is the class probability vector of the track in the \(k-1\) step, and \(\mu(k)\) is the class probability vector of the track in the \(k\) step.
 
 The tracker updates the class properties of tracks cluster by cluster.
 
@@ -239,7 +239,7 @@ Through this process, we are ultimately able to obtain the trajectories of vehic
 We placed an imaginary ego-vehicle in the center of the intersection, which serves as a reference system, as shown in Fig. \ref{fig:3}. 
 For multi-object tracking we input not only the detection frame, but also the position of the camera and radar relative to the self-vehicle, as well as the position of the ego-vehicle. 
 The position coordinates of the self-vehicle in the experiment were always O(0,0,0), i.e. stationary. 
-Tracking initially generates trajectory coordinates $\text P_1$ relative to the LiDAR, which we also fit to the world coordinates $\text P_2$ in Carla.
+Tracking initially generates trajectory coordinates \(\text P_1\) relative to the LiDAR, which we also fit to the world coordinates \(\text P_2\) in Carla.
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture3.png} 
@@ -291,13 +291,13 @@ The first residual block in each stage performs downsampling on the size of the 
 ResNet-50 employs a residual block structure known as Bottleneck, which aims to reduce computational complexity. 
 Each residual block consists of the following layers:
 
-$\bullet$ 1$\times$1 Convolutional Layer: Used for dimensionality reduction, decreasing the number of channels.
+\(\bullet\) 1\(\times\)1 Convolutional Layer: Used for dimensionality reduction, decreasing the number of channels.
 
-$\bullet$ 3$\times$3 Convolutional Layer: Used for extracting spatial features.
+\(\bullet\) 3\(\times\)3 Convolutional Layer: Used for extracting spatial features.
 
-$\bullet$ 1$\times$1 Convolutional Layer: Used for dimensionality increase, restoring the number of channels.
+\(\bullet\) 1\(\times\)1 Convolutional Layer: Used for dimensionality increase, restoring the number of channels.
 
-$\bullet$ Residual Connection: The input is directly added to the output of the 1x1 convolutional layer. 
+\(\bullet\) Residual Connection: The input is directly added to the output of the 1x1 convolutional layer. 
 If the number of channels or the size of the input and output do not match, a 1x1 convolution is applied to adjust the input.
 
 Each convolutional layer is followed by batch normalization and a ReLU activation function.
@@ -309,7 +309,7 @@ Upon completing the tracking of all vehicle trajectories, we chronologically sor
 These two waypoints are then fed into the navigation algorithm module, which subsequently computes the trajectory between them.
 
 In the Carla simulation environment, vehicle trajectory planning is achieved by utilizing the A* algorithm to search for the shortest path within the graph structure constructed from the topological map. 
-The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby effectively guiding the current node $p_{n}$ to search for the target node $p_{g}$.
+The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby effectively guiding the current node \(p_{n}\) to search for the target node \(p_{g}\).
 The core of this algorithm lies in the evaluation function 
 \begin{align}
 	f(n) = \sum_{k = 1}^{n} \frac{d_{k} \cdot\left(1+\alpha \phi_{k}\right)}{1 + \frac{\gamma}{\kappa_k + \epsilon}}+\left\|\left[\begin{array}{c}
@@ -319,8 +319,8 @@ The core of this algorithm lies in the evaluation function
 \end{align}
 Its purpose is to calculate the actual cost from the starting node to the current node and the estimated cost from the current node to the target node. 
 In the process of exploring the shortest path using the A* algorithm, if there are edges with a weight of 0 in the graph structure, it may cause the vehicle to change lanes too frequently in a very short time, which contradicts the normal driving logic. 
-To alleviate this phenomenon, we introduced a lane change penalty mechanism in path planning. Specifically, when the current lane $l_{n}$ is inconsistent with the target lane $l_{g}$, the calculation cost will be increased to ensure that the distance calculation between nodes is not only based on the spatial distance, but also takes into account the frequency of lane changes. Not only that, we also added a road type penalty $\phi_{k}$ and a curvature penalty $\kappa_k$. When planning the route globally, the vehicle prefers the main road and the road with smaller curves. 
-Among them, $\alpha$ represents the road attribute weight, $\gamma$ controls the curvature penalty intensity, $\lambda$ is the lane matching weight, and $\epsilon$ is used as a regularization parameter to ensure numerical stability.
+To alleviate this phenomenon, we introduced a lane change penalty mechanism in path planning. Specifically, when the current lane \(l_{n}\) is inconsistent with the target lane \(l_{g}\), the calculation cost will be increased to ensure that the distance calculation between nodes is not only based on the spatial distance, but also takes into account the frequency of lane changes. Not only that, we also added a road type penalty \(\phi_{k}\) and a curvature penalty \(\kappa_k\). When planning the route globally, the vehicle prefers the main road and the road with smaller curves. 
+Among them, \(\alpha\) represents the road attribute weight, \(\gamma\) controls the curvature penalty intensity, \(\lambda\) is the lane matching weight, and \(\epsilon\) is used as a regularization parameter to ensure numerical stability.
 
 
 \textbf{All Trajectory Restoration.}
@@ -331,8 +331,8 @@ This method can be represented as:
 \begin{align}
 	S(t) = \bigcup_{i=1}^{N} \Bigl( T_i(t) \cup f\Bigl( \lim_{\!t \to t_i^+} T_i(t), \lim_{\!t \to t_{i+1}^-} T_{i+1}(t) \Bigr) \Bigr)
 \end{align}
-where $S$ is the trajectory collection, $T_i(t)$ represents the previous trajectory. 
-The limits $\lim_{t \to t_i^+} T_i(t)$ and $\lim_{t \to t_{i+1}^+} T_{i+1}(t)$ correspond to the end waypoint of the $i$-th trajectory and the start waypoint of the $(i+1)$-th trajectory, respectively.
+where \(S\) is the trajectory collection, \(T_i(t)\) represents the previous trajectory. 
+The limits \(\lim_{t \to t_i^+} T_i(t)\) and \(\lim_{t \to t_{i+1}^+} T_{i+1}(t)\) correspond to the end waypoint of the \(i\)-th trajectory and the start waypoint of the \((i+1)\)-th trajectory, respectively.
 As demonstrated in Fig. \ref{fig:5}, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
 \begin{figure}[t]
 	\centering
@@ -347,26 +347,27 @@ Through the previous steps, we have obtained the trajectories of all vehicles.
 Here, we will further optimize these trajectories using a trajectory smoothing algorithm, and then employ a PID controller to control the vehicles, ensuring they follow the optimized trajectories\cite{Alpher22d}. 
 
 A trajectory smoothing method based on linear interpolation is adopted in this work.
-Given the original trajectory point set $W = \{w_1,w_2 ,…,w_n\}$, where $w_i \in R^2$ represents the coordinates of the $i$-th track point, the smoothed track $\widetilde{W}$ is generated by:
+Given the original trajectory point set \(W = \{w_1,w_2 ,…,w_n\}\), where \(w_i \in R^2\) represents the coordinates of the \(i\)-th track point, the smoothed track \(\widetilde{W}\) is generated by:
 \begin{align}
 	\widetilde{W} = \bigcup_{i = 1}^{n-1} \left( w_i \cup \left\{ w_i + k\delta \cdot \frac{w_{i+1} - w_i}{d_i} \ \middle|\ k \in \mathbb{N}^+\right\} \right)
 \end{align}
-Precise control of trajectory density is achieved through a step size parameter $\delta$ in this method, which maintains strict adherence to the original trajectory geometry and ensures all interpolation points are positioned on line segments connecting adjacent original waypoints.
-Specifically, for any adjacent waypoint pair, the algorithm uniformly inserts new waypoints on its connection line. The number of insertion points is dynamically determined by the ratio of distance $d_i$ to step $\delta$, and the constraint $k\delta < d_i$ is satisfied, thereby ensuring the adaptive matching of the interpolation density and the local geometric features of the trajectory.
+Precise control of trajectory density is achieved through a step size parameter \(\delta\) in this method, which maintains strict adherence to the original trajectory geometry and ensures all interpolation points are positioned on line segments connecting adjacent original waypoints.
+Specifically, for any adjacent waypoint pair, the algorithm uniformly inserts new waypoints on its connection line. The number of insertion points is dynamically determined by the ratio of distance \(d_i\) to step \(\delta\), and the constraint \(k\delta < d_i\) is satisfied, thereby ensuring the adaptive matching of the interpolation density and the local geometric features of the trajectory.
 It is worth noting that the current method assumes that the input waypoints are all on the real trajectory, and for the filtering of possible external or noise points, an additional robust processing mechanism is needed, which will be an important direction for future research.
 
 The PID controller consists of three main components: Proportional control (P), Integral control (I), and Derivative control (D). Each component serves a specific purpose, enabling the regulation of different aspects of the system.
+
 \begin{align}
 	u = K_p e + K_i \int \left( e - \frac{\text{sat}(u)-u}{K_p} \right) dt + K_d \dot{e}
 \end{align}
-This study proposes an improved PID control algorithm, whose control output $u$ consists of proportional term, anti-saturation integral term, and differential term, where $K_p$, $K_i$ and $K_d$ are proportional gain, integral gain and differential gain respectively.
+This study proposes an improved PID control algorithm, whose control output \(u\) consists of proportional term, anti-saturation integral term, and differential term, where \(K_p\), \(K_i\) and \(K_d\) are proportional gain, integral gain and differential gain respectively.
 The algorithm achieves rapid error response through the proportional term, eliminates steady-state errors using the integral term, and suppresses the error change rate through the differential term.
 Experimental studies have shown that traditional PID control has an integral saturation phenomenon in the vehicle steering system, resulting in random extreme deflections of the steering wheel (±1 rad).
-To this end, this algorithm introduces a compensation term, and the saturation function sat(u) limits the controller output $u$ to a preset interval [$u_{min}$, $u_{max}$].
+To this end, this algorithm introduces a compensation term, and the saturation function sat(u) limits the controller output \(u\) to a preset interval [\(u_{min}\), \(u_{max}\)].
 When the control output reaches the saturation limit, the integral accumulation rate is automatically adjusted, which effectively solves the integral saturation problem.
 
 The tuning process of the PID controller is as follows:  
-1. Calculate the error $e$ between the target value (setpoint) and the current system output in real time.  
+1. Calculate the error \(e\) between the target value (setpoint) and the current system output in real time.  
 2. Compute the proportional action based on the current error, the integral action based on historical errors, and the derivative action based on the rate of change of the error.  
 3. Sum the results of the proportional, integral, and derivative components to obtain the final control output, which is then applied to the system (for example, adjusting the vehicle's acceleration or direction). 
 4. The system adjusts based on the control output, changing its state (for example, speed, position, etc.). 
@@ -380,16 +381,16 @@ We employed three evaluation metrics.
 \textbf{Multiple Object Tracking Accuracy.}
 Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA)\cite{Alpher23b}.
 We use an improved evaluation metric Robust Multi-Object Tracking Accuracy (RMOTA) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
-The tracking sequence is divided into $W$ time windows, and each window independently calculates the local MOTA score to avoid the serious error of a single frame affecting the overall evaluation.
-In addition, the penalty for identity mismatching is amplified by the coefficient $\alpha$ to reflect the key impact of ID continuity on tracking quality.
+The tracking sequence is divided into \(W\) time windows, and each window independently calculates the local MOTA score to avoid the serious error of a single frame affecting the overall evaluation.
+In addition, the penalty for identity mismatching is amplified by the coefficient \(\alpha\) to reflect the key impact of ID continuity on tracking quality.
 \begin{align}
 	RMOTA = \underset{i=1}{\overset{W}{\mathrm{median}}} \left(1 - \frac{FN^{(i)} + FP^{(i)} + \alpha M^{(i)}}{T^{(i)}}\right) 
 \end{align}
 Among them,
-$FN^{(i)}$ (False Negatives) represents the number of missed detections in the $i$-th window, which means targets that truly exist but were not detected.
-$FP^{(i)}$ (False Positives) represents the number of false detections in the $i$-th window, which means targets that were detected but do not actually exist.
-$M^{(i)}$ (Mismatches) represents the number of identity mismatches in the $i$-th window, which means cases where the tracking ID of a target was incorrectly assigned during the tracking process.
-$T^{(i)}$ (Total number of true detections) represents the total number of true detections in the $i$-th window, which means the number of targets correctly detected across all frames.
+\(FN^{(i)}\) (False Negatives) represents the number of missed detections in the \(i\)-th window, which means targets that truly exist but were not detected.
+\(FP^{(i)}\) (False Positives) represents the number of false detections in the \(i\)-th window, which means targets that were detected but do not actually exist.
+\(M^{(i)}\) (Mismatches) represents the number of identity mismatches in the \(i\)-th window, which means cases where the tracking ID of a target was incorrectly assigned during the tracking process.
+\(T^{(i)}\) (Total number of true detections) represents the total number of true detections in the \(i\)-th window, which means the number of targets correctly detected across all frames.
 
 The metric ranges from 0 to 1, with higher values indicating better tracking performance. 
 A perfect score of 1 represents flawless tracking with zero missed detections, false alarms, or identity mismatches, while 0 indicates complete tracking failure.
@@ -400,11 +401,11 @@ On this basis, this paper proposes an interpretable multi-camera object tracking
 \begin{align}
 	IMCTA = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
 \end{align}
-by decomposing the cross-camera error into missing association $M_k$ and ID switching $E_k^{\text{ID}}$, accurate diagnosis of system defects is achieved.
+by decomposing the cross-camera error into missing association \(M_k\) and ID switching \(E_k^{\text{ID}}\), accurate diagnosis of system defects is achieved.
 Among them,
-$P$ represents the proportion of correct matches (correctly identifying and tracking targets) across all cameras.  
-$R$ represents the recall rate, which is the proportion of all true targets that are correctly tracked.  
-$\lambda$ is the penalty coefficient for ID switching error and $T^{k}$ represents the total number of potential correct associations in the $k$-th dimension, but the association thresholds for different dimensions are different.
+\(P\) represents the proportion of correct matches (correctly identifying and tracking targets) across all cameras.  
+\(R\) represents the recall rate, which is the proportion of all true targets that are correctly tracked.  
+\(\lambda\) is the penalty coefficient for ID switching error and \(T^{k}\) represents the total number of potential correct associations in the \(k\)-th dimension, but the association thresholds for different dimensions are different.
 
 Compared with MCTA, IMCTA intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
 The higher the value, the better the performance of the multi-camera tracking system.
@@ -415,7 +416,7 @@ This study uses trajectory overlap ratio (TOR) for comprehensive evaluation, whi
 \begin{align}
 	TOR & = \left(1 - \frac{D_{dtw}}{D_{max}}\right) \times \Lambda(t)
 \end{align}
-Among them, the shape similarity term is calculated based on the ratio of the dynamic time warping distance $D_{dtw}$ to the maximum scale distance $D_{max}$, reflecting the overall geometric difference of the trajectory, while the spatial alignment term $\Lambda(\tau)$ evaluates the static matching accuracy of the waypoint through the position offset penalty.
+Among them, the shape similarity term is calculated based on the ratio of the dynamic time warping distance \(D_{dtw}\) to the maximum scale distance \(D_{max}\), reflecting the overall geometric difference of the trajectory, while the spatial alignment term \(\Lambda(\tau)\) evaluates the static matching accuracy of the waypoint through the position offset penalty.
 This evaluation mechanism can not only capture the morphological differences of macroscopic paths, but also characterize the spatiotemporal consistency of discrete waypoints at the micro level, providing a multi-dimensional quantitative basis for the trajectory consistency of the digital twin system.
 \begin{align}
 	D_{dtw} = \min_{\pi \in P} \sqrt{\sum_{(i,j)\in\pi} \|p_i - q_j\|^2}
@@ -423,15 +424,17 @@ This evaluation mechanism can not only capture the morphological differences of 
 \begin{align}
 	D_{max} = \max_{i,j} \|p_i - q_j\| \cdot \max(n,m)
 \end{align}
-$D_{dtw}$ compares the similarity of non-aligned sequences through a dynamic curved path $\pi$, and finds the matching solution that minimizes the cumulative distance from all possible path sets $P$, while $D_{max}$ quantifies the spatial deviation of the two trajectories in the worst case and normalizes it by the trajectory length. Among them, $p_{i}$ and $p_{j}$ represent the matching point pairs of the two trajectories, and $m$ and $n$ are the lengths of the two trajectories respectively.
+\(D_{dtw}\) compares the similarity of non-aligned sequences through a dynamic curved path \(\pi\), and finds the matching solution that minimizes the cumulative distance from all possible path sets \(P\), while \(D_{max}\) quantifies the spatial deviation of the two trajectories in the worst case and normalizes it by the trajectory length. Among them, \(p_{i}\) and \(p_{j}\) represent the matching point pairs of the two trajectories, and \(m\) and \(n\) are the lengths of the two trajectories respectively.
 
 \begin{align}
 	\Lambda(\tau) = \frac{1}{n} \sum_{k=1}^{n} \mathbb{I}\left(\left\|p_{\pi_{1}(k)}-q_{\pi_{2}(k)}\right\| \leq \tau\right)
 \end{align}
 The trajectory we finally get is the coordinates of Carla, which means that the trajectory is actually discrete.
 Therefore, calculating the positional relationship between waypoints is very important to reflect the overlap between two trajectories.
-$\Lambda(\tau)$ counts the proportion of matching points in the two trajectories whose distance is less than the threshold $\tau$ to reflect the overlap accuracy of the two trajectories within the allowable error range.
-where $p_{\pi_{1}(k)}$ and $q_{\pi_{2}(k)}$ represent the three-dimensional coordinates of the $\pi_{1}(k)$th point of trajectory 1 and the $\pi_{2}(k)$th point of trajectory 2, respectively, and $\mathbb{I}(\cdot)$ is the indicator function (which takes the value of 1 when the Euclidean distance between two points does not exceed the threshold $\tau$, otherwise it takes the value of 0).
+\(\Lambda(\tau)\) counts the proportion of matching points in the two trajectories whose distance is less than the threshold \(\tau\) to reflect the overlap accuracy of the two trajectories within the allowable error range.
+where \(p_{\pi_{1}(k)}\) and \(q_{\pi_{2}(k)}\) represent the three-dimensional coordinates of the \(\pi_{1}(k)\)th point of trajectory 1 and the \(\pi_{2}(k)\)th point of trajectory 2, respectively, and \(\mathbb{I}(\cdot)\) is the indicator function (which takes the value of 1 when the Euclidean distance between two points does not exceed the threshold \(\tau\), otherwise it takes the value of 0).
+
+
 \section{Experiments}
 
 \subsection{Preparation}
@@ -573,15 +576,15 @@ In order to further improve the performance of the tracker highly depends with t
 Traditional manual parameter tuning is inefficient and difficult to find the global optimal solution. 
 For this reason, we adopt a Bayesian Optimization (BOM) approach to automatically optimize the following key parameters through an intelligent search strategy:
 
-$\bullet$ DetectionProbability: control the reliability of sensor detection.
+\(\bullet\) DetectionProbability: control the reliability of sensor detection.
 
-$\bullet$ ClutterDensity: sensitivity to filtering false detections.
+\(\bullet\) ClutterDensity: sensitivity to filtering false detections.
 
-$\bullet$ NewTargetDensity: threshold for target initialization.
+\(\bullet\) NewTargetDensity: threshold for target initialization.
 
-$\bullet$ Confirmation/DeletionThreshold: trajectory lifecycle management.
+\(\bullet\) Confirmation/DeletionThreshold: trajectory lifecycle management.
 
-$\bullet$ DeathRate: robustness to handling targets leaving the scene.
+\(\bullet\) DeathRate: robustness to handling targets leaving the scene.
 
 Optimization Goal: Maximize Tracking Accuracy (MOTA) while reducing ID Switches and Trajectory Fragmentation.
 
