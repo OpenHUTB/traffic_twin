@@ -490,6 +490,13 @@ Each frame of data synchronously collects six-directional camera images and LiDA
 	\label{fig:6} 
 \end{figure}
 
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture7.png} 
+	\caption{Analysis of the impact of vehicle re-identification threshold on trajectory reduction.} 
+	\label{fig:7} 
+\end{figure}
+
 \subsection{Experimental Effect}
 
 \textbf{Multi-Object Tracking.}
@@ -554,8 +561,8 @@ In terms of mean delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 
 We conducted ablation studies on LiDAR detection and multi-intersection multi-object tracking in object detection to ensure that our experiments achieved the desired results.
 
-\textbf{LiDAR Detection.}
-During the LiDAR detection process, we set a threshold for the detection results. Targets exceeding the threshold are identified as vehicles, and targets below the threshold are excluded as other objects.
+\textbf{Detecting Vehicles in 3D Point Clouds.}
+During the process of detecting vehicles in the 3D point cloud, we set a threshold for the detection results.
 Before optimizing the tracker hyperparameters, we conducted multiple experiments in the Town10 scene, and the experimental results are shown in Fig. \ref{fig:6}.
 When the threshold is too low, some non-vehicle objects, such as trees and buildings, will be mistaken for vehicles. In some cases, even the cargo loaded on the vehicle will be mistaken for a vehicle, and the recognition accuracy will be greatly reduced.
 On the contrary, if the threshold is too high, some vehicles will be missed, such as smaller cars, which are occasionally mistaken for boxes and ignored.
@@ -564,10 +571,8 @@ When the threshold is 0.6, there is obvious feature crossover, which is the best
 \textbf{Multi-Intersection and Multi-Object Tracking.}
 In the multi-intersection multi-target tracking experiment, the most critical task is the re-identification of vehicles across different intersections. 
 Therefore, we also set a threshold for the re-identification results: if the similarity score exceeds the threshold, the targets are considered the same vehicle; otherwise, they are deemed different vehicles. 
-During the experiment, we adjusted the threshold multiple times, testing values of 0.6, 0.65, 0.7, 0.8, and 0.9. 
-Ultimately, we found that a threshold of 0.65 yielded the best re-identification performance. 
-When the threshold was set higher than 0.65, some vehicles failed to match across intersections, and the higher the threshold, the more vehicles were unable to be successfully matched. 
-Conversely, when the threshold was set lower than 0.65, it led to incorrect matches for some vehicles.
+During the experiment, we adjusted the threshold several times in the Town10 scene, and the experimental results are shown in the Fig. \ref{fig:7}.
+We use 0.5 as the re-ID threshold because it achieves the best balance between security, stability, and scalability, avoiding both the extreme error of a low threshold and the risk of trajectory breakage of a high threshold.
 
 \subsection{Adaptive Data Association Threshold}
 
