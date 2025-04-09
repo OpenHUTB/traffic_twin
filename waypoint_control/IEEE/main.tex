@@ -136,8 +136,8 @@ The network has acquired comprehensive feature representations through large-sca
 \begin{figure*}[t]
 	\centering
 	\includegraphics[width=\textwidth]{picture/picture2.png} 
-	\caption{Given the original scene, cameras and radar detect vehicles, and the tracker performs single-camera multi-target tracking and multi-camera multi-target tracking. The data obtained from tracking is used for trajectory reconstruction, and finally, a digital twin is created to replicate the traffic scenario.}
-	\label{fig:example}
+	\caption{In the given scenario, synchronized cameras and LiDAR sensors detect vehicles, while the tracking system performs both single-intersection and multi-intersection multi-object tracking. The tracking data is subsequently utilized for trajectory reconstruction, ultimately enabling the creation of a digital twin that accurately replicates the traffic scenario.}
+	\label{fig:2}
 \end{figure*}
 
 \textbf{Digital Twin.}
@@ -154,10 +154,12 @@ Subsequently, the PID controller is employed to control the vehicle, guiding it 
 \subsection{Problem Definition}
 
 In UVDT, the vehicle detection and tracking system for single-intersection scenarios adopts a multimodal data fusion architecture.
-The input source integrates 3D point cloud data captured by LiDAR and synchronized RGB images from six calibrated cameras, achieving heterogeneous sensor data collaboration through spatiotemporal alignment.
-The input for multi-intersection object detection is the same as that for a single intersection, but the input for its object tracking includes trajectories and the corresponding vehicle appearance features. 
-The input for the re-identification module is a N×2048 vehicle feature vector. 
-The input for the twin part includes trajectory data (comprising the desired vehicle trajectory and the current vehicle state), environmental information (such as road conditions and obstacle information), and the system's control strategy.
+As illustrated in Fig. \ref{fig:2}, the input source \(F_{t}\) integrates 3D point cloud data captured by LiDAR and synchronized RGB images from six calibrated cameras, achieving heterogeneous sensor data collaboration through spatiotemporal alignment.
+The tracker generates the vehicle trajectory \(T_{v}\) of a single intersection and the image \(i_{v}\) of the corresponding vehicle through the detection bounding boxes \(b_{2D}\) and \(b_{3D}\) obtained by object detection algorithms.
+For cross-intersection vehicle trajectories matching, we employ a re-identification network to extract appearance feature vectors \(f\), then compute their cosine similarity to produce a logical matching matrix \(C_{M \times N}\).
+Vehicle trajectories exceeding a predefined similarity threshold are matched and output as \(T_{t}\).
+The system subsequently feeds trajectory endpoints \((P_{s},P_{e})\) to a prediction framework that interpolates inter-intersection trajectories, ultimately producing complete vehicle trajectories \(T_{t}\). 
+The controller calculates throttle\(t\), brake\(b\),and steering wheel \(s\) outputs from these trajectories to guide vehicle control, with the final executed trajectory denoted as \(T^\prime\).
 
 \textbf{PointPillars.}
 We use the PointPillars network to process the input for vehicle detection and generate the output.
