@@ -47,6 +47,7 @@ The experimental results show that UVDT can provide high-fidelity simulation sce
 digital twins, automated driving, vehicle detection, multi-object tracking, trajectory reduction.
 \end{IEEEkeywords}
 
+\noindent \textbf{Code Availability:} The source code and datasets are available at \url{https://github.com/OpenHUTB/traffic_twin}.
 
 \section{Introduction}
 
@@ -161,14 +162,15 @@ Vehicle trajectories exceeding a predefined similarity threshold are matched and
 The system subsequently feeds trajectory endpoints \((P_{s},P_{e})\) to a prediction framework that interpolates inter-intersection trajectories, ultimately producing complete vehicle trajectories \(T_{t}\). 
 The controller calculates throttle\(t\), brake\(b\),and steering wheel \(s\) outputs from these trajectories to guide vehicle control, with the final executed trajectory denoted as \(T^\prime\).
 
-\textbf{PointPillars.}
+\textbf{Vehicle Detection in Point Clouds.}
 We use the PointPillars network to process the input for vehicle detection and generate the output.
 A PointPillars network requires two inputs: pillar indices as a P-by-2 and pillar features as a P-by-N-by-K matrix. P is the number of pillars in the network, N is the number of points per pillar, and K is the feature dimension.
 The network begins with a feature encoder, which is a simplified PointNet. It contains a series of convolution, batch-norm, and relu layers followed by a max pooling layer. A scatter layer at the end maps the extracted features into a 2-D space using the pillar indices.
 Next, the network has a 2-D CNN backbone that consists of encoder-decoder blocks. Each encoder block consists of convolution, batch-norm, and relu layers to extract features at different spatial resolutions. Each decoder block consists of transpose convolution, batch-norm, and relu layers.
 The network then concatenates output features at the end of each decoder block, and passes these features through six detection heads with convolutional and sigmoid layers to predict occupancy, location, size, angle, heading, and class.
 
-\textbf{ReID.}Re-identification is a crucial component of multi-object tracking, aimed at addressing the issue of temporary object occlusion in videos. 
+\textbf{ReID.}
+Re-identification is a crucial component of multi-object tracking, aimed at addressing the issue of temporary object occlusion in videos. 
 In real-world scenarios, tracked objects may be temporarily obscured by other objects or move out of the camera's field of view, making consistent tracking challenging. 
 These objects may also exhibit variations in pose, orientation, and lighting conditions between frames. 
 In such complex scenarios, when an object reappears in a new video frame, the tracker often fails to re-identify the object. 
@@ -245,7 +247,7 @@ Tracking initially generates trajectory coordinates \(\text P_1\) relative to th
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture3.png} 
-	\caption{Data collection sensor suite.} 
+	\caption{Sensor configuration and coordinate transformation process: (a) Multi-sensor arrangement on the ego vehicle, including 6 cameras (2.62 meters upward offset) and 1 lidar (0.82 meters upward offset); (b) Coordinate transformation process from the ego vehicle system (left) to the lidar coordinate system (right) through JPDA, and finally converted to the CARLA world coordinate system through the transformation matrix. All distance measurements are in meters.} 
 	\label{fig:3} 
 \end{figure}
 
@@ -255,7 +257,7 @@ In the Town10 scene of the CARLA simulation platform, we configure a differentia
 To achieve all-round data collection, we deploy RGB cameras and semantic segmentation cameras at the front and rear positions of each experimental vehicle, respectively, and use a multi-view synchronous acquisition system to capture the continuous changes in the vehicle's appearance features and spatial posture in real time, and finally generated dynamic ground truth and image sequences with precise spatiotemporal alignment characteristics.
 
 Subsequently, the vehicle images of the front and rear views are cropped based on ground truth and the front and rear view images of the same vehicle are combined to form a dataset of that vehicle, to which the vehicle images of the occluded views are added to form the final dataset.
-Finally, the images are reshaped to a size of 224x224.
+Finally, the images are reshaped to a size of 224\(\times\)224.
 
 Finally, the images of vehicles tracked at intersections 1 and 2 are matched with the trained re-identification network.
 In other words, the vehicle tracked at the previous intersection is the object that needs to be re-identified, and it will be recognized at the next intersection, allowing the trajectories corresponding to the two vehicles to be integrated.
@@ -267,27 +269,6 @@ If the similarity exceeds a certain threshold, the two vehicles are considered t
 \textbf{ResNet-50.}
 ResNet-50 primarily consists of five main components: an initial convolutional layer, a max-pooling layer, four stages of residual blocks, a global average pooling layer, and a fully connected layer, totaling 50 layers (including convolutional layers, pooling layers, and fully connected layers). 
 Among these, the four stages of residual blocks are the core of ResNet-50. 
-The number of residual blocks and the size of feature maps for each stage are shown in Table. \ref{tab:1}.
-
-\begin{table}[t]
-	\centering
-	\caption{Table of the number of residual blocks and feature map sizes for each stage}
-	\label{tab:1}
-	\begin{tabular}{|c|c|c|c|}
-		\hline
-		\multicolumn{1}{|c|}{Stage} & \multicolumn{1}{c|}{NRB} & \multicolumn{1}{c|}{FMS} & \multicolumn{1}{c|}{NOC} \\
-		\hline
-		Stage1 & 3 & 56×56 & 256 \\
-		\hline
-		Stage2 & 4 & 28×28 & 512 \\
-		\hline
-		Stage3 & 6 & 14×14 & 1024 \\
-		\hline
-		Stage4 & 3 & 7×7 & 2048 \\
-		\hline
-	\end{tabular}
-\end{table}
-
 The first residual block in each stage performs downsampling on the size of the feature maps, while the subsequent residual blocks maintain the same feature map size.
 
 ResNet-50 employs a residual block structure known as Bottleneck, which aims to reduce computational complexity. 
@@ -299,8 +280,8 @@ Each residual block consists of the following layers:
 
 \(\bullet\) 1\(\times\)1 Convolutional Layer: Used for dimensionality increase, restoring the number of channels.
 
-\(\bullet\) Residual Connection: The input is directly added to the output of the 1x1 convolutional layer. 
-If the number of channels or the size of the input and output do not match, a 1x1 convolution is applied to adjust the input.
+\(\bullet\) Residual Connection: The input is directly added to the output of the 1\(\times\)1 convolutional layer. 
+If the number of channels or the size of the input and output do not match, a 1\(\times\)1 convolution is applied to adjust the input.
 
 Each convolutional layer is followed by batch normalization and a ReLU activation function.
 
@@ -339,7 +320,7 @@ As demonstrated in Fig. \ref{fig:5}, we can derive the complete vehicle trajecto
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture5.png} 
-	\caption{Trajectory restoration schematic.} 
+	\caption{Trajectory restoration diagram, showing how to generate predicted trajectories between intersections from multi-target tracking trajectories and then obtain the complete vehicle trajectory.} 
 	\label{fig:5} 
 \end{figure}
 
@@ -367,6 +348,7 @@ The algorithm achieves rapid error response through the proportional term, elimi
 Experimental studies have shown that traditional PID control has an integral saturation phenomenon in the vehicle steering system, resulting in random extreme deflections of the steering wheel (±1 rad).
 To this end, this algorithm introduces a compensation term, and the saturation function sat(u) limits the controller output \(u\) to a preset interval [\(u_{min}\), \(u_{max}\)].
 When the control output reaches the saturation limit, the integral accumulation rate is automatically adjusted, which effectively solves the integral saturation problem.
+In addition, \(\dot{e}\) represents the rate of change of the error over time.
 
 The tuning process of the PID controller is as follows:  
 1. Calculate the error \(e\) between the target value (setpoint) and the current system output in real time.  
@@ -381,9 +363,9 @@ The controller continues to monitor the system state, updates the error in real 
 We employed three evaluation metrics.
 
 \textbf{Multiple Object Tracking Accuracy.}
-Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy (MOTA)\cite{Alpher23b}.
-We use an improved evaluation metric Robust Multi-Object Tracking Accuracy (RMOTA) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
-The tracking sequence is divided into \(W\) time windows, and each window independently calculates the local MOTA score to avoid the serious error of a single frame affecting the overall evaluation.
+Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy \((MOTA)\)\cite{Alpher23b}.
+We use an improved evaluation metric Robust Multi-Object Tracking Accuracy \((RMOTA)\) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
+The tracking sequence is divided into \(W\) time windows, and each window independently calculates the local \((MOTA)\) score to avoid the serious error of a single frame affecting the overall evaluation.
 In addition, the penalty for identity mismatching is amplified by the coefficient \(\alpha\) to reflect the key impact of ID continuity on tracking quality.
 \begin{align}
 	RMOTA = \underset{i=1}{\overset{W}{\mathrm{median}}} \left(1 - \frac{FN^{(i)} + FP^{(i)} + \alpha M^{(i)}}{T^{(i)}}\right) 
@@ -398,8 +380,8 @@ The metric ranges from 0 to 1, with higher values indicating better tracking per
 A perfect score of 1 represents flawless tracking with zero missed detections, false alarms, or identity mismatches, while 0 indicates complete tracking failure.
 
 \textbf{Cross-Sensor Tracking Accuracy.}
-Multi-camera object tracking accuracy (MCTA)\cite{Alpher23b} condenses all aspects of system performance into a metric that measures cross-camera tracking.
-On this basis, this paper proposes an interpretable multi-camera object tracking accuracy (IMCTA), which is defined as follows:
+Multi-camera object tracking accuracy \((MCTA)\)\cite{Alpher23b} condenses all aspects of system performance into a metric that measures cross-camera tracking.
+On this basis, this paper proposes an interpretable multi-camera object tracking accuracy \((IMCTA)\), which is defined as follows:
 \begin{align}
 	IMCTA = {\frac{2PR}{P + R}}_{\text{}} \times \prod_{k \in \{w, h\}} \left(1 - \frac{M_k + \lambda E_k^{\text{ID}}}{T_k}\right)
 \end{align}
@@ -409,7 +391,7 @@ Among them,
 \(R\) represents the recall rate, which is the proportion of all true targets that are correctly tracked.  
 \(\lambda\) is the penalty coefficient for ID switching error and \(T^{k}\) represents the total number of potential correct associations in the \(k\)-th dimension, but the association thresholds for different dimensions are different.
 
-Compared with MCTA, IMCTA intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
+Compared with \((MCTA)\), \((IMCTA)\) intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
 The higher the value, the better the performance of the multi-camera tracking system.
 
 \textbf{Twin Accuracy.}
@@ -479,7 +461,7 @@ In CARLA's Town10 scenario, a single intersection location is selected, with a L
 This setup allows for the acquisition of rich point cloud data and image information, making it suitable for target recognition and tracking in complex traffic environments. 
 By configuring the LiDAR with 64 channels, a detection range of 100 meters, 250,000 points per second, and a rotation frequency of 20 Hz, the radar can efficiently generate high-density and accurate point cloud data. 
 Additionally, one camera is placed at the front and rear of the vehicle, and one camera is positioned on each of the four roads to the left and right. 
-The cameras have a resolution of 1920x1080 pixels and a field of view of 90 degrees, ensuring the capture of wide-angle image data in high definition. 
+The cameras have a resolution of 1920\(\times\)1080 pixels and a field of view of 90 degrees, ensuring the capture of wide-angle image data in high definition. 
 The collected data includes point cloud data from the LiDAR and image data from the cameras. 
 The radar data is saved as MAT files with timestamps, while the camera data is saved as images for each frame in six directions. 
 The data structure follows the storage format of the Panda dataset, making the data more standardized for subsequent processing and fusion\cite{Alpher21c}. 
@@ -488,14 +470,14 @@ Each frame of data synchronously collects six-directional camera images and LiDA
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture6.png} 
-	\caption{Analysis of the impact of point cloud detection threshold on multi-object tracking performance.} 
+	\caption{Analysis of the impact of point cloud detection threshold on multi-target tracking performance. Experiments show that the accuracy and threshold of vehicle detection are the key factors affecting multi-object tracking performance.} 
 	\label{fig:6} 
 \end{figure}
 
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture7.png} 
-	\caption{Analysis of the impact of vehicle re-identification threshold on trajectory reduction.} 
+	\caption{Comparative analysis of vehicle re-identification threshold effects on trajectory matching accuracy, illustrating the relationship between threshold values and the alignment degree between tracked trajectories and ground truth trajectories in urban traffic scenarios.} 
 	\label{fig:7} 
 \end{figure}
 
@@ -510,7 +492,7 @@ In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and
 Identity Switches (IDS) are notably higher in Intersection 4 of both Town01 and Town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
 The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50), reflecting significant differences in tracking stability across these intersections.
 
-Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (RMOTA: 60.2369; RMOTP: 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (RMOTA: 16.7388), indicating weaker tracking reliability.
+Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (\(RMOTA\): 60.2369; \(RMOTP\): 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (\(RMOTA\): 16.7388), indicating weaker tracking reliability.
 However, detection accuracy is also affected by the number of vehicles passing through the intersection, and the system accuracy improves significantly in low traffic conditions.
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
@@ -599,13 +581,13 @@ Optimization Goal: Maximize Tracking Accuracy (MOTA) while reducing ID Switches 
 Bayesian optimization is a hyper-parametric optimization method based on probabilistic models, which solves the global optimization problem of black-box functions by the strategy of “finding the best parameter with the least number of attempts”.
 The process is as follows:
 1.Maximizing tracking performance by fitting existing data with a Gaussian process and constructing an objective function model in a 6-dimensional parameter space; 
-2.A small number of random parameter combinations are selected to calculate the value of the acquisition function, and the next parameter to be tested is selected (e.g., the point with the largest EI); 
-3.Run the experiment to get the MOTA corresponding to the new parameters, add to the dataset, and repeat until the maximum number of iterations is reached or convergence is achieved.
+2.A small number of random parameter combinations are selected to calculate the value of the acquisition function, and the next parameter to be tested is selected (e.g., the point with the largest Expected Improvement (EI)); 
+3.Run the experiment to get the \(MOTA\) corresponding to the new parameters, add to the dataset, and repeat until the maximum number of iterations is reached or convergence is achieved.
 The improvement results after optimization compared with before optimization are shown in Fig. \ref{fig:4}.   
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture4.png} 
-	\caption{RMOTA improvement percentage.} 
+	\caption{Comparison of \(RMOTA\) improvement (\%) after hyperparameter optimization on Town01 and Town10. The results demonstrate the effectiveness of the optimization strategies used in different scenarios.} 
 	\label{fig:4} 
 \end{figure}
 
@@ -635,7 +617,6 @@ Through a series of experiments, we have demonstrated the application value of d
 Digital twin technology can not only accurately replicate real-world traffic scenarios but also effectively predict future traffic conditions. 
 Multi-target tracking and the inference of unknown trajectories serve as strong evidence of this capability. 
 This holds significant value for the development of future cities.
-
 We hope that new large-scale datasets will be introduced in the future to further enhance the effectiveness of digital twins.
 
 
