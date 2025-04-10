@@ -163,7 +163,8 @@ The system subsequently feeds trajectory endpoints \((P_{s},P_{e})\) to a predic
 The controller calculates throttle\(t\), brake\(b\),and steering wheel \(s\) outputs from these trajectories to guide vehicle control, with the final executed trajectory denoted as \(T^\prime\).
 
 \textbf{Vehicle Detection in Point Clouds.}
-We use the PointPillars network to process the input for vehicle detection and generate the output.
+Based on the PointPillars network architecture, 3D vehicle detection in intersection scenes is implemented. Its input data is collected in real time through a 64-line laser radar (range measurement 200m/point cloud density 2.2M pts/s/scanning frequency 20Hz), and the 3D ground truth information of vehicles in the range is recorded simultaneously. The original dataset is divided into a training set and a test set in a 7:3 ratio. The training set is used to learn the mapping relationship from point cloud to 3D detection box, and the test set verifies the generalization ability of the model on unknown data.
+
 A PointPillars network requires two inputs: pillar indices as a P-by-2 and pillar features as a P-by-N-by-K matrix. P is the number of pillars in the network, N is the number of points per pillar, and K is the feature dimension.
 The network begins with a feature encoder, which is a simplified PointNet. It contains a series of convolution, batch-norm, and relu layers followed by a max pooling layer. A scatter layer at the end maps the extracted features into a 2-D space using the pillar indices.
 Next, the network has a 2-D CNN backbone that consists of encoder-decoder blocks. Each encoder block consists of convolution, batch-norm, and relu layers to extract features at different spatial resolutions. Each decoder block consists of transpose convolution, batch-norm, and relu layers.
@@ -183,7 +184,7 @@ This approach ensures that the tracker can maintain consistent tracking informat
 
 \subsection{Single Intersection Multi-Object Tracking}
 
-\textbf{TrackerJPDA.}
+We fuse detections from our lidar and camera at a single intersection and use the tracker JDPA object to track the target.
 
 \textbf{Single Detection Class Probability Update.}
 First, consider the class information association between one detection and one track. 
@@ -257,7 +258,7 @@ In the Town10 scene of the CARLA simulation platform, we configure a differentia
 To achieve all-round data collection, we deploy RGB cameras and semantic segmentation cameras at the front and rear positions of each experimental vehicle, respectively, and use a multi-view synchronous acquisition system to capture the continuous changes in the vehicle's appearance features and spatial posture in real time, and finally generated dynamic ground truth and image sequences with precise spatiotemporal alignment characteristics.
 
 Subsequently, the vehicle images of the front and rear views are cropped based on ground truth and the front and rear view images of the same vehicle are combined to form a dataset of that vehicle, to which the vehicle images of the occluded views are added to form the final dataset.
-Finally, the images are reshaped to a size of 224\(\times\)224.
+Before training the re-identification network, the images were reshaped to a size of 224\(\times\)224, of which 90\% were used as training sets and the rest as validation sets.
 
 Finally, the images of vehicles tracked at intersections 1 and 2 are matched with the trained re-identification network.
 In other words, the vehicle tracked at the previous intersection is the object that needs to be re-identified, and it will be recognized at the next intersection, allowing the trajectories corresponding to the two vehicles to be integrated.
@@ -364,8 +365,8 @@ We employed three evaluation metrics.
 
 \textbf{Multiple Object Tracking Accuracy.}
 Single-camera, multi-object tracking performance is typically measured by the Multiple Object Tracking Accuracy \((MOTA)\)\cite{Alpher23b}.
-We use an improved evaluation metric Robust Multi-Object Tracking Accuracy \((RMOTA)\) based on sliding window median statistics, which aims to enhance the robustness of traditional MOTA to short-term occlusion and ID switching.
-The tracking sequence is divided into \(W\) time windows, and each window independently calculates the local \((MOTA)\) score to avoid the serious error of a single frame affecting the overall evaluation.
+We use an improved evaluation metric Robust Multi-Object Tracking Accuracy \((RMOTA)\) based on sliding window median statistics, which aims to enhance the robustness of traditional \(MOTA\) to short-term occlusion and ID switching.
+The tracking sequence is divided into \(W\) time windows, and each window independently calculates the local \(MOTA\) score to avoid the serious error of a single frame affecting the overall evaluation.
 In addition, the penalty for identity mismatching is amplified by the coefficient \(\alpha\) to reflect the key impact of ID continuity on tracking quality.
 \begin{align}
 	RMOTA = \underset{i=1}{\overset{W}{\mathrm{median}}} \left(1 - \frac{FN^{(i)} + FP^{(i)} + \alpha M^{(i)}}{T^{(i)}}\right) 
@@ -391,7 +392,7 @@ Among them,
 \(R\) represents the recall rate, which is the proportion of all true targets that are correctly tracked.  
 \(\lambda\) is the penalty coefficient for ID switching error and \(T^{k}\) represents the total number of potential correct associations in the \(k\)-th dimension, but the association thresholds for different dimensions are different.
 
-Compared with \((MCTA)\), \((IMCTA)\) intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
+Compared with \(MCTA\), \(IMCTA\) intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
 The higher the value, the better the performance of the multi-camera tracking system.
 
 \textbf{Twin Accuracy.}
@@ -459,9 +460,7 @@ This scene diversity can effectively verify the generalization ability of the mo
 \textbf{Data Collection.}
 In CARLA's Town10 scenario, a single intersection location is selected, with a LiDAR placed at the center and six cameras arranged around it to achieve 360-degree omnidirectional perception coverage. 
 This setup allows for the acquisition of rich point cloud data and image information, making it suitable for target recognition and tracking in complex traffic environments. 
-By configuring the LiDAR with 64 channels, a detection range of 100 meters, 250,000 points per second, and a rotation frequency of 20 Hz, the radar can efficiently generate high-density and accurate point cloud data. 
-Additionally, one camera is placed at the front and rear of the vehicle, and one camera is positioned on each of the four roads to the left and right. 
-The cameras have a resolution of 1920\(\times\)1080 pixels and a field of view of 90 degrees, ensuring the capture of wide-angle image data in high definition. 
+The same 64-line LiDAR configuration as that used for collecting PointPillars network training data is used, and a wide-angle camera with a resolution of 1920\(\times\)1080 pixels and a field of view of 90° is deployed simultaneously to achieve multimodal collection of point cloud and high-definition image data.
 The collected data includes point cloud data from the LiDAR and image data from the cameras. 
 The radar data is saved as MAT files with timestamps, while the camera data is saved as images for each frame in six directions. 
 The data structure follows the storage format of the Panda dataset, making the data more standardized for subsequent processing and fusion\cite{Alpher21c}. 
@@ -470,7 +469,7 @@ Each frame of data synchronously collects six-directional camera images and LiDA
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture6.png} 
-	\caption{Analysis of the impact of point cloud detection threshold on multi-target tracking performance. Experiments show that the accuracy and threshold of vehicle detection are the key factors affecting multi-object tracking performance.} 
+	\caption{Analysis of the impact of point cloud detection threshold on multi-object tracking performance. Experiments show that the accuracy and threshold of vehicle detection are the key factors affecting tracking performance.} 
 	\label{fig:6} 
 \end{figure}
 
