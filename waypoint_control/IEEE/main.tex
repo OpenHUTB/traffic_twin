@@ -117,7 +117,7 @@ We use Joint Integrated Probabilistic Data Association (JIPDA), which combines d
 \textbf{Vehicle Reidentification.}
 Bing and his team proposed a part-based regularization method, which enhances the accuracy of vehicle re-identification by detecting local parts of vehicles, such as lights and wheels\cite{Alpher19b}. 
 Zheng and his colleagues introduced a large-scale vehicle re-identification dataset named VehicleNet and proposed a multi-task learning framework that combines vehicle re-identification and vehicle attribute recognition tasks, improving the model's generalization capability\cite{Alpher20f}. 
-P and the research team proposed a dual-path model that integrates global and local features and incorporates an adaptive attention mechanism to enhance the accuracy of vehicle re-identification\cite{Alpher19c}.
+Khorramshahi and the research team proposed a dual-path model that integrates global and local features and incorporates an adaptive attention mechanism to enhance the accuracy of vehicle re-identification\cite{Alpher19c}.
 
 The most advanced technologies in the field of vehicle re-identification currently include the combination of deep convolutional neural networks (CNN) for feature extraction and metric learning\cite{Alpher20g}, particularly with the integration of cross-view and cross-domain learning techniques, the use of Generative Adversarial Networks (GAN) for image enhancement\cite{Alpher21d}, and the fusion of multi-sensor data (such as cameras, radar, and LiDAR) to improve the model's robustness and accuracy in complex environments\cite{Alpher22g}.
 
@@ -244,7 +244,7 @@ Tracking initially generates trajectory coordinates \(\text P_1\) relative to th
 
 \subsection{Multi Intersection and Multi-Object Tracking}
 
-In the Town10 scene of the CARLA simulation platform, we configure a differentiated blueprint for each experimental vehicle, so that it strictly follows the preset path from a fixed starting point to a specified end point, and build a fully controllable and highly reproducible dynamic traffic scene.
+In the simulation scenario, we configure a differentiated blueprint for each experimental vehicle, so that it strictly follows the preset path from a fixed starting point to a specified end point, and build a fully controllable and highly reproducible dynamic traffic scene.
 To achieve all-round data collection, we deploy RGB cameras and semantic segmentation cameras at the front and rear positions of each experimental vehicle, respectively, and use a multi-view synchronous acquisition system to capture the continuous changes in the vehicle's appearance features and spatial posture in real time, and finally generated dynamic ground truth and image sequences with precise spatiotemporal alignment characteristics.
 
 Subsequently, the vehicle images of the front and rear views are cropped based on ground truth and the front and rear view images of the same vehicle are combined to form a dataset of that vehicle, to which the vehicle images of the occluded views are added to form the final dataset.
@@ -572,6 +572,7 @@ Additionally, false detections may occur when acquiring images of vehicles corre
 
 \textbf{Vision of The Future.}
 Our experiments were conducted under offline conditions, meaning they lacked real-time capabilities. 
+If it is to be deployed in practice, it is necessary to overcome engineering challenges such as sensor network scale expansion and parameter adaptive adjustment.
 In future work, we aim to transition these experiments to an online framework to achieve high real-time performance, thereby enhancing their experimental value.
 
 
@@ -583,7 +584,10 @@ Multi-target tracking and the inference of unknown trajectories serve as strong 
 This holds significant value for the development of future cities.
 We hope that new large-scale datasets will be introduced in the future to further enhance the effectiveness of digital twins.
 
+\newenvironment{acks}{\section*{Acknowledgements}}{}
+\begin{acks}
 The authors gratefully acknowledge the financial support provided by the Natural Science Foundation of Hunan Province (No.2024JJ6190), Research on a new generation of brain-like intelligent computing framework based on ultra-large-scale real neural systems (No.24XJJCYJ01001), Scientific research project of Hunan Provincial Department of Education (No.22B0646), the Open Project of Xiangjiang Laboratory (No.23XJ03009), Xiangjiang Laboratory key project subproject (No.22XJ01001-2), the "Digital Intelligence +" interdisciplinary research project of Hunan University Of Technology and Business (No.2023SZJ19).
+\end{acks}
 
 \bibliographystyle{IEEEtran}
 \bibliography{reference}
