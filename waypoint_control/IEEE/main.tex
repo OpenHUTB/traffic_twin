@@ -64,7 +64,7 @@ At the same time, digital twin technology can provide smarter decision support f
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture1.png} 
-	\caption{Overall Preview of Digital Twin through UVDT.} 
+	\caption{The overall preview of the digital twin is provided through UVDT. The technical process from real vehicle trajectory to digital twin trajectory and traffic flow simulation is demonstrated.} 
 	\label{fig:example} 
 \end{figure}
 
@@ -263,23 +263,7 @@ If Intersection 1 has M vehicles and Intersection 2 has N vehicles, a matrix of 
 If the similarity exceeds a certain threshold, the two vehicles are considered to be the same vehicle.
 
 \textbf{ResNet-50.}
-ResNet-50 primarily consists of five main components: an initial convolutional layer, a max-pooling layer, four stages of residual blocks, a global average pooling layer, and a fully connected layer, totaling 50 layers (including convolutional layers, pooling layers, and fully connected layers). 
-Among these, the four stages of residual blocks are the core of ResNet-50. 
-The first residual block in each stage performs downsampling on the size of the feature maps, while the subsequent residual blocks maintain the same feature map size.
-
-ResNet-50 employs a residual block structure known as Bottleneck, which aims to reduce computational complexity. 
-Each residual block consists of the following layers:
-
-\(\bullet\) 1\(\times\)1 Convolutional Layer: Used for dimensionality reduction, decreasing the number of channels.
-
-\(\bullet\) 3\(\times\)3 Convolutional Layer: Used for extracting spatial features.
-
-\(\bullet\) 1\(\times\)1 Convolutional Layer: Used for dimensionality increase, restoring the number of channels.
-
-\(\bullet\) Residual Connection: The input is directly added to the output of the 1\(\times\)1 convolutional layer. 
-If the number of channels or the size of the input and output do not match, a 1\(\times\)1 convolution is applied to adjust the input.
-
-Each convolutional layer is followed by batch normalization and a ReLU activation function.
+ResNet-50 mainly consists of five main parts: initial convolutional layer, maximum pooling layer, four-stage residual block, global average pooling layer and fully connected layer, totaling 50 layers, of which the four-stage residual block is its core. The first residual block of each stage downsamples the size of the feature map, while the subsequent residual blocks keep the size of the feature map unchanged. We use the pre-trained version and as the backbone network of the re-identification network, it has learned rich feature representations based on a large number of images.
 
 \subsection{Trajectory Inference and Reconstruction}
 
