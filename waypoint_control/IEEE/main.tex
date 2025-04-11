@@ -28,7 +28,7 @@ citecolor=blue]{hyperref}
 \title{UVDT: A Baseline Benchmark for Vehicle Digital Twins via LiDAR-Camera Fusion in Multi-Intersection Scenarios}
 \author{Haidong~Wang\(^*\),~Pengfei~Xiao,Ao~Liu, Jianhua~Zhang,~and Qia~Shan
 
-\thanks{H. Wang is from Hunan University Of Technology and Business and Xiangjiang Laboratory, Changsha 410082, China; P. Xiao, A.Liu, J. Zhang and Q. Shan are from Hunan University Of Technology and Business, Changsha 410082, China (e-mail: whd@hutb.edu.cn; 2893666867@qq.com; 2496556459@qq.com; zhangjianhua6682@126.com; s540534349@163.com). The authors gratefully acknowledge the financial support provided by the Natural Science Foundation of Hunan Province (No.2024JJ6190), Research on a new generation of brain-like intelligent computing framework based on ultra-large-scale real neural systems (No.24XJJCYJ01001), Scientific research project of Hunan Provincial Department of Education (No.22B0646), the Open Project of Xiangjiang Laboratory (No.23XJ03009), Xiangjiang Laboratory key project subproject (No.22XJ01001-2), the "Digital Intelligence +" interdisciplinary research project of Hunan University Of Technology and Business (No.2023SZJ19).}}
+\thanks{H. Wang is from Hunan University Of Technology and Business and Xiangjiang Laboratory, Changsha 410082, China; P. Xiao, A.Liu, J. Zhang and Q. Shan are from Hunan University Of Technology and Business, Changsha 410082, China (e-mail: whd@hutb.edu.cn; 2893666867@qq.com; 2496556459@qq.com; zhangjianhua6682@126.com; s540534349@163.com).}}
 
 \markboth{Journal of \LaTeX\ Class Files,~Vol.~18, No.~9, September~2020}%
 {How to Use the IEEEtran \LaTeX \ Templates}
@@ -36,16 +36,16 @@ citecolor=blue]{hyperref}
 \maketitle
 
 \begin{abstract}
-In this paper, we explore the application of digital twins in automated driving and propose Urban Vehicle Digital Twin(UVDT), which replicates the traffic flow by investigating four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and reduction, and twinning. 
+In this paper, we explore the application of digital twins in automated driving and propose Urban Vehicle Digital Twin(UVDT), which replicates the traffic flow by investigating four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and restoration, and twinning. 
 The multi-object tracking performance is optimized by fusing radar detection and camera detection data to improve the accuracy and robustness of vehicle detection, which in turn solves the challenges posed by occlusion and view angle changes. 
 Cross-scene vehicle re-recognition is improved by generating rich training data. 
 The digital twin-based vehicle control method provides high-precision path planning and control for the autonomous driving system, ensuring accurate vehicle navigation in complex traffic scenarios. 
 The experimental results show that UVDT can provide high-fidelity simulation scenarios for the testing and optimization of autonomous driving systems, which promotes the development of intelligent transportation systems and provides important support for the construction of future smart cities.
-\noindent \textbf{Code Availability:} The source code and datasets are available at \url{https://github.com/OpenHUTB/traffic_twin}.
+The source code and datasets are available at \url{https://github.com/OpenHUTB/traffic_twin}.
 \end{abstract}
 
 \begin{IEEEkeywords}
-digital twins, automated driving, vehicle detection, multi-object tracking, trajectory reduction.
+digital twins, automated driving, vehicle detection, multi-object tracking, trajectory restoration.
 \end{IEEEkeywords}
 
 \section{Introduction}
@@ -66,24 +66,21 @@ At the same time, digital twin technology can provide smarter decision support f
 	\label{fig:example} 
 \end{figure}
 
-We primarily conducted research from four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and restoration, and digital twinning. 
-Vehicle detection is a core perception task in autonomous driving systems, which usually relies on data from various sensors (such as lidar, cameras, and millimeter-wave radar) for object recognition and positioning. 
-As a key input source for digital twin systems, the accuracy of vehicle detection directly affects the behavior modeling and scene restoration quality of traffic participants in virtual environments. 
-In recent years, the application of deep learning technology has significantly improved the accuracy and robustness of vehicle detection, but it still cannot meet the challenges of vehicle occlusion and perspective changes in complex environments\cite{Alpher23c}. 
-Therefore, we use camera and radar fusion detection to improve the accuracy of vehicle detection, thereby improving the accuracy of vehicle tracking.
+Digital twin systems rely heavily on the fusion of multi-source sensor data (such as LiDAR, cameras, and millimeter-wave radar) to achieve accurate object recognition and positioning. The accuracy of the detection algorithm directly determines the quality of the behavior modeling of traffic participants in the virtual environment and the fidelity of scene restoration. 
+Although the application of deep learning technology has significantly improved the accuracy and system robustness of vehicle detection, the problem of target loss caused by vehicle occlusion, extreme lighting conditions, or sudden changes in viewing angles in complex urban scenes is still a technical bottleneck that needs to be overcome\cite{Alpher23c}.
+Such defects can lead to multiple chain reactions and make it impossible for the digital twin system to continuously update the dynamic state of the vehicle (including key parameters such as position, speed, acceleration, etc.), ultimately causing the virtual model to be out of touch with the actual physical entity.
 
-The most fatal problem in tracking vehicles in complex urban traffic environments is how to track the vehicle again after it is blocked. 
-The current mainstream solution uses a multimodal sensor fusion framework: at the data level, feature complementarity of lidar, camera, and millimeter-wave radar is achieved through spatiotemporal alignment; at the decision level, an improved Kalman filter is used to weightedly fuse multi-source information\cite{Alpher22i}. 
-However, this solution has two major bottlenecks: sensor calibration error and appearance feature variation (such as illumination/perspective change). 
-To this end, we use re-identification technology to re-track the vehicle. 
-Even if the vehicle ID is switched, the skeleton models of different vehicles can still be effectively distinguished by appearance features, and the color changes of the same vehicle under different lighting conditions can be accurately identified, thereby providing a reliable identity association basis for vehicle tracking in multi-camera scenarios and ensuring the continuity and consistency of vehicle motion trajectories in complex environments\cite{Alpher23}.
+In addition, the digital twin system is also limited by the sensor detection distance (such as the effective detection distance of millimeter-wave radar in rainy and foggy weather) and environmental noise interference (such as the deterioration of the signal-to-noise ratio of the camera under low illumination). 
+When we track the vehicle to obtain the trajectory, the frequency of ID switching increases. 
+This data discontinuity will distort the interactive logic of the virtual traffic flow, such as making wrong right-of-way decisions in intersection game scenarios. 
+More seriously, the processing lag of the non-real-time system will cause the gradual failure of the prediction function, and ultimately make the digital twin system lose its guiding value to the physical world.
 
-In actual multi-target tracking applications, trajectory interruption and breakage are common technical challenges due to factors such as sensor detection distance limitations, target occlusion, and environmental noise. 
-To address this problem, modern intelligent tracking systems usually use a hybrid method that combines kinematic models with deep learning to intelligently infer and complete lost trajectories to maintain spatiotemporal continuity\cite{Alpher24f}. 
-Some mainstream methods include trajectory prediction based on Kalman filtering or particle filtering, but they generally face challenges such as limited occlusion processing capabilities, insufficient nonlinear motion modeling, and the balance between computational efficiency and accuracy. To overcome these limitations, we use the efficient navigation algorithm framework in the CARLA simulation platform. 
-This solution implements trajectory inference through the shortest path planning between two points. 
-It is not only computationally efficient and not restricted by complex environments, but also has controllable errors due to the short distance.
-Finally, by accurately simulating the vehicle's driving route and traffic behavior through integrated control algorithms, a complete autonomous driving system verification platform is formed, providing a reliable digital twin foundation for algorithm development and safety assessment\cite{Alpher24c}.
+In response to the above problems, this study conducts research from four dimensions: multi-object tracking at a single intersection, multi-object tracking at multiple intersections, trajectory inference and restoration, and digital twin system construction. 
+First, the object-level fusion detection method based on cameras and radars is used to improve vehicle detection accuracy and thus enhance tracking robustness. 
+At the same time, the re-identification (ReID) technology is introduced to achieve identity association across camera scenes through vehicle appearance features (such as skeleton models, color changes, etc.), effectively solving the ID switching problem and ensuring trajectory continuity and consistency under complex lighting and occlusion conditions\cite{Alpher23}. 
+Secondly, in terms of trajectory reasoning, relying on the efficient navigation algorithm framework of the CARLA simulation platform, the shortest path planning strategy is used for trajectory inference. 
+This method has the advantages of high computational efficiency, strong environmental adaptability, and controllable errors. 
+Finally, the integrated control algorithm is used to accurately simulate vehicle driving behavior, and a complete autonomous driving system verification platform is constructed to provide a high-fidelity digital twin foundation for algorithm development and safety assessment\cite{Alpher24c}.
 
 \section{Related Work}
 
@@ -487,7 +484,9 @@ In terms of mean delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 	\centering
 	\caption{Table of Trajectory Overlap Rate and Vehicle Control Indicators}
 	\label{tab:3}
+	 \renewcommand\arraystretch{1.3}
 	\begin{tabular}{|c|c|c|c|c|c|}
+
 		\hline
 		Scene & Type & TOR(\%) & MPE(m) & MaxPE(m) & FPE(m) \\
 		\hline
@@ -497,7 +496,7 @@ In terms of mean delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
         \cline{2-6}
         & Control & \multicolumn{4}{|c|}{MLE=2.1889, MLOE=0.5345, MD=1.2015} \\
 		\hline
-		\multirow{2}{*}{Town10} & TR-DT & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
+		\multirow{3}{*}{Town10} & TR-DT & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
 		\cline{2-6}
 		& TR-GT & 34.4533 & 52.5575 & 36.0566 & 31.4600 \\
 		\cline{2-6}
@@ -546,7 +545,7 @@ Optimization Goal: Maximize Tracking Accuracy (MOTA) while reducing ID Switches 
 Bayesian optimization is a hyper-parametric optimization method based on probabilistic models, which solves the global optimization problem of black-box functions by the strategy of “finding the best parameter with the least number of attempts”.
 The process is as follows:
 1.Maximizing tracking performance by fitting existing data with a Gaussian process and constructing an objective function model in a 6-dimensional parameter space; 
-2.A small number of random parameter combinations are selected to calculate the value of the acquisition function, and the next parameter to be tested is selected (e.g., the point with the largest Expected Improvement (EI)); 
+2.A small number of random parameter combinations are selected to calculate the value of the acquisition function, and the next parameter to be tested is selected (e.g., the point with the largest Expected Improvement); 
 3.Run the experiment to get the \(MOTA\) corresponding to the new parameters, add to the dataset, and repeat until the maximum number of iterations is reached or convergence is achieved.
 The improvement results after optimization compared with before optimization are shown in Fig. \ref{fig:4}.   
 \begin{figure}[t]
@@ -584,6 +583,7 @@ Multi-target tracking and the inference of unknown trajectories serve as strong 
 This holds significant value for the development of future cities.
 We hope that new large-scale datasets will be introduced in the future to further enhance the effectiveness of digital twins.
 
+The authors gratefully acknowledge the financial support provided by the Natural Science Foundation of Hunan Province (No.2024JJ6190), Research on a new generation of brain-like intelligent computing framework based on ultra-large-scale real neural systems (No.24XJJCYJ01001), Scientific research project of Hunan Provincial Department of Education (No.22B0646), the Open Project of Xiangjiang Laboratory (No.23XJ03009), Xiangjiang Laboratory key project subproject (No.22XJ01001-2), the "Digital Intelligence +" interdisciplinary research project of Hunan University Of Technology and Business (No.2023SZJ19).
 
 \bibliographystyle{IEEEtran}
 \bibliography{reference}
