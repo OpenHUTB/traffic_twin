@@ -1,0 +1,5 @@
+% 作者信息
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/Jianhua Zhang/Jianhua Zhang.jpg}}]
+	{Jianhua Zhang}
+	received the B.E. degree in Software Engineering from Taiyuan University of Technology, TaiYuan, China, in 2022,and M.Sc. degree in Software Engineering from the Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like vision and deep learning.
+\end{IEEEbiography}

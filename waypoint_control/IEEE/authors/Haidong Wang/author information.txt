@@ -1,0 +1,5 @@
+% 作者信息
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/Haidong Wang/Haidong Wang.jpg}}]
+	{Haidong Wang}
+	received the B.E. degree in Computer Science and Technology from Hunan University Of Technology and Business, Changsha, China, in 2014, the M.Sc. degree in Computer Technology from the University of Chinese Academy of Sciences (UCAS), Beijing, 	China, in 2017, and Ph.D. degree in Hunan University, Changsha, China. His current research interests include brain-like vision, deep learning and reinforcement learning.
+\end{IEEEbiography}

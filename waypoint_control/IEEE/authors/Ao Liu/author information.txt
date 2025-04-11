@@ -1,0 +1,5 @@
+% 作者信息
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/Ao Liu/Ao Liu.jpg}}]
+	{Ao Liu}
+	received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2023, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like control and deep learning.
+\end{IEEEbiography}
