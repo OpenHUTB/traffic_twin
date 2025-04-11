@@ -41,13 +41,12 @@ The multi-object tracking performance is optimized by fusing radar detection and
 Cross-scene vehicle re-recognition is improved by generating rich training data. 
 The digital twin-based vehicle control method provides high-precision path planning and control for the autonomous driving system, ensuring accurate vehicle navigation in complex traffic scenarios. 
 The experimental results show that UVDT can provide high-fidelity simulation scenarios for the testing and optimization of autonomous driving systems, which promotes the development of intelligent transportation systems and provides important support for the construction of future smart cities.
+\noindent \textbf{Code Availability:} The source code and datasets are available at \url{https://github.com/OpenHUTB/traffic_twin}.
 \end{abstract}
 
 \begin{IEEEkeywords}
 digital twins, automated driving, vehicle detection, multi-object tracking, trajectory reduction.
 \end{IEEEkeywords}
-
-\noindent \textbf{Code Availability:} The source code and datasets are available at \url{https://github.com/OpenHUTB/traffic_twin}.
 
 \section{Introduction}
 
@@ -157,7 +156,7 @@ The system subsequently feeds trajectory endpoints \((P_{s},P_{e})\) to a predic
 The controller calculates throttle\(t\), brake\(b\),and steering wheel \(s\) outputs from these trajectories to guide vehicle control, with the final executed trajectory denoted as \(T^\prime\).
 
 \textbf{Vehicle Detection in Point Clouds.}
-Based on the PointPillars network architecture, 3D vehicle detection in intersection scenes is implemented. Its input data is collected in real time through a 64-line laser radar (range measurement 200m/point cloud density 2.2M pts/s/scanning frequency 20Hz), and the 3D ground truth information of vehicles in the range is recorded simultaneously. The original dataset is divided into a training set and a test set in a 7:3 ratio. The training set is used to learn the mapping relationship from point cloud to 3D detection box, and the test set verifies the generalization ability of the model on unknown data.
+Based on the PointPillars network architecture, 3D vehicle detection in intersection scenes is implemented. Its input data is collected in real time through a 64-line laser radar (range measurement: 200m, point cloud density: 2.2M pts/s, scanning frequency: 20Hz), and the 3D ground truth information of vehicles in the range is recorded simultaneously. The original dataset is divided into a training set and a test set in a 7:3 ratio. The training set is used to learn the mapping relationship from point cloud to 3D detection box, and the test set verifies the generalization ability of the model on unknown data.
 
 A PointPillars network requires two inputs: pillar indices as a P-by-2 and pillar features as a P-by-N-by-K matrix. P is the number of pillars in the network, N is the number of points per pillar, and K is the feature dimension.
 The network begins with a feature encoder, which is a simplified PointNet. It contains a series of convolution, batch-norm, and relu layers followed by a max pooling layer. A scatter layer at the end maps the extracted features into a 2-D space using the pillar indices.
@@ -474,7 +473,7 @@ However, detection accuracy is also affected by the number of vehicles passing t
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
 \textbf{Twin.}
-The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Table. \ref{tab:3} and \ref{tab:4}). 
+The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Table. \ref{tab:3}). 
 These two tables compare the performance evaluation metrics of the digital twin in two scenarios, Town01 and Town10. 
 The TOR in Town01 is significantly higher than that in Town10 in the comparison of the tracking trajectory with the digital twin trajectory (TR-DT), indicating that it has a superior path tracking ability, which may be due to the simpler environment or the more stable control algorithm.
 However, for the comparison between the tracked trajectory and ground truth (TR-GT), it is higher in Town10, probably because our point cloud dataset was collected in Town10 and is more suitable for vehicle detection in this scenario.
@@ -486,34 +485,23 @@ In terms of mean delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 
 \begin{table}[t]
 	\centering
-	\caption{Table of the Trajectory Indicator}
+	\caption{Table of Trajectory Overlap Rate and Vehicle Control Indicators}
 	\label{tab:3}
 	\begin{tabular}{|c|c|c|c|c|c|}
 		\hline
 		Scene & Type & TOR(\%) & MPE(m) & MaxPE(m) & FPE(m) \\
 		\hline
-		\multirow{2}{*}{Town01} & TR-DT & 50.2143 & 79.5798 & 33.1382 & 19.8970 \\
+		\multirow{3}{*}{Town01} & TR-DT & 50.2143 & 79.5798 & 33.1382 & 19.8970 \\
 		\cline{2-6}
 		& TR-GT & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\
+        \cline{2-6}
+        & Control & \multicolumn{4}{|c|}{MLE=2.1889, MLOE=0.5345, MD=1.2015} \\
 		\hline
 		\multirow{2}{*}{Town10} & TR-DT & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
 		\cline{2-6}
 		& TR-GT & 34.4533 & 52.5575 & 36.0566 & 31.4600 \\
-		\hline
-	\end{tabular}
-\end{table}
-
-\begin{table}[t]
-	\centering
-	\caption{Table of the Vehicle Control Indicator}
-	\label{tab:4}
-	\begin{tabular}{|c|c|c|c|}
-		\hline
-		\multicolumn{1}{|c|}{Scene} & \multicolumn{1}{c|}{MLE} & \multicolumn{1}{c|}{MLOE} & \multicolumn{1}{c|}{MD(s)} \\
-		\hline
-		Town01 & 2.1889 & 0.5345 & 1.2015 \\
-		\hline
-		Town10 & 1.9835 & 0.2614 & 1.3780 \\
+		\cline{2-6}
+		& Control & \multicolumn{4}{|c|}{MLE=1.9835, MLOE=0.2614, MD=1.3780} \\	
 		\hline
 	\end{tabular}
 \end{table}
