@@ -117,14 +117,14 @@ Joint optimization and iterative optimization strategies have also been widely u
 We use Joint Integrated Probabilistic Data Association (JIPDA), which combines data from multiple sensors and optimizes probabilistic associations to effectively handle data uncertainty and missing information in target tracking, improving tracking accuracy and robustness in complex environments.
 
 
-\textbf{Vehicle Reidentification.}
+\textbf{Vehicle ReID.}
 Bing and his team proposed a part-based regularization method, which enhances the accuracy of vehicle re-identification by detecting local parts of vehicles, such as lights and wheels\cite{Alpher19b}. 
 Zheng and his colleagues introduced a large-scale vehicle re-identification dataset named VehicleNet and proposed a multi-task learning framework that combines vehicle re-identification and vehicle attribute recognition tasks, improving the model's generalization capability\cite{Alpher20f}. 
 Khorramshahi and the research team proposed a dual-path model that integrates global and local features and incorporates an adaptive attention mechanism to enhance the accuracy of vehicle re-identification\cite{Alpher19c}.
 
 The most advanced technologies in the field of vehicle re-identification currently include the combination of deep Convolutional Neural Networks (CNN) for feature extraction and metric learning\cite{Alpher20g}, particularly with the integration of cross-view and cross-domain learning techniques, the use of Generative Adversarial Networks (GAN) for image enhancement\cite{Alpher21d}, and the fusion of multi-sensor data (such as cameras, radar, and LiDAR) to improve the model's robustness and accuracy in complex environments\cite{Alpher22g}.
 
-Inspired by person Re-ID techniques for video sequences, we developed a retrained vehicle Re-ID network based on ResNet-50. 
+Inspired by person ReID techniques for video sequences, we developed a retrained vehicle ReID network based on ResNet-50. 
 The network has acquired comprehensive feature representations through large-scale image training, enabling effective vehicle re-identification performance.
 
 \begin{figure*}[t]
@@ -523,7 +523,7 @@ When the threshold is 0.6, there is obvious feature crossover, which is the best
 In the multi-intersection multi-target tracking experiment, the most critical task is the re-identification of vehicles across different intersections. 
 Therefore, we also set a threshold for the re-identification results: if the similarity score exceeds the threshold, the targets are considered the same vehicle; otherwise, they are deemed different vehicles. 
 During the experiment, we adjusted the threshold several times in the Town10 scenario, and the experimental results are shown in the Fig. \ref{fig:7}.
-We use 0.5 as the re-ID threshold because it achieves the best balance between security, stability, and scalability, avoiding both the extreme error of a low threshold and the risk of trajectory breakage of a high threshold.
+We use 0.5 as the ReID threshold because it achieves the best balance between security, stability, and scalability, avoiding both the extreme error of a low threshold and the risk of trajectory breakage of a high threshold.
 
 \subsection{Adaptive Data Association Threshold}
 
@@ -542,7 +542,7 @@ For this reason, we adopt a Bayesian Optimization (BOM) approach to automaticall
 
 \(\bullet\) DeathRate: robustness to handling targets leaving the scenario.
 
-Optimization Goal: Maximize \(RMOTA\) while reducing IDS and trajectory fragmentation.
+Optimization goal: maximize \(RMOTA\) while reducing IDS and trajectory fragmentation.
 
 \textbf{Optimization Processes.}
 Bayesian optimization is a hyper-parametric optimization method based on probabilistic models, which solves the global optimization problem of black-box functions by the strategy of “finding the best parameter with the least number of attempts”.
@@ -583,7 +583,7 @@ In future work, we aim to transition these experiments to an online framework to
 
 Through a series of experiments, we have demonstrated the application value of UVDT in intelligent transportation. 
 Digital twin technology can not only accurately replicate real-world traffic scenarios but also effectively predict future traffic conditions. 
-Multi-target tracking and the inference of unknown trajectories serve as strong evidence of this capability. 
+Multi-object tracking and the inference of unknown trajectories serve as strong evidence of this capability. 
 This holds significant value for the development of future cities.
 We hope that new large-scale datasets will be introduced in the future to further enhance the effectiveness of digital twins.
 
