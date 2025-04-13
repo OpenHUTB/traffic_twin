@@ -176,9 +176,9 @@ We fuse detections from our LiDAR and cameras at a single intersection and use t
 
 \textbf{Single Detection Class Probability Update.}
 The tracker adopts a recursive state estimation framework to propagate and update the target states from the previous time step \(k-1\) to the current time step \(k\).
-\(\mu_i(k-1)\) represents the state vector estimate of the \(i\)-th target at time k-1, while \(\mu_i(k)\) represents the combined state estimate of all targets at time \(k\).
-The operation \(\otimes\) represents the element-wise multiplication between state vectors, and \(c_{j}\) is used as a normalization factor to dynamically adjust the relative weights of different targets during the fusion process.
-This mathematical representation captures the essential mechanism for maintaining consistent multi-target tracking through temporal state propagation and weighted information fusion.
+\(\mu_i(k-1)\) represents the state vector estimate of the \(i\)-th target at time \(k-1\), while \(\mu_i(k)\) represents the combined state estimate of all targets at time \(k\).
+The operation \(\otimes\) represents the element-wise multiplication between state vectors, while \(c_{j}\) serves as a normalization factor for category \(j\) to dynamically adjust the relative weights of different objectives during the fusion process.
+This mathematical representation captures the essential mechanism for maintaining consistent multi-object tracking through temporal state propagation and weighted information fusion.
 The normalization procedure ensures numerical stability while preserving the probabilistic interpretation of the state estimates, which is particularly crucial when dealing with target interactions and measurement uncertainties in complex tracking scenarios.
 
 \begin{align}
@@ -206,7 +206,7 @@ When processing a set of detection results, each tracking target maintains a set
 	\mu_{k} & = \left(\sum_{m = 1}^{M} P_{m} \frac{c_{j(m)} \otimes \mu(k-1)}{c_{j(m)}^{T} \mu(k-1)}\right)+ P_{0} \mu(k-1)
 \end{align}
 The tracker sequentially updates the trajectory classification attributes on a cluster-by-cluster basis. 
-Where \(c_{j}(m)\) is the class probability vector for detection \(m\), \(\otimes\) represents element-wise multiplication, \(\mu(k-1)\) is the class probability vector for the \(k-1\)th step, and \(\mu(k)\) is the class probability vector for the \(k\)-th step.
+Where \(c_{j}(m)\) is the class probability vector of detection \(m\) corresponding to category \(j\), \(\otimes\) represents element-wise multiplication, \(\mu(k-1)\) is the class probability vector for the \((k-1)\)-th step, and \(\mu(k)\) is the class probability vector for the \(k\)-th step.
 
 \textbf{Process.}
 
