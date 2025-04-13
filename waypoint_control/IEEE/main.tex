@@ -66,7 +66,7 @@ At the same time, digital twin technology can provide smarter decision support f
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture1.png} 
 	\caption{The overall preview of the digital twin is provided through UVDT. The technical process from real vehicle trajectory to digital twin trajectory and traffic flow simulation is demonstrated.} 
-	\label{fig:example} 
+	\label{fig:1} 
 \end{figure}
 
 Digital twin systems rely heavily on the fusion of multi-source sensor data (such as LiDAR, cameras, and millimeter-wave radar) to achieve accurate object recognition and positioning. The accuracy of the detection algorithm directly determines the quality of the behavior modeling of traffic participants in the virtual environment and the fidelity of scenario restoration. 
@@ -78,9 +78,9 @@ When we track the vehicle to obtain the trajectory, the frequency of ID switchin
 This data discontinuity will distort the interactive logic of the virtual traffic flow, such as making wrong right-of-way decisions in intersection game scenarios. 
 More seriously, the processing lag of the non-real-time system will cause the gradual failure of the prediction function, and ultimately make the digital twin system lose its guiding value to the physical world.
 
-In response to the above problems, this study conducts research from four dimensions: multi-object tracking at a single intersection, multi-object tracking at multiple intersections, trajectory inference and restoration, and digital twin system construction. 
+In response to the above problems, this study conducts research from four dimensions: multi-object tracking at a single intersection, multi-object tracking at multiple intersections, trajectory inference and restoration, and digital twin system construction, as shown in Fig. \ref{fig:1}. 
 First, the object-level fusion detection method based on cameras and LiDAR is used to improve vehicle detection accuracy and thus enhance tracking robustness. 
-At the same time, the Re-Identification (ReID) technology is introduced to achieve identity association across camera scenes through vehicle appearance features (such as skeleton models, color changes, etc.), effectively solving the ID switching problem and ensuring trajectory continuity and consistency under complex lighting and occlusion conditions\cite{Alpher23}. 
+At the same time, the Re-Identification (ReID) technology is introduced to achieve identity association across camera scenarios through vehicle appearance features (such as skeleton models, color changes, etc.), effectively solving the ID switching problem and ensuring trajectory continuity and consistency under complex lighting and occlusion conditions\cite{Alpher23}. 
 Secondly, in terms of trajectory reasoning, relying on the efficient navigation algorithm framework of the CARLA simulation platform, the shortest path planning strategy is used for trajectory inference. 
 This method has the advantages of high computational efficiency, strong environmental adaptability, and controllable errors. 
 Finally, the integrated control algorithm is used to accurately simulate vehicle driving behavior, and a complete autonomous driving system verification platform is constructed to provide a high-fidelity digital twin foundation for algorithm development and safety assessment\cite{Alpher24c}.
@@ -105,7 +105,7 @@ We use a combination of PointPillars-based 3D point cloud detection method and Y
 These two deep learning methods have shown excellent detection performance in their respective fields.
 
 \textbf{Multi-Object Tracking.}
-Specker and his team proposed an online multi-camera multi-target tracking method, which dynamically optimizes cross-camera target association through an innovative Corrective Matching Cascade strategy, significantly improving tracking accuracy and ID consistency in complex scenarios while ensuring real-time processing\cite{Alpher24e}.
+Specker and his team proposed an online multi-camera multi-object tracking method, which dynamically optimizes cross-camera target association through an innovative Corrective Matching Cascade strategy, significantly improving tracking accuracy and ID consistency in complex scenarios while ensuring real-time processing\cite{Alpher24e}.
 Shim and his team proposes a robust multi-target multi-camera vehicle tracking system designed for city-scale traffic management, addressing challenges like occlusion and cross-camera identity consistency by integrating spatial-temporal constraints and deep feature fusion to enable real-time vehicle monitoring and behavior analysis across urban camera networks\cite{Alpher21e}.
 Most existing algorithms, with a few exceptions, can be seen as special cases of the multi-modal fusion problem. 
 These methods organize the input data using a graph structure, where edges represent relationships between modalities, and nodes represent different targets or states. 
@@ -373,7 +373,7 @@ Compared with \(MCTA\), \(IMCTA\) intuitively demonstrates the independent evalu
 The higher the value, the better the performance of the multi-camera tracking system.
 
 \textbf{Twin Accuracy.}
-In the twin experimental evaluation, we verify the effectiveness of the system by comparing the comprehensive performance of the following three key trajectories: (1) the actual trajectory of the vehicle, (2) the observed trajectory reconstructed based on the multi-target tracking algorithm, and (3) the expected trajectory generated by the control system.
+In the twin experimental evaluation, we verify the effectiveness of the system by comparing the comprehensive performance of the following three key trajectories: (1) the actual trajectory of the vehicle, (2) the observed trajectory reconstructed based on the multi-object tracking algorithm, and (3) the expected trajectory generated by the control system.
 This study uses Trajectory Overlap Ratio (TOR) for comprehensive evaluation, which quantifies both the shape similarity of the trajectory and the spatiotemporal consistency of the waypoints.
 \begin{align}
 	TOR & = \left(1 - \frac{D_{dtw}}{D_{max}}\right) \times \Lambda(t)
@@ -431,7 +431,7 @@ where \(p_{\pi_{1}(k)}\) and \(q_{\pi_{2}(k)}\) represent the three-dimensional 
 We conducted simulation experiments in CARLA, whose advantage lies in its provision of a highly realistic virtual environment capable of accurately simulating complex traffic scenarios and diverse driving conditions. 
 CARLA supports flexible sensor configurations, such as cameras and LiDAR, facilitating multimodal data acquisition and fusion experiments\cite{Alpher22e}. 
 We conducted relevant experiments in the Town10 and Town01 scenarios in CARLA.
-The complex urban structure and dense traffic flow of Town10 can simulate highly dynamic real traffic environments, while the simple layout and clear rules of Town1 make it easy to construct controlled experimental scenarios.
+The complex urban structure and dense traffic flow of Town10 can simulate highly dynamic real traffic environments, while the simple layout and clear rules of Town01 make it easy to construct controlled experimental scenarios.
 This scenario diversity can effectively verify the generalization ability of the model under different traffic conditions and provide a reliable basis for actual road deployment.
 
 \textbf{Data Collection.}
@@ -452,7 +452,7 @@ In Town01, Intersection 4 shows better performance in terms of Recall (65.8206) 
 In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and Precision (86.1427), but Intersection 5 has significantly higher False Positives (827) and False Negatives (1640) compared to other intersections, suggesting a higher number of misidentified and missed targets.
 
 Identity Switches (IDS) are notably higher in Intersection 4 of both Town01 and Town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
-The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50), reflecting significant differences in tracking stability across these intersections.
+The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50.0000), reflecting significant differences in tracking stability across these intersections.
 
 \begin{figure}[t]
 	\centering
@@ -493,17 +493,17 @@ In terms of Mean Delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 		\hline
 		Scene & Type & TOR(\%) & MPE(m) & MaxPE(m) & FPE(m) \\
 		\hline
-		\multirow{3}{*}{Town01} & TR-DT & 50.2143 & 79.5798 & 33.1382 & 19.8970 \\
+		\multirow{3}{*}{Town01} & TT-DT & 50.2143 & 79.5798 & 33.1382 & 19.8970 \\
 		\cline{2-6}
-		& TR-GT & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\
+		& TT-GT & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\
         \cline{2-6}
-        & Control & \multicolumn{4}{|c|}{MLE=2.1889, MLOE=0.5345, MD=1.2015} \\
+        & Control & \multicolumn{4}{|c|}{MLE:2.1889, MLOE:0.5345, MD:1.2015} \\
 		\hline
-		\multirow{3}{*}{Town10} & TR-DT & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
+		\multirow{3}{*}{Town10} & TT-DT & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
 		\cline{2-6}
-		& TR-GT & 34.4533 & 52.5575 & 36.0566 & 31.4600 \\
+		& TT-GT & 34.4533 & 52.5575 & 36.0566 & 31.4600 \\
 		\cline{2-6}
-		& Control & \multicolumn{4}{|c|}{MLE=1.9835, MLOE=0.2614, MD=1.3780} \\	
+		& Control & \multicolumn{4}{|c|}{MLE:1.9835, MLOE:0.2614, MD:1.3780} \\	
 		\hline
 	\end{tabular}
 \end{table}
