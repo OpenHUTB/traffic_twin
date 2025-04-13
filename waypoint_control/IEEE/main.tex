@@ -80,7 +80,7 @@ More seriously, the processing lag of the non-real-time system will cause the gr
 
 In response to the above problems, this study conducts research from four dimensions: multi-object tracking at a single intersection, multi-object tracking at multiple intersections, trajectory inference and restoration, and digital twin system construction, as shown in Fig. \ref{fig:1}. 
 First, the object-level fusion detection method based on cameras and LiDAR is used to improve vehicle detection accuracy and thus enhance tracking robustness. 
-At the same time, the Re-Identification (ReID) technology is introduced to achieve identity association across camera scenarios through vehicle appearance features (such as skeleton models, color changes, etc.), effectively solving the ID switching problem and ensuring trajectory continuity and consistency under complex lighting and occlusion conditions\cite{Alpher23}. 
+At the same time, the Re-identification (ReID) technology is introduced to achieve identity association across camera scenarios through vehicle appearance features (such as skeleton models, color changes, etc.), effectively solving the ID switching problem and ensuring trajectory continuity and consistency under complex lighting and occlusion conditions\cite{Alpher23}. 
 Secondly, in terms of trajectory reasoning, relying on the efficient navigation algorithm framework of the CARLA simulation platform, the shortest path planning strategy is used for trajectory inference. 
 This method has the advantages of high computational efficiency, strong environmental adaptability, and controllable errors. 
 Finally, the integrated control algorithm is used to accurately simulate vehicle driving behavior, and a complete autonomous driving system verification platform is constructed to provide a high-fidelity digital twin foundation for algorithm development and safety assessment\cite{Alpher24c}.
@@ -164,40 +164,34 @@ Next, the network has a 2-D CNN backbone that consists of encoder-decoder blocks
 The network then concatenates output features at the end of each decoder block, and passes these features through six detection heads with convolutional and sigmoid layers to predict occupancy, location, size, angle, heading, and class.
 
 \textbf{ReID.}
-Re-identification is a crucial component of multi-object tracking, aimed at addressing the issue of temporary object occlusion in videos. 
-In real-world scenarios, tracked objects may be temporarily obscured by other objects or move out of the camera's field of view, making consistent tracking challenging. 
-These objects may also exhibit variations in pose, orientation, and lighting conditions between frames. 
-In such complex scenarios, when an object reappears in a new video frame, the tracker often fails to re-identify the object. 
-Consequently, the tracker begins to treat the object as a new entity. 
-This misidentification leads to errors and inconsistencies in object tracking.
+In practical applications, ID switching caused by tracking accuracy and the limitation of sensor detection distance will cause the loss or confusion of target identity information, which becomes a fatal problem affecting the fidelity and reliability of digital twin models.
+Especially in complex scenarios, when the target is temporarily blocked or leaves the sensor field of view, traditional tracking algorithms often find it difficult to maintain the continuity of the target identity.
+Re-identification technology is proposed to solve this problem. It extracts the deep surface features of the target (such as appearance, motion pattern, etc.) and establishes feature associations across cameras or time periods, so as to re-identify the same target in the previous video sequence frame in the current video sequence frame.
 
-ReID aims to resolve this issue by matching the features of an object in a new frame with those of previously tracked objects, thereby identifying the same object even if it appears in a different location or orientation, or under varying lighting conditions compared to the previous frame. 
-This approach ensures that the tracker can maintain consistent tracking information for a given object\cite{Alpher24d}.
-
+This method can not only effectively alleviate the tracking interruption problem caused by the short disappearance of the target, but also improve the target consistency maintenance ability of the digital twin system in long time sequence scenarios, providing a more robust perception basis for applications such as autonomous driving and intelligent monitoring.\cite{Alpher24d}.
 
 \subsection{Single Intersection Multi-Object Tracking}
 
 We fuse detections from our LiDAR and cameras at a single intersection and use the tracker JDPA object to track the target.
 
 \textbf{Single Detection Class Probability Update.}
-First, consider the class information association between one detection and one track. 
-Assume the confusion matrix of the detection is \(C=\left[c_{i j}\right]\), where \(c_{i j}\) denotes the likelihood that the classifier outputs the classification as \(j\) if the truth class of the target is \(i\).
-Here, \(i,j = 1,…, N\), and \(N\) is the total number of possible classes.
-At time \(k-1\), the probability that the trajectory is classified as \(i\) is \(\mu_{i}(k-1)\).
-If the tracker associates the detection to the track at time \(k\), then the updated value of \(\mu_{i}\) using Bayes' theorem is
+The tracker adopts a recursive state estimation framework to propagate and update the target states from the previous time step \(k-1\) to the current time step \(k\).
+\(\mu_i(k-1)\) represents the state vector estimate of the \(i\)-th target at time k-1, while \(\mu_i(k)\) represents the combined state estimate of all targets at time \(k\).
+The operation \(\otimes\) represents the element-wise multiplication between state vectors, and \(c_{j}\) is used as a normalization factor to dynamically adjust the relative weights of different targets during the fusion process.
+This mathematical representation captures the essential mechanism for maintaining consistent multi-target tracking through temporal state propagation and weighted information fusion.
+The normalization procedure ensures numerical stability while preserving the probabilistic interpretation of the state estimates, which is particularly crucial when dealing with target interactions and measurement uncertainties in complex tracking scenarios.
+
 \begin{align}
 	\mu(k) & = \frac{c_{j} \otimes [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}{c_{j}^{T} [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}
 \end{align}
-where \(c_{j}\) is the \(j\)-th column of the confusion matrix and \(\otimes\) represents element-wise multiplication. 
-This equation represents the updated class probability of a track if the track is associated with the detection of classification \(j\).
 
 \textbf{Mixed Association Likelihood in Cluster.}
-The tracker performs gating and clustering by using only the kinematic information between detections and tracks. 
-After that, in each cluster, the tracker calculates the mixed likelihood of association \(\Lambda(m,t)\) between a detection \(m\) and a track \(t\) as:
+A state update method based on kernel function fusion is used to solve the problem of mutual occlusion and trajectory intersection between targets leading to reduced tracking performance.
+\(\Lambda_{k}\) mainly captures the motion characteristics of the target, \(\Lambda_{c}\) extracts the appearance characteristics of the target, and \(\Lambda(m, t)\) represents the comprehensive evaluation value of the target state in detection \(m\) and trajectory \(t\).
 \begin{align}
 	\Lambda(m, t) & = \Lambda_{k}^{1-\alpha}(m, t) \Lambda_{c}^{\alpha}(m, t)
 \end{align}
-where \(\alpha\) represents Weight factor of class likelihood; \(\Lambda_{k}\) represents Likelihood of assigning a detection to a track based on the kinematic states; \(\Lambda_{c}\) represents Likelihood of assigning a classified detection to a track based on the class information.
+The parameter \(\alpha\) plays a key regulatory role here. By dynamically adjusting the value of \(\alpha\), the relative contribution weights of motion features and appearance features in the tracking process can be flexibly balanced.
 \begin{align}
 	\Lambda_{c}(m, t) = \left\{\begin{array}{ll}
 		c_{j}^{T}\left[\mathbb{I}_t \mu(k-1)+\mathbb{I}_{t = 0} \mu^{0}\right] & \text { if } m>0 \\
@@ -207,14 +201,12 @@ where \(\alpha\) represents Weight factor of class likelihood; \(\Lambda_{k}\) r
 The hybrid association likelihood function achieves multi-scenario adaptive matching through a triple mechanism: for valid associated targets (\(m>0\) and \(t>0\)), the system corrects the trajectory category probability distribution \(\mu(k-1)\) in real time through Bayesian updating, and uses the confusion matrix column vector \(c_j\) of the detection m corresponding to category \(j\) to calculate the matching degree, thereby dynamically adapting to changes in target categories; for new targets (\(m>0\) and \(t=0\)), the prior distribution \(\mu^{0}\) based on the statistical characteristics of the data set is used for initialization to effectively solve the cold start problem; for unmatched trajectories (\(m=0\)), a fixed value of 1 is returned to avoid false termination caused by sensor noise. The design achieves the optimal fusion of kinematics and category information through the \(\alpha\) parameter, significantly improving the tracking robustness in complex scenarios while ensuring real-time performance.
 
 \textbf{Update Track Class Probability.}
-Suppose the marginal probabilities of \(M\) detections assigned to a track in the cluster are \(\left(\beta_{0}, \beta_{1}, \ldots, \beta_{M}\right)\), where \(\beta_{0}\) is the marginal probability that no measurements is associated with the track. 
-Then the tracker updates the class probability of the track as
+When processing a set of detection results, each tracking target maintains a set of marginal probabilities \(\left(P_{0}, P_{1}, \ldots, P_{M}\right)\), which represent the association likelihood between the target and the \(M\) available detection results in the current frame. Here, \(P_{0}\) specifically denotes the probability that the target is not associated with any detection result in the current frame.
 \begin{align}
-	\mu_{k} & = \left(\sum_{m = 1}^{M} \beta_{m} \frac{c_{j(m)} \otimes \mu(k-1)}{c_{j(m)}^{T} \mu(k-1)}\right)+\beta_{0} \mu(k-1)
+	\mu_{k} & = \left(\sum_{m = 1}^{M} P_{m} \frac{c_{j(m)} \otimes \mu(k-1)}{c_{j(m)}^{T} \mu(k-1)}\right)+ P_{0} \mu(k-1)
 \end{align}
-where \(c_{j}(m)\) is the class probability vector of detection \(m\), \(\otimes\) represents element-wise multiplication, \(\mu(k-1)\) is the class probability vector of the track in the \(k-1\) step, and \(\mu(k)\) is the class probability vector of the track in the \(k\) step.
-
-The tracker updates the class properties of tracks cluster by cluster.
+The tracker sequentially updates the trajectory classification attributes on a cluster-by-cluster basis. 
+Where \(c_{j}(m)\) is the class probability vector for detection \(m\), \(\otimes\) represents element-wise multiplication, \(\mu(k-1)\) is the class probability vector for the \(k-1\)th step, and \(\mu(k)\) is the class probability vector for the \(k\)-th step.
 
 \textbf{Process.}
 
