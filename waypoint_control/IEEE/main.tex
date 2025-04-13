@@ -28,7 +28,7 @@ citecolor=blue]{hyperref}
 \usepackage{color,xcolor}
 \usepackage{makecell}
 \begin{document}
-\title{UVDT: A Baseline Benchmark for Vehicle Digital Twins via LiDAR-Camera Fusion in Multi-Intersection Scenarios}
+\title{UVDT: A Baseline Benchmark for Urban Vehicle Digital Twins via LiDAR-Camera Fusion in Multi-Intersection Scenarios}
 \author{Haidong~Wang\(^*\),~Pengfei~Xiao,Ao~Liu, Jianhua~Zhang,~and Qia~Shan
 
 \thanks{H. Wang is from Hunan University Of Technology and Business and Xiangjiang Laboratory, Changsha 410082, China; P. Xiao, A.Liu, J. Zhang and Q. Shan are from Hunan University Of Technology and Business, Changsha 410082, China (e-mail: whd@hutb.edu.cn; 2893666867@qq.com; 2496556459@qq.com; zhangjianhua6682@126.com; s540534349@163.com).}}
@@ -39,8 +39,8 @@ citecolor=blue]{hyperref}
 \maketitle
 
 \begin{abstract}
-In this paper, we explore the application of digital twins in automated driving and propose Urban Vehicle Digital Twin(UVDT), which replicates the traffic flow by investigating four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and restoration, and twinning. 
-The multi-object tracking performance is optimized by fusing radar detection and camera detection data to improve the accuracy and robustness of vehicle detection, which in turn solves the challenges posed by occlusion and view angle changes. 
+In this paper, we explore the application of digital twins in autonomous driving and propose Urban Vehicle Digital Twin(UVDT), which replicates the traffic flow by investigating four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and restoration, and twinning. 
+The multi-object tracking performance is optimized by fusing LiDAR detection and camera detection data to improve the accuracy and robustness of vehicle detection, which in turn solves the challenges posed by occlusion and view angle changes. 
 Cross-scene vehicle re-recognition is improved by generating rich training data. 
 The digital twin-based vehicle control method provides high-precision path planning and control for the autonomous driving system, ensuring accurate vehicle navigation in complex traffic scenarios. 
 The experimental results show that UVDT can provide high-fidelity simulation scenarios for the testing and optimization of autonomous driving systems, which promotes the development of intelligent transportation systems and provides important support for the construction of future smart cities.
@@ -48,7 +48,7 @@ The source code and datasets are available at \url{https://github.com/OpenHUTB/t
 \end{abstract}
 
 \begin{IEEEkeywords}
-digital twins, automated driving, vehicle detection, multi-object tracking, trajectory restoration.
+digital twins, autonomous driving, vehicle detection, multi-object tracking, trajectory restoration.
 \end{IEEEkeywords}
 
 \section{Introduction}
@@ -79,7 +79,7 @@ This data discontinuity will distort the interactive logic of the virtual traffi
 More seriously, the processing lag of the non-real-time system will cause the gradual failure of the prediction function, and ultimately make the digital twin system lose its guiding value to the physical world.
 
 In response to the above problems, this study conducts research from four dimensions: multi-object tracking at a single intersection, multi-object tracking at multiple intersections, trajectory inference and restoration, and digital twin system construction. 
-First, the object-level fusion detection method based on cameras and radars is used to improve vehicle detection accuracy and thus enhance tracking robustness. 
+First, the object-level fusion detection method based on cameras and LiDAR is used to improve vehicle detection accuracy and thus enhance tracking robustness. 
 At the same time, the re-identification (ReID) technology is introduced to achieve identity association across camera scenes through vehicle appearance features (such as skeleton models, color changes, etc.), effectively solving the ID switching problem and ensuring trajectory continuity and consistency under complex lighting and occlusion conditions\cite{Alpher23}. 
 Secondly, in terms of trajectory reasoning, relying on the efficient navigation algorithm framework of the CARLA simulation platform, the shortest path planning strategy is used for trajectory inference. 
 This method has the advantages of high computational efficiency, strong environmental adaptability, and controllable errors. 
@@ -105,7 +105,7 @@ We use a combination of PointPillars-based 3D point cloud detection method and Y
 These two deep learning methods have shown excellent detection performance in their respective fields.
 
 \textbf{Multi-Object Tracking.}
-Specker and his team proposed an online multi-camera multi-target tracking method (OCMCTrack), which dynamically optimizes cross-camera target association through an innovative Corrective Matching Cascade strategy, significantly improving tracking accuracy and ID consistency in complex scenarios while ensuring real-time processing\cite{Alpher24e}.
+Specker and his team proposed an online multi-camera multi-object tracking method (OCMCTrack), which dynamically optimizes cross-camera target association through an innovative Corrective Matching Cascade strategy, significantly improving tracking accuracy and ID consistency in complex scenarios while ensuring real-time processing\cite{Alpher24e}.
 Shim and his team proposes a robust multi-target multi-camera vehicle tracking system designed for city-scale traffic management, addressing challenges like occlusion and cross-camera identity consistency by integrating spatial-temporal constraints and deep feature fusion to enable real-time vehicle monitoring and behavior analysis across urban camera networks\cite{Alpher21e}.
 Most existing algorithms, with a few exceptions, can be seen as special cases of the multi-modal fusion problem. 
 These methods organize the input data using a graph structure, where edges represent relationships between modalities, and nodes represent different targets or states. 
@@ -130,7 +130,7 @@ The network has acquired comprehensive feature representations through large-sca
 \begin{figure*}[t]
 	\centering
 	\includegraphics[width=\textwidth]{picture/picture2.png} 
-	\caption{In the given scenario, synchronized cameras and LiDAR sensors detect vehicles, while the tracking system performs both single-intersection and multi-intersection multi-object tracking. The tracking data is subsequently utilized for trajectory reconstruction, ultimately enabling the creation of a digital twin that accurately replicates the traffic scenario.}
+	\caption{In the given scenario, synchronized cameras and LiDAR sensors detect vehicles, while the tracking system performs both single-intersection and multi-intersection multi-object tracking. The tracking data is subsequently utilized for trajectory reconstruction, ultimately enabling the creation of a digital twin that accurately replicates the traffic scenario. Where \(W_{s}\) and \(W_{e}\) are the coordinates of the endpoints of the tracked trajectory in the simulation scene, and \(T_{1}\) and \(T_{2}\) are the trajectories tracked at different intersections.}
 	\label{fig:2}
 \end{figure*}
 
@@ -152,7 +152,7 @@ As illustrated in Fig. \ref{fig:2}, the input source \(F_{t}\) integrates 3D poi
 The tracker generates the vehicle trajectory \(T_{v}\) of a single intersection and the image \(i_{v}\) of the corresponding vehicle through the detection bounding boxes \(b_{2D}\) and \(b_{3D}\) obtained by object detection algorithms.
 For cross-intersection vehicle trajectories matching, we employ a re-identification network to extract appearance feature vectors \(f\), then compute their cosine similarity to produce a logical matching matrix \(C_{M \times N}\).
 Vehicle trajectories exceeding a predefined similarity threshold are matched and output as \(T_{t}\).
-The system subsequently feeds trajectory endpoints \((P_{s},P_{e})\) to a prediction framework that interpolates inter-intersection trajectories, ultimately producing complete vehicle trajectories \(T_{t}\). 
+The system subsequently feeds trajectory endpoints \((P_{s},P_{e})\) to a prediction framework that interpolates inter-intersection trajectories, ultimately producing complete vehicle trajectories \(T\). 
 The controller calculates throttle\(t\), brake\(b\),and steering wheel \(s\) outputs from these trajectories to guide vehicle control, with the final executed trajectory denoted as \(T^\prime\).
 
 \textbf{Vehicle Detection in Point Clouds.}
@@ -177,7 +177,7 @@ This approach ensures that the tracker can maintain consistent tracking informat
 
 \subsection{Single Intersection Multi-Object Tracking}
 
-We fuse detections from our lidar and camera at a single intersection and use the tracker JDPA object to track the target.
+We fuse detections from our LiDAR and camera at a single intersection and use the tracker JDPA object to track the target.
 
 \textbf{Single Detection Class Probability Update.}
 First, consider the class information association between one detection and one track. 
@@ -237,11 +237,11 @@ Through this process, we are ultimately able to obtain the trajectories of vehic
 We placed an imaginary ego-vehicle in the center of the intersection, which serves as a reference system, as shown in Fig. \ref{fig:3}. 
 For multi-object tracking we input not only the detection frame, but also the position of the camera and radar relative to the self-vehicle, as well as the position of the ego-vehicle. 
 The position coordinates of the self-vehicle in the experiment were always O(0,0,0), i.e. stationary. 
-Tracking initially generates trajectory coordinates \(\text P_1\) relative to the LiDAR, which we also fit to the world coordinates \(\text P_2\) in Carla.
+Tracking initially generates trajectory coordinates \(\text P_1\) relative to the LiDAR, which we also fit to the world coordinates \(\text P_2\) in the simulation scene.
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture3.png} 
-	\caption{Sensor configuration and coordinate transformation process: (a) Multi-sensor arrangement on the ego vehicle, including 6 cameras (2.62 meters upward offset) and 1 lidar (0.82 meters upward offset); (b) Coordinate transformation process from the ego vehicle system (left) to the lidar coordinate system (right) through JPDA, and finally converted to the CARLA world coordinate system through the transformation matrix. All distance measurements are in meters.} 
+	\caption{Sensor configuration and coordinate transformation process: (a) Multi-sensor arrangement on the ego vehicle, including 6 cameras (2.62 meters upward offset) and 1 lidar (0.82 meters upward offset); (b) Coordinate transformation process from the ego vehicle system (left) to the lidar coordinate system (right) through JPDA, and finally converted to world coordinate in the simulation scene through the transformation matrix. All distance measurements are in meters.} 
 	\label{fig:3} 
 \end{figure}
 
@@ -269,7 +269,7 @@ ResNet-50 mainly consists of five main parts: initial convolutional layer, maxim
 Upon completing the tracking of all vehicle trajectories, we chronologically sort the trajectory of each vehicle and select the last waypoint of the same vehicle at the previous intersection along with the first waypoint at the next intersection as the starting and ending points of the unknown region. 
 These two waypoints are then fed into the navigation algorithm module, which subsequently computes the trajectory between them.
 
-In the Carla simulation environment, vehicle trajectory planning is achieved by utilizing the A* algorithm to search for the shortest path within the graph structure constructed from the topological map. 
+In the simulation environment, vehicle trajectory planning is achieved by utilizing the A* algorithm to search for the shortest path within the graph structure constructed from the topological map. 
 The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby effectively guiding the current node \(p_{n}\) to search for the target node \(p_{g}\).
 The core of this algorithm lies in the evaluation function 
 \begin{align}
@@ -391,7 +391,7 @@ This evaluation mechanism can not only capture the morphological differences of 
 \begin{align}
 	\Lambda(\tau) = \frac{1}{n} \sum_{k=1}^{n} \mathbb{I}\left(\left\|p_{\pi_{1}(k)}-q_{\pi_{2}(k)}\right\| \leq \tau\right)
 \end{align}
-The trajectory we finally get is the coordinates of Carla, which means that the trajectory is actually discrete.
+The trajectory we finally get is the coordinates in the simulation scene, which means that the trajectory is actually discrete.
 Therefore, calculating the positional relationship between waypoints is very important to reflect the overlap between two trajectories.
 \(\Lambda(\tau)\) counts the proportion of matching points in the two trajectories whose distance is less than the threshold \(\tau\) to reflect the overlap accuracy of the two trajectories within the allowable error range.
 where \(p_{\pi_{1}(k)}\) and \(q_{\pi_{2}(k)}\) represent the three-dimensional coordinates of the \(\pi_{1}(k)\)th point of trajectory 1 and the \(\pi_{2}(k)\)th point of trajectory 2, respectively, and \(\mathbb{I}(\cdot)\) is the indicator function (which takes the value of 1 when the Euclidean distance between two points does not exceed the threshold \(\tau\), otherwise it takes the value of 0).
@@ -428,9 +428,9 @@ where \(p_{\pi_{1}(k)}\) and \(q_{\pi_{2}(k)}\) represent the three-dimensional 
 \end{table*}
 
 \textbf{Simulation Environment.}
-We conducted simulation experiments in Carla, whose advantage lies in its provision of a highly realistic virtual environment capable of accurately simulating complex traffic scenarios and diverse driving conditions. 
-Carla supports flexible sensor configurations, such as cameras and LiDAR, facilitating multimodal data acquisition and fusion experiments\cite{Alpher22e}. 
-We conducted relevant experiments in the Town10 and Town01 scenes in Carla.
+We conducted simulation experiments in CARLA, whose advantage lies in its provision of a highly realistic virtual environment capable of accurately simulating complex traffic scenarios and diverse driving conditions. 
+CARLA supports flexible sensor configurations, such as cameras and LiDAR, facilitating multimodal data acquisition and fusion experiments\cite{Alpher22e}. 
+We conducted relevant experiments in the Town10 and Town01 scenes in CARLA.
 The complex urban structure and dense traffic flow of Town10 can simulate highly dynamic real traffic environments, while the simple layout and clear rules of Town1 make it easy to construct controlled experimental scenarios.
 This scene diversity can effectively verify the generalization ability of the model under different traffic conditions and provide a reliable basis for actual road deployment.
 
