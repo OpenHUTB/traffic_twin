@@ -41,7 +41,7 @@ citecolor=blue]{hyperref}
 \begin{abstract}
 In this paper, we explore the application of digital twins in autonomous driving and propose Urban Vehicle Digital Twin(UVDT), which replicates the traffic flow by investigating four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and restoration, and twinning. 
 The multi-object tracking performance is optimized by fusing LiDAR detection and camera detection data to improve the accuracy and robustness of vehicle detection, which in turn solves the challenges posed by occlusion and view angle changes. 
-Cross-scene vehicle re-recognition is improved by generating rich training data. 
+Cross-scenario vehicle re-recognition is improved by generating rich training data. 
 The digital twin-based vehicle control method provides high-precision path planning and control for the autonomous driving system, ensuring accurate vehicle navigation in complex traffic scenarios. 
 The experimental results show that UVDT can provide high-fidelity simulation scenarios for the testing and optimization of autonomous driving systems, which promotes the development of intelligent transportation systems and provides important support for the construction of future smart cities.
 The source code and datasets are available at \url{https://github.com/OpenHUTB/traffic_twin}.
@@ -69,8 +69,8 @@ At the same time, digital twin technology can provide smarter decision support f
 	\label{fig:example} 
 \end{figure}
 
-Digital twin systems rely heavily on the fusion of multi-source sensor data (such as LiDAR, cameras, and millimeter-wave radar) to achieve accurate object recognition and positioning. The accuracy of the detection algorithm directly determines the quality of the behavior modeling of traffic participants in the virtual environment and the fidelity of scene restoration. 
-Although the application of deep learning technology has significantly improved the accuracy and system robustness of vehicle detection, the problem of target loss caused by vehicle occlusion, extreme lighting conditions, or sudden changes in viewing angles in complex urban scenes is still a technical bottleneck that needs to be overcome\cite{Alpher23c}.
+Digital twin systems rely heavily on the fusion of multi-source sensor data (such as LiDAR, cameras, and millimeter-wave radar) to achieve accurate object recognition and positioning. The accuracy of the detection algorithm directly determines the quality of the behavior modeling of traffic participants in the virtual environment and the fidelity of scenario restoration. 
+Although the application of deep learning technology has significantly improved the accuracy and system robustness of vehicle detection, the problem of target loss caused by vehicle occlusion, extreme lighting conditions, or sudden changes in viewing angles in complex urban scenarios is still a technical bottleneck that needs to be overcome\cite{Alpher23c}.
 Such defects can lead to multiple chain reactions and make it impossible for the digital twin system to continuously update the dynamic state of the vehicle (including key parameters such as position, speed, acceleration, etc.), ultimately causing the virtual model to be out of touch with the actual physical entity.
 
 In addition, the digital twin system is also limited by the sensor detection distance (such as the effective detection distance of millimeter-wave radar in rainy and foggy weather) and environmental noise interference (such as the deterioration of the signal-to-noise ratio of the camera under low illumination). 
@@ -130,7 +130,7 @@ The network has acquired comprehensive feature representations through large-sca
 \begin{figure*}[t]
 	\centering
 	\includegraphics[width=\textwidth]{picture/picture2.png} 
-	\caption{In the given scenario, synchronized cameras and LiDAR sensors detect vehicles, while the tracking system performs both single-intersection and multi-intersection multi-object tracking. The tracking data is subsequently utilized for trajectory reconstruction, ultimately enabling the creation of a digital twin that accurately replicates the traffic scenario. Where \(W_{s}\) and \(W_{e}\) are the coordinates of the endpoints of the tracked trajectory in the simulation scene, and \(T_{1}\) and \(T_{2}\) are the trajectories tracked at different intersections.}
+	\caption{In the given scenario, synchronized cameras and LiDAR sensors detect vehicles, while the tracking system performs both single-intersection and multi-intersection multi-object tracking. The tracking data is subsequently utilized for trajectory reconstruction, ultimately enabling the creation of a digital twin that accurately replicates the traffic scenario. Where \(W_{s}\) and \(W_{e}\) are the coordinates of the endpoints of the tracked trajectory in the simulation scenario, and \(T_{1}\) and \(T_{2}\) are the trajectories tracked at different intersections.}
 	\label{fig:2}
 \end{figure*}
 
@@ -156,7 +156,7 @@ The system subsequently feeds trajectory endpoints \((P_{s},P_{e})\) to a predic
 The controller calculates throttle\(t\), brake\(b\),and steering wheel \(s\) outputs from these trajectories to guide vehicle control, with the final executed trajectory denoted as \(T^\prime\).
 
 \textbf{Vehicle Detection in Point Clouds.}
-Based on the PointPillars network architecture, 3D vehicle detection in intersection scenes is implemented. Its input data is collected in real time through a 64-line laser radar (range measurement: 200m, point cloud density: 2.2M pts/s, scanning frequency: 20Hz), and the 3D ground truth information of vehicles in the range is recorded simultaneously. The original dataset is divided into a training set and a test set in a 7:3 ratio. The training set is used to learn the mapping relationship from point cloud to 3D detection box, and the test set verifies the generalization ability of the model on unknown data.
+Based on the PointPillars network architecture, 3D vehicle detection in intersection scenarios is implemented. Its input data is collected in real time through a 64-line laser radar (range measurement: 200m, point cloud density: 2.2M pts/s, scanning frequency: 20Hz), and the 3D ground truth information of vehicles in the range is recorded simultaneously. The original dataset is divided into a training set and a test set in a 7:3 ratio. The training set is used to learn the mapping relationship from point cloud to 3D detection box, and the test set verifies the generalization ability of the model on unknown data.
 
 A PointPillars network requires two inputs: pillar indices as a P-by-2 and pillar features as a P-by-N-by-K matrix. P is the number of pillars in the network, N is the number of points per pillar, and K is the feature dimension.
 The network begins with a feature encoder, which is a simplified PointNet. It contains a series of convolution, batch-norm, and relu layers followed by a max pooling layer. A scatter layer at the end maps the extracted features into a 2-D space using the pillar indices.
@@ -177,7 +177,7 @@ This approach ensures that the tracker can maintain consistent tracking informat
 
 \subsection{Single Intersection Multi-Object Tracking}
 
-We fuse detections from our LiDAR and camera at a single intersection and use the tracker JDPA object to track the target.
+We fuse detections from our LiDAR and cameras at a single intersection and use the tracker JDPA object to track the target.
 
 \textbf{Single Detection Class Probability Update.}
 First, consider the class information association between one detection and one track. 
@@ -193,7 +193,7 @@ This equation represents the updated class probability of a track if the track i
 
 \textbf{Mixed Association Likelihood in Cluster.}
 The tracker performs gating and clustering by using only the kinematic information between detections and tracks. 
-After that, in each cluster, the tracker calculates the mixed likelihood of association between a detection \(m\) and a track \(t\) as:
+After that, in each cluster, the tracker calculates the mixed likelihood of association \(\Lambda(m,t)\) between a detection \(m\) and a track \(t\) as:
 \begin{align}
 	\Lambda(m, t) & = \Lambda_{k}^{1-\alpha}(m, t) \Lambda_{c}^{\alpha}(m, t)
 \end{align}
@@ -237,23 +237,23 @@ Through this process, we are ultimately able to obtain the trajectories of vehic
 We placed an imaginary ego-vehicle in the center of the intersection, which serves as a reference system, as shown in Fig. \ref{fig:3}. 
 For multi-object tracking we input not only the detection frame, but also the position of the camera and radar relative to the self-vehicle, as well as the position of the ego-vehicle. 
 The position coordinates of the self-vehicle in the experiment were always O(0,0,0), i.e. stationary. 
-Tracking initially generates trajectory coordinates \(\text P_1\) relative to the LiDAR, which we also fit to the world coordinates \(\text P_2\) in the simulation scene.
+Tracking initially generates trajectory coordinates \(\text P_1\) relative to the LiDAR, which we also fit to the world coordinates \(\text P_2\) in the simulation scenario.
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture3.png} 
-	\caption{Sensor configuration and coordinate transformation process: (a) Multi-sensor arrangement on the ego vehicle, including 6 cameras (2.62 meters upward offset) and 1 lidar (0.82 meters upward offset); (b) Coordinate transformation process from the ego vehicle system (left) to the lidar coordinate system (right) through JPDA, and finally converted to world coordinate in the simulation scene through the transformation matrix. All distance measurements are in meters.} 
+	\caption{Sensor configuration and coordinate transformation process: (a) Multi-sensor arrangement on the ego vehicle, including 6 cameras (2.62 meters upward offset) and 1 lidar (0.82 meters upward offset); (b) Coordinate transformation process from the ego vehicle system (left) to the lidar coordinate system (right) through JPDA, and finally converted to world coordinate in the simulation scenario through the transformation matrix. All distance measurements are in meters.} 
 	\label{fig:3} 
 \end{figure}
 
 \subsection{Multi Intersection and Multi-Object Tracking}
 
-In the simulation scenario, we configure a differentiated blueprint for each experimental vehicle, so that it strictly follows the preset path from a fixed starting point to a specified end point, and build a fully controllable and highly reproducible dynamic traffic scene.
+In the simulation scenario, we configure a differentiated blueprint for each experimental vehicle, so that it strictly follows the preset path from a fixed starting point to a specified end point, and build a fully controllable and highly reproducible dynamic traffic scenario.
 To achieve all-round data collection, we deploy RGB cameras and semantic segmentation cameras at the front and rear positions of each experimental vehicle, respectively, and use a multi-view synchronous acquisition system to capture the continuous changes in the vehicle's appearance features and spatial posture in real time, and finally generated dynamic ground truth and image sequences with precise spatiotemporal alignment characteristics.
 
 Subsequently, the vehicle images of the front and rear views are cropped based on ground truth and the front and rear view images of the same vehicle are combined to form a dataset of that vehicle, to which the vehicle images of the occluded views are added to form the final dataset.
 Before training the re-identification network, the images were reshaped to a size of 224\(\times\)224, of which 90\% were used as training sets and the rest as validation sets.
 
-Finally, the images of vehicles tracked at intersections 1 and 2 are matched with the trained re-identification network.
+Finally, the vehicle images tracked between intersections are matched through the trained re-identification network.
 In other words, the vehicle tracked at the previous intersection is the object that needs to be re-identified, and it will be recognized at the next intersection, allowing the trajectories corresponding to the two vehicles to be integrated.
 
 For matching vehicle trajectories between intersections, we use a re-recognition network to extract features from the vehicle images and then compute the cosine similarity of these two features.
@@ -280,7 +280,7 @@ The core of this algorithm lies in the evaluation function
 \end{align}
 Its purpose is to calculate the actual cost from the starting node to the current node and the estimated cost from the current node to the target node. 
 In the process of exploring the shortest path using the A* algorithm, if there are edges with a weight of 0 in the graph structure, it may cause the vehicle to change lanes too frequently in a very short time, which contradicts the normal driving logic. 
-To alleviate this phenomenon, we introduced a lane change penalty mechanism in path planning. Specifically, when the current lane \(l_{n}\) is inconsistent with the target lane \(l_{g}\), the calculation cost will be increased to ensure that the distance calculation between nodes is not only based on the spatial distance, but also takes into account the frequency of lane changes. Not only that, we also added a road type penalty \(\phi_{k}\) and a curvature penalty \(\kappa_k\). When planning the route globally, the vehicle prefers the main road and the road with smaller curves. 
+To alleviate this phenomenon, we introduced a lane change penalty mechanism in path planning. Specifically, when the current lane \(l_{n}\) is inconsistent with the target lane \(l_{g}\), the calculation cost will be increased to ensure that the distance calculation between nodes is not only based on the spatial distance, but also takes into account the frequency of lane changes. Not only that, when calculating the inter-node distance \(d_{k}\), we also added a road type penalty \(\phi_{k}\) and a curvature penalty \(\kappa_k\). When planning the route globally, the vehicle prefers the main road and the road with smaller curves. 
 Among them, \(\alpha\) represents the road attribute weight, \(\gamma\) controls the curvature penalty intensity, \(\lambda\) is the lane matching weight, and \(\epsilon\) is used as a regularization parameter to ensure numerical stability.
 
 
@@ -292,13 +292,13 @@ This method can be represented as:
 \begin{align}
 	S(t) = \bigcup_{i=1}^{N} \Bigl( T_i(t) \cup f\Bigl( \lim_{\!t \to t_i^+} T_i(t), \lim_{\!t \to t_{i+1}^-} T_{i+1}(t) \Bigr) \Bigr)
 \end{align}
-where \(S\) is the trajectory collection, \(T_i(t)\) represents the previous trajectory. 
+where \(S\) is the trajectory collection, \(T_i(t)\) represents the \(i\)-th trajectory. 
 The limits \(\lim_{t \to t_i^+} T_i(t)\) and \(\lim_{t \to t_{i+1}^+} T_{i+1}(t)\) correspond to the end waypoint of the \(i\)-th trajectory and the start waypoint of the \((i+1)\)-th trajectory, respectively.
 As demonstrated in Fig. \ref{fig:5}, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=\linewidth]{picture/picture5.png} 
-	\caption{Trajectory restoration diagram, showing how to generate predicted trajectories between intersections from multi-target tracking trajectories and then obtain the complete vehicle trajectory.} 
+	\caption{Trajectory restoration diagram, showing how to generate predicted trajectories between intersections from multi-object tracking trajectories and then obtain the complete vehicle trajectory.} 
 	\label{fig:5} 
 \end{figure}
 
@@ -326,7 +326,7 @@ The algorithm achieves rapid error response through the proportional term, elimi
 Experimental studies have shown that traditional PID control has an integral saturation phenomenon in the vehicle steering system, resulting in random extreme deflections of the steering wheel (±1 rad).
 To this end, this algorithm introduces a compensation term, and the saturation function sat(u) limits the controller output \(u\) to a preset interval [\(u_{min}\), \(u_{max}\)].
 When the control output reaches the saturation limit, the integral accumulation rate is automatically adjusted, which effectively solves the integral saturation problem.
-In addition, \(\dot{e}\) represents the rate of change of the error over time.
+Here, \(\dot{e}\) represents the rate of change of the error over time.
 
 The tuning process of the PID controller is as follows:  
 1. Calculate the error \(e\) between the target value (setpoint) and the current system output in real time.  
@@ -367,7 +367,7 @@ by decomposing the cross-camera error into missing association \(M_k\) and ID sw
 Among them,
 \(P\) represents the proportion of correct matches (correctly identifying and tracking targets) across all cameras.  
 \(R\) represents the recall rate, which is the proportion of all true targets that are correctly tracked.  
-\(\lambda\) is the penalty coefficient for ID switching error and \(T^{k}\) represents the total number of potential correct associations in the \(k\)-th dimension, but the association thresholds for different dimensions are different.
+\(\lambda\) is the penalty coefficient for ID switching error and \(T^{k}\) represents the total number of potential correct associations in the \(k\)-th dimension, and \(w\) and \(h\) represent within-intersection and between-intersection, respectively.
 
 Compared with \(MCTA\), \(IMCTA\) intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
 The higher the value, the better the performance of the multi-camera tracking system.
@@ -391,7 +391,7 @@ This evaluation mechanism can not only capture the morphological differences of 
 \begin{align}
 	\Lambda(\tau) = \frac{1}{n} \sum_{k=1}^{n} \mathbb{I}\left(\left\|p_{\pi_{1}(k)}-q_{\pi_{2}(k)}\right\| \leq \tau\right)
 \end{align}
-The trajectory we finally get is the coordinates in the simulation scene, which means that the trajectory is actually discrete.
+The trajectory we finally get is the coordinates in the simulation scenario, which means that the trajectory is actually discrete.
 Therefore, calculating the positional relationship between waypoints is very important to reflect the overlap between two trajectories.
 \(\Lambda(\tau)\) counts the proportion of matching points in the two trajectories whose distance is less than the threshold \(\tau\) to reflect the overlap accuracy of the two trajectories within the allowable error range.
 where \(p_{\pi_{1}(k)}\) and \(q_{\pi_{2}(k)}\) represent the three-dimensional coordinates of the \(\pi_{1}(k)\)th point of trajectory 1 and the \(\pi_{2}(k)\)th point of trajectory 2, respectively, and \(\mathbb{I}(\cdot)\) is the indicator function (which takes the value of 1 when the Euclidean distance between two points does not exceed the threshold \(\tau\), otherwise it takes the value of 0).
@@ -430,9 +430,9 @@ where \(p_{\pi_{1}(k)}\) and \(q_{\pi_{2}(k)}\) represent the three-dimensional 
 \textbf{Simulation Environment.}
 We conducted simulation experiments in CARLA, whose advantage lies in its provision of a highly realistic virtual environment capable of accurately simulating complex traffic scenarios and diverse driving conditions. 
 CARLA supports flexible sensor configurations, such as cameras and LiDAR, facilitating multimodal data acquisition and fusion experiments\cite{Alpher22e}. 
-We conducted relevant experiments in the Town10 and Town01 scenes in CARLA.
+We conducted relevant experiments in the Town10 and Town01 scenarios in CARLA.
 The complex urban structure and dense traffic flow of Town10 can simulate highly dynamic real traffic environments, while the simple layout and clear rules of Town1 make it easy to construct controlled experimental scenarios.
-This scene diversity can effectively verify the generalization ability of the model under different traffic conditions and provide a reliable basis for actual road deployment.
+This scenario diversity can effectively verify the generalization ability of the model under different traffic conditions and provide a reliable basis for actual road deployment.
 
 \textbf{Data Collection.}
 In CARLA's Town10 scenario, a single intersection location is selected, with a LiDAR placed at the center and six cameras arranged around it to achieve 360-degree omnidirectional perception coverage. 
@@ -514,7 +514,7 @@ We conducted ablation studies on LiDAR detection and multi-intersection multi-ob
 
 \textbf{Detecting Vehicles in 3D Point Clouds.}
 During the process of detecting vehicles in the 3D point cloud, we set a threshold for the detection results.
-Before optimizing the tracker hyperparameters, we conducted multiple experiments in the Town10 scene, and the experimental results are shown in Fig. \ref{fig:6}.
+Before optimizing the tracker hyperparameters, we conducted multiple experiments in the Town10 scenario, and the experimental results are shown in Fig. \ref{fig:6}.
 When the threshold is too low, some non-vehicle objects, such as trees and buildings, will be mistaken for vehicles. In some cases, even the cargo loaded on the vehicle will be mistaken for a vehicle, and the recognition accuracy will be greatly reduced.
 On the contrary, if the threshold is too high, some vehicles will be missed, such as smaller cars, which are occasionally mistaken for boxes and ignored.
 When the threshold is 0.6, there is obvious feature crossover, which is the best choice for comprehensive tracking performance.
@@ -522,7 +522,7 @@ When the threshold is 0.6, there is obvious feature crossover, which is the best
 \textbf{Multi-Intersection and Multi-Object Tracking.}
 In the multi-intersection multi-target tracking experiment, the most critical task is the re-identification of vehicles across different intersections. 
 Therefore, we also set a threshold for the re-identification results: if the similarity score exceeds the threshold, the targets are considered the same vehicle; otherwise, they are deemed different vehicles. 
-During the experiment, we adjusted the threshold several times in the Town10 scene, and the experimental results are shown in the Fig. \ref{fig:7}.
+During the experiment, we adjusted the threshold several times in the Town10 scenario, and the experimental results are shown in the Fig. \ref{fig:7}.
 We use 0.5 as the re-ID threshold because it achieves the best balance between security, stability, and scalability, avoiding both the extreme error of a low threshold and the risk of trajectory breakage of a high threshold.
 
 \subsection{Adaptive Data Association Threshold}
@@ -540,7 +540,7 @@ For this reason, we adopt a Bayesian Optimization (BOM) approach to automaticall
 
 \(\bullet\) Confirmation/DeletionThreshold: trajectory lifecycle management.
 
-\(\bullet\) DeathRate: robustness to handling targets leaving the scene.
+\(\bullet\) DeathRate: robustness to handling targets leaving the scenario.
 
 Optimization Goal: Maximize Tracking Accuracy (MOTA) while reducing ID Switches and Trajectory Fragmentation.
 
