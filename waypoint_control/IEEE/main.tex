@@ -443,20 +443,6 @@ The radar data is saved as MAT files with timestamps, while the camera data is s
 The data structure follows the storage format of the Panda dataset, making the data more standardized for subsequent processing and fusion\cite{Alpher21c}. 
 Each frame of data synchronously collects six-directional camera images and LiDAR data containing point clouds, timestamps, and the coordinates of the sensor relative to the ego-vehicle.
 
-\begin{figure}[t]
-	\centering
-	\includegraphics[width=\linewidth]{picture/picture6.png} 
-	\caption{Analysis of the impact of point cloud detection threshold on multi-object tracking performance. Experiments show that the accuracy and threshold of vehicle detection are the key factors affecting tracking performance.} 
-	\label{fig:6} 
-\end{figure}
-
-\begin{figure}[t]
-	\centering
-	\includegraphics[width=\linewidth]{picture/picture7.png} 
-	\caption{Comparative analysis of vehicle re-identification threshold effects on trajectory matching accuracy, illustrating the relationship between threshold values and the alignment degree between tracked trajectories and ground truth trajectories in urban traffic scenarios.} 
-	\label{fig:7} 
-\end{figure}
-
 \subsection{Experimental Effect}
 
 \textbf{Multi-Object Tracking.}
@@ -467,6 +453,20 @@ In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and
 
 Identity Switches (IDS) are notably higher in Intersection 4 of both Town01 and Town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
 The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50), reflecting significant differences in tracking stability across these intersections.
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture6.png} 
+	\caption{Analysis of the impact of point cloud detection threshold on multi-object tracking performance. Experiments show that the accuracy and threshold of vehicle detection are the key factors affecting tracking performance.} 
+	\label{fig:6} 
+\end{figure}
+
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture7.png} 
+	\caption{Comparative analysis of vehicle re-identification threshold effects on trajectory matching accuracy, illustrating the relationship between threshold values and the alignment degree between tracked trajectories and ground truth trajectories in urban traffic scenarios.} 
+	\label{fig:7} 
+\end{figure}
 
 Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (\(RMOTA\): 60.2369; \(RMOTP\): 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (\(RMOTA\): 16.7388), indicating weaker tracking reliability.
 However, detection accuracy is also affected by the number of vehicles passing through the intersection, and the system accuracy improves significantly in low traffic conditions.
