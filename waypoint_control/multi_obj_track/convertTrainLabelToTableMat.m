@@ -20,20 +20,24 @@ for i = 1:length(matFiles)
 
     % 加载 mat 文件
     fileData = load(matFileName);
-    % 获取 car 和 truck 的行数
+    % 获取 car ， truck 和 行人 的行数
 
     carData = fileData.LabelData.car;
     truckData = fileData.LabelData.truck;
+    pedestrianDate = fileData.LabelData.pedestrian;
     % 将 carData 转换为双精度数组
     carDataDouble = cell2mat(carData);
     % 将 truckData 转换为双精度数组
     truckDataDouble = cell2mat(truckData);
+    % 将 pedestrianDate 转换为双精度数组
+    pedestrianDateDouble = cell2mat(pedestrianDate);
     % 将双精度数组存储在元胞数组中
     carCell = {carDataDouble};
     truckCell = {truckDataDouble};
+    pedestrianCell = {pedestrianDateDouble};
     % 创建一个表格行
-    newRow = table(fileData.LabelData.Time, carCell, truckCell, ...
-                       'VariableNames', {'Time', 'car', 'truck'});
+    newRow = table(fileData.LabelData.Time, carCell, truckCell, pedestrianCell, ...
+                       'VariableNames', {'Time', 'car', 'truck', 'pedestrian'});
     % 将新行添加到主表格
     LabelData = [LabelData; newRow]; 
 end

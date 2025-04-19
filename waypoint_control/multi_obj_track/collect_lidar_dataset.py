@@ -79,9 +79,11 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
     # 获取附近的所有车辆和行人
     vehicle_list = world.get_actors().filter("*vehicle*")
     pedestrian_list = world.get_actors().filter("*walker*")
-    # 筛选出距离雷达小于 45 米的车辆
+    # 筛选出距离雷达小于 45 米的车辆和行人
     def dist(v):
         return v.get_location().distance(location)
+    def dist(p):
+        return p.get_location().distance(location)
     # 筛选出距离小于 LIDAR_RANGE 的车辆和行人
     vehicle_list = list(filter(lambda v: dist(v) < LIDAR_RANGE, vehicle_list))
     pedestrian_list = list(filter(lambda p: dist(p) < LIDAR_RANGE, pedestrian_list))
@@ -197,7 +199,7 @@ def save_radar_data(radar_data, world, location, lidar_to_world_inv, lidar_yaw, 
     timestamp = world.get_snapshot().timestamp.elapsed_seconds
     # 获取当前帧编号
     current_frame = radar_data.frame
-    # 保存车辆标签
+    # 保存车辆和行人标签
     label_data = save_point_label(world, location, lidar_to_world_inv, timestamp, current_frame, lidar_yaw)
 
     # 保存点云数据
@@ -346,6 +348,8 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=60, random_seed=42):
             pedestrian_list.append((pedestrian, controller))
         else:
             pedestrian.destroy()
+
+        print(f"Spawned pedestrian: {pedestrian.id}")
 
     return pedestrian_list
 
