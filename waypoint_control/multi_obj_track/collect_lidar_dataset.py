@@ -142,30 +142,35 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
 
     # 处理行人标签
     for pedestrian in pedestrian_list:
-        bounding_box = pedestrian.bounding_box
-        bbox_z = bounding_box.location.z
-        location = pedestrian.get_transform().location
-        rotation = pedestrian.get_transform().rotation
-        bounding_box_location = np.array([location.x, location.y, bbox_z, 1])
-        bounding_box_location_lidar = lidar_to_world_inv @ bounding_box_location
-        bounding_box_location_lidar = bounding_box_location_lidar[:3]
+        # 获取行人世界坐标系下的位置和旋转
+        transform = pedestrian.get_transform()
+        world_location = transform.location
+        rotation = transform.rotation
 
-        bounding_box_extent = bounding_box.extent
-        length = 2 * bounding_box_extent.x
-        width = 2 * bounding_box_extent.y
-        height = 2 * bounding_box_extent.z
+        #定义行人尺寸
+        height = 1.7  # 默认成人身高
+        length = 0.5
+        width = 0.5
 
-        bounding_box_rotation = np.array([rotation.yaw, rotation.pitch, rotation.roll])
-        rotation_matrix_world = R.from_euler('zyx', bounding_box_rotation, degrees=True).as_matrix()
-        rotation_matrix_lidar = lidar_to_world_inv[:3, :3] @ rotation_matrix_world
-        rotation_lidar = R.from_matrix(rotation_matrix_lidar)
-        euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=True)
-        yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
+        # --- 位置处理 ---
+        # CARLA 行人位置在脚部，需调整到边界框中心点（z + height/2）
+        adjusted_z = world_location.z + height/2
+        pedestrian_world = np.array([world_location.x, world_location.y, adjusted_z, 1])
+
+        # 转换到雷达坐标系（假设 lidar_to_world_inv 已提前计算）
+        pedestrian_lidar = lidar_to_world_inv @ pedestrian_world
+        pedestrian_lidar = pedestrian_lidar[:3]  # 去除齐次坐标
+
+        # --- 旋转处理 ---
+        # CARLA 行人仅 yaw 有效，pitch 和 roll 设为 0
+        yaw_lidar = rotation.yaw
+        pitch_lidar = 0
+        roll_lidar = 0
 
         label = [
-            bounding_box_location_lidar[0],  # x
-            bounding_box_location_lidar[1],  # y
-            bounding_box_location_lidar[2] + 0.3,  # z
+            pedestrian_lidar[0],  # x
+            pedestrian_lidar[1],  # y
+            pedestrian_lidar[2],  # z
             length,
             width,
             height,
@@ -173,6 +178,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
             roll_lidar,
             yaw_lidar
         ]
+
         pedestrian_labels.append(label)  # 行人标签直接保存，无需分类
 
     # 将 car ， truck 和 pedestrian 数据转换为 NumPy 数组
@@ -302,16 +308,18 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
     return vehicle_list
 
 # 生成随机运动行人
-def spawn_autonomous_pedestrians(world, num_pedestrians=60, random_seed=42):
+def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
     random.seed(random_seed)
     np.random.seed(random_seed)
     pedestrian_list = []
 
     # 获取普通行人蓝图（排除特殊类型）
     walker_bps = [
-        bp for bp in world.get_blueprint_library().filter('*walker*')
-        if not bp.id.endswith(('child', 'skeleton'))
+        bp for bp in world.get_blueprint_library().filter('walker.pedestrian*')
+        if not bp.id.split('.')[-1] in {'child', 'skeleton'}
     ]
+    # walker_bps = world.get_blueprint_library().find('walker.pedestrian.0001')
+
 
     for _ in range(num_pedestrians):
         # 获取安全生成位置
@@ -330,7 +338,7 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=60, random_seed=42):
         if not pedestrian:
             continue
 
-        # 关键设置：通过Actor接口启用物理
+        # 通过Actor接口启用物理
         try:
             pedestrian.set_simulate_physics(True)
             world.tick()  # 同步模式下必须tick
@@ -388,7 +396,7 @@ def main():
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=random_seed)
         # 生成行人
-        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=60, random_seed=20)
+        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20)
         # 设置理想化的雷达位置
         lidar_transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 获取雷达到世界的变换矩阵（4x4矩阵）
@@ -398,6 +406,7 @@ def main():
         # 启动雷达传感器
         lidar = setup_sensors(world, addtion_param, lidar_transform, lidar_to_world_inv, sensor_queue)
         folder_index = 1
+
         # 同步保存雷达数据
         for _ in range(POINT_SAVE_TIME):
             world.tick()

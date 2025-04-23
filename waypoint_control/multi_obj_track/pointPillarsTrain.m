@@ -18,8 +18,8 @@ timeTable = data.gTruth.LabelData;
 % 转换成普通表格
 Labels = timetable2table(timeTable);
 %}
-% 2、3列数据
-boxLabels = Labels(:,2:3);
+% 2、3、4列数据
+boxLabels = Labels(:,2:4);
 
 % 显示全视图点云
 figure
@@ -33,10 +33,10 @@ axis off;
 % 定义裁剪参数
 
 xMin = -69.12;  % X 轴最小值
-yMin = -39.68;  % Y 轴最小值
+yMin = -50;  % Y 轴最小值
 zMin = -5.0;    % Z 轴最小值
 xMax = 69.12;   % X 轴最大值
-yMax = 39.68;   % Y 轴最大值
+yMax = 50;   % Y 轴最大值
 zMax = 5.0;     % Z 轴最大值
 
 pointCloudRange = [xMin xMax yMin yMax zMin zMax];
@@ -59,7 +59,12 @@ if iscell(processedLabels.truck)
 else
     processtruck = processedLabels.truck(1, :);
 end
-bboxes = [processcar; processtruck];
+if iscell(processedLabels.pedestrian)
+    processpedestrian = processedLabels.pedestrian{1};
+else
+    processpedestrian = processedLabels.pedestrian(1, :);
+end
+bboxes = [processcar; processtruck; processpedestrian];
 ax = pcshow(pc);
 showShape('cuboid',bboxes,'Parent',ax,'Opacity',0.1,...
         'Color','green','LineWidth',0.5);
@@ -101,8 +106,8 @@ cds = combine(lds,bds);
 %% 执行数据增强，通过过采样和变换对点云数据进行增强，增加数据集的多样性
 % 在增强之前使用示例末尾定义的辅助函数读取并显示点云
 augData = preview(cds); %  预览 cds 数据存储对象(一行)
-classNames = {'car','truck'};
-colors = {'green','magenta'};
+classNames = {'car','truck','pedestrian'};
+colors = {'green','magenta','blue'};
 [ptCld,bboxes,labels] = deal(augData{1},augData{2},augData{3});
 % 显示预览点云视图
 helperShowPointCloudWith3DBoxes(ptCld,bboxes,labels,classNames,colors)
@@ -117,7 +122,7 @@ end
                             'Verbose',false,'WriteLocation',sampleLocation);
 cdsSampled = combine(ldsSampled,bdsSampled); % 合并采样数据
 %  数据增强：过采样
-numObjects = [20 20]; % 定义了每种类别（如车和卡车）要进行的过采样次数。
+numObjects = [20 20 20]; % 定义了每种类别（如车和卡车）要进行的过采样次数。
 % 使用 transform 函数对 cds 数据进行数据增强，增加每个类别的样本数量，改善数据的平衡性。
 cdsAugmented = transform(cds,@(x)pcBboxOversample(x,cdsSampled,classNames,numObjects));
 % 数据增强：变换
