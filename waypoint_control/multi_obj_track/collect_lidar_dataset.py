@@ -93,6 +93,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
     car_labels = []  # car 标签列表
     truck_labels = []  # truck 标签列表
     pedestrian_labels = []  # 行人标签列表
+
     # 获取标签NX9
     for vehicle in vehicle_list:
         bounding_box = vehicle.bounding_box
@@ -140,46 +141,51 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
         elif category == "truck":
             truck_labels.append(label)
 
-    # 处理行人标签
-    for pedestrian in pedestrian_list:
-        # 获取行人世界坐标系下的位置和旋转
-        transform = pedestrian.get_transform()
-        world_location = transform.location
-        rotation = transform.rotation
 
-        #定义行人尺寸
-        height = 1.7  # 默认成人身高
-        length = 0.5
-        width = 0.5
+    # 获取行人标签
+    step = 2  # 每隔1个元素遍历（步长为2）
+    for pedestrian in pedestrian_list[::step]:
+    # for pedestrian in pedestrian_list:
+        bounding_box = pedestrian.bounding_box
+        bbox_z = bounding_box.location.z
+        location = pedestrian.get_transform().location
+        rotation = pedestrian.get_transform().rotation
+        bounding_box_location = np.array([location.x, location.y, bbox_z, 1])
+        # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
+        bounding_box_location_lidar = lidar_to_world_inv @ bounding_box_location  # 矩阵乘法
+        bounding_box_location_lidar = bounding_box_location_lidar[:3]  # 去掉齐次坐标部分，得到三维坐标
 
-        # --- 位置处理 ---
-        # CARLA 行人位置在脚部，需调整到边界框中心点（z + height/2）
-        adjusted_z = world_location.z + height/2
-        pedestrian_world = np.array([world_location.x, world_location.y, adjusted_z, 1])
+        # 获取边界框的宽长高
+        bounding_box_extent = bounding_box.extent
+        length = 2 * bounding_box_extent.x
+        width = 2 * bounding_box_extent.y
+        height = 2 * bounding_box_extent.z
 
-        # 转换到雷达坐标系（假设 lidar_to_world_inv 已提前计算）
-        pedestrian_lidar = lidar_to_world_inv @ pedestrian_world
-        pedestrian_lidar = pedestrian_lidar[:3]  # 去除齐次坐标
+        bounding_box_rotation = np.array([rotation.yaw, rotation.pitch, rotation.roll])
+        # 将 Euler 角（pitch, yaw, roll）转换为旋转矩阵（3x3）
+        rotation_matrix_world = R.from_euler('zyx', bounding_box_rotation, degrees=True).as_matrix()
+        # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
+        rotation_matrix_lidar = lidar_to_world_inv[:3, :3] @ rotation_matrix_world
+        rotation_lidar = R.from_matrix(rotation_matrix_lidar)
+        euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=True)
+        # 输出转换后的 pitch, yaw, roll
+        yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
 
-        # --- 旋转处理 ---
-        # CARLA 行人仅 yaw 有效，pitch 和 roll 设为 0
-        yaw_lidar = rotation.yaw
-        pitch_lidar = 0
-        roll_lidar = 0
-
+        # 构造标签数据（Nx9 格式）
         label = [
-            pedestrian_lidar[0],  # x
-            pedestrian_lidar[1],  # y
-            pedestrian_lidar[2],  # z
+            bounding_box_location_lidar[0],  # x
+            bounding_box_location_lidar[1],  # y
+            bounding_box_location_lidar[2] + height / 2,  # z ,需要把z替换成bounding_box.z
             length,
             width,
             height,
-            pitch_lidar,
-            roll_lidar,
-            yaw_lidar
+            pitch_lidar,  # pitch
+            roll_lidar,  # roll
+            yaw_lidar  # yaw
         ]
-
         pedestrian_labels.append(label)  # 行人标签直接保存，无需分类
+
+
 
     # 将 car ， truck 和 pedestrian 数据转换为 NumPy 数组
     car_labels = np.array(car_labels, dtype=object)
@@ -307,6 +313,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
 
     return vehicle_list
 
+
 # 生成随机运动行人
 def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
     random.seed(random_seed)
@@ -318,7 +325,6 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
         bp for bp in world.get_blueprint_library().filter('walker.pedestrian*')
         if not bp.id.split('.')[-1] in {'child', 'skeleton'}
     ]
-    # walker_bps = world.get_blueprint_library().find('walker.pedestrian.0001')
 
 
     for _ in range(num_pedestrians):
@@ -347,15 +353,23 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
             pedestrian.destroy()
             continue
 
-        # 绑定控制器
+        # # 绑定控制器
+        # controller_bp = world.get_blueprint_library().find('controller.ai.walker')
+        # controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
+        # if controller:
+        #     controller.start()
+        #     controller.go_to_location(world.get_random_location_from_navigation())
+        #     pedestrian_list.append((pedestrian, controller))
+        # else:
+        #     pedestrian.destroy()
+
         controller_bp = world.get_blueprint_library().find('controller.ai.walker')
         controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
-        if controller:
-            controller.start()
-            controller.go_to_location(world.get_random_location_from_navigation())
-            pedestrian_list.append((pedestrian, controller))
-        else:
-            pedestrian.destroy()
+        controller.start()  # 启用自动行走
+        controller.go_to_location(world.get_random_location_from_navigation())  # 设置目标点
+
+        # 只将行人添加到列表，控制器不保存
+        pedestrian_list.append(pedestrian)
 
         print(f"Spawned pedestrian: {pedestrian.id}")
 
@@ -416,12 +430,13 @@ def main():
             radar_folder = create_radar_folder()
             file_name = os.path.join(radar_folder, f"{folder_index}.mat")
             # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
-
             scipy.io.savemat(file_name, {'datalog': datalog})
+
             label_folder = create_label_folder()
             file_name = os.path.join(label_folder, f"{folder_index}.mat")
             # 保存为 .mat 文件
             scipy.io.savemat(file_name, {"LabelData": label})
+
             time.sleep(0.05)
             folder_index += 1
         print("Data collection completed!")
