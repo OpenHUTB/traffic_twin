@@ -72,7 +72,7 @@ function [croppedPointCloudObj, processedLabels] = cropFrontViewFromLidarData(li
                     % 查找每个标签中包含的点的数量。
                     numPoints = arrayfun(@(x)(findPointsInModel(cuboidModel(labels(x,:)),processedData)),...
                                 (1:size(labels,1)).','UniformOutput',false);
-                    posLabels = cellfun(@(x)(length(x) > 50), numPoints);       
+                    posLabels = cellfun(@(x)(length(x) > 30), numPoints);       
                     labels = labels(posLabels,:);
                 end
             end

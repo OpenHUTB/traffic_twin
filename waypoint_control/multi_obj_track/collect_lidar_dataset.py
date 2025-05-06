@@ -17,7 +17,7 @@ from queue import Queue
 from queue import Empty
 from scipy.spatial.transform import Rotation as R
 relativePose_lidar_to_egoVehicle = [0, 0, 1.3, 0, 0, 0, 0, 0, 0]
-LIDAR_RANGE = 50   # 筛选可视距离雷达的车辆
+LIDAR_RANGE = 50   # 筛选可视距离雷达的车辆和行人
 POINT_SAVE_TIME = 3000  # 保存数据数量
 
 
@@ -79,14 +79,18 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
     # 获取附近的所有车辆和行人
     vehicle_list = world.get_actors().filter("*vehicle*")
     pedestrian_list = world.get_actors().filter("*walker*")
-    # 筛选出距离雷达小于 45 米的车辆和行人
-    def dist(v):
-        return v.get_location().distance(location)
-    def dist(p):
-        return p.get_location().distance(location)
+    # 筛选出距离雷达小于 50 米的车辆和行人
+    # def dist(v):
+    #     return v.get_location().distance(location)
+    # def dist(p):
+    #     return p.get_location().distance(location)
+
+    def dist(actor):
+        return actor.get_location().distance(location)
+
     # 筛选出距离小于 LIDAR_RANGE 的车辆和行人
-    vehicle_list = list(filter(lambda v: dist(v) < LIDAR_RANGE, vehicle_list))
-    pedestrian_list = list(filter(lambda p: dist(p) < LIDAR_RANGE, pedestrian_list))
+    vehicle_list = list(filter(lambda actor: dist(actor) < LIDAR_RANGE, vehicle_list))
+    pedestrian_list = list(filter(lambda actor: dist(actor) < LIDAR_RANGE, pedestrian_list))
     # 按方向过滤车辆
     # vehicle_list = filter_vehicle_by_direction(vehicle_list, lidar_yaw, location, angle_tolerance=15, distance_threshold=30)
 
@@ -217,7 +221,11 @@ def save_radar_data(radar_data, world, location, lidar_to_world_inv, lidar_yaw, 
     # 保存点云数据
     # 获取雷达数据并将其转化为numpy数组
     points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
-    points = np.reshape(points, (len(points) // 4, 4))
+    # points = np.reshape(points, (len(points) // 5, 5))
+    if len(points) % 5 != 0:  # 检查数据对齐
+        print(f"Warning: Data size {len(points)} is not divisible by 5!")
+        points = points[:len(points) - len(points) % 5]  # 截断到对齐
+    points = np.reshape(points, (-1, 5))  # -1表示自动计算行数
     location = points[:, :3]
     # 将 location 转换为 float64（即 double 类型）
     location = location.astype(np.float64)
@@ -265,12 +273,13 @@ def setup_sensors(world, addtion_param, transform, lidar_to_world_inv, data_stru
     location = carla.Location(x=-46, y=21, z=1)
     lidar_yaw = transform.rotation.yaw
     # 配置LiDAR传感器
-    lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
-    lidar_bp.set_attribute('dropoff_general_rate', '0.1')
-    lidar_bp.set_attribute('dropoff_intensity_limit',
-                           lidar_bp.get_attribute('dropoff_intensity_limit').recommended_values[0])
-    lidar_bp.set_attribute('dropoff_zero_intensity',
-                           lidar_bp.get_attribute('dropoff_zero_intensity').recommended_values[0])
+    lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast_semantic')
+    # lidar_bp.set_attribute('dropoff_general_rate', '0.05')
+    # lidar_bp.set_attribute('dropoff_intensity_limit',
+    #                        lidar_bp.get_attribute('dropoff_intensity_limit').recommended_values[0])
+    # lidar_bp.set_attribute('dropoff_zero_intensity',
+    #                        lidar_bp.get_attribute('dropoff_zero_intensity').recommended_values[0])
+
 
     for key in addtion_param:
         lidar_bp.set_attribute(key, addtion_param[key])
@@ -344,6 +353,7 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
         if not pedestrian:
             continue
 
+
         # 通过Actor接口启用物理
         try:
             pedestrian.set_simulate_physics(True)
@@ -367,6 +377,7 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
         controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
         controller.start()  # 启用自动行走
         controller.go_to_location(world.get_random_location_from_navigation())  # 设置目标点
+
 
         # 只将行人添加到列表，控制器不保存
         pedestrian_list.append(pedestrian)
@@ -397,9 +408,9 @@ def main():
     lidar = None
     vehicles = []
     addtion_param = {
-        'channels': '64',
+        'channels': '128',
         'range': '200',
-        'points_per_second': '2200000',
+        'points_per_second': '5000000',
         'rotation_frequency': '20'
     }
     try:
@@ -441,9 +452,9 @@ def main():
             folder_index += 1
         print("Data collection completed!")
         # 销毁车辆和雷达传感器
-        if lidar is not None:
-            lidar.stop()  # 确保停止传感器线程
-            lidar.destroy()  # 销毁雷达传感器
+        # if lidar is not None:
+        #     lidar.stop()  # 确保停止传感器线程
+        #     lidar.destroy()  # 销毁雷达传感器
 
         for vehicle in vehicles:
             vehicle.destroy()
@@ -459,6 +470,7 @@ def main():
     finally:
         settings.synchronous_mode = False
         world.apply_settings(settings)
+        lidar.destroy()
 
 
 if __name__ == "__main__":
