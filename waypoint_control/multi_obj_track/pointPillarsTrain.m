@@ -33,10 +33,10 @@ axis off;
 % 定义裁剪参数
 
 xMin = -69.12;  % X 轴最小值
-yMin = -50;  % Y 轴最小值
+yMin = -39.68;  % Y 轴最小值
 zMin = -5.0;    % Z 轴最小值
 xMax = 69.12;   % X 轴最大值
-yMax = 50;   % Y 轴最大值
+yMax = 39.68;   % Y 轴最大值
 zMax = 5.0;     % Z 轴最大值
 
 pointCloudRange = [xMin xMax yMin yMax zMin zMax];

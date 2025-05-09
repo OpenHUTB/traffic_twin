@@ -17,7 +17,7 @@ from queue import Queue
 from queue import Empty
 from scipy.spatial.transform import Rotation as R
 relativePose_lidar_to_egoVehicle = [0, 0, 1.3, 0, 0, 0, 0, 0, 0]
-LIDAR_RANGE = 50   # 筛选可视距离雷达的车辆
+LIDAR_RANGE = 50   # 筛选可视距离雷达的车辆和行人
 POINT_SAVE_TIME = 3000  # 保存数据数量
 
 
@@ -79,14 +79,20 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
     # 获取附近的所有车辆和行人
     vehicle_list = world.get_actors().filter("*vehicle*")
     pedestrian_list = world.get_actors().filter("*walker*")
-    # 筛选出距离雷达小于 45 米的车辆和行人
-    def dist(v):
-        return v.get_location().distance(location)
-    def dist(p):
-        return p.get_location().distance(location)
+    # 筛选出距离雷达小于 50 米的车辆和行人
+    # def dist(v):
+    #     return v.get_location().distance(location)
+    # def dist(p):
+    #     return p.get_location().distance(location)
+
+    def dist(actor):
+        return actor.get_location().distance(location)
+
     # 筛选出距离小于 LIDAR_RANGE 的车辆和行人
-    vehicle_list = list(filter(lambda v: dist(v) < LIDAR_RANGE, vehicle_list))
-    pedestrian_list = list(filter(lambda p: dist(p) < LIDAR_RANGE, pedestrian_list))
+    vehicle_list = list(filter(lambda actor: dist(actor) < LIDAR_RANGE, vehicle_list))
+    pedestrian_list = list(filter(lambda actor: dist(actor) < LIDAR_RANGE, pedestrian_list))
+    # vehicle_list = list(filter(lambda v: dist(v) < LIDAR_RANGE, vehicle_list))
+    # pedestrian_list = list(filter(lambda p: dist(p) < LIDAR_RANGE, pedestrian_list))
     # 按方向过滤车辆
     # vehicle_list = filter_vehicle_by_direction(vehicle_list, lidar_yaw, location, angle_tolerance=15, distance_threshold=30)
 
@@ -272,6 +278,7 @@ def setup_sensors(world, addtion_param, transform, lidar_to_world_inv, data_stru
     lidar_bp.set_attribute('dropoff_zero_intensity',
                            lidar_bp.get_attribute('dropoff_zero_intensity').recommended_values[0])
 
+
     for key in addtion_param:
         lidar_bp.set_attribute(key, addtion_param[key])
 
@@ -344,6 +351,7 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
         if not pedestrian:
             continue
 
+
         # 通过Actor接口启用物理
         try:
             pedestrian.set_simulate_physics(True)
@@ -411,6 +419,11 @@ def main():
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=random_seed)
         # 生成行人
         pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20)
+        #启动行人碰撞
+        for pedestrian in pedestrians:
+            if "walker.pedestrian." in pedestrian.type_id:
+                pedestrian.set_collisions(True)
+                pedestrian.set_simulate_physics(True)
         # 设置理想化的雷达位置
         lidar_transform = carla.Transform(carla.Location(x=-46, y=21, z=1.8), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 获取雷达到世界的变换矩阵（4x4矩阵）
@@ -440,7 +453,7 @@ def main():
             time.sleep(0.05)
             folder_index += 1
         print("Data collection completed!")
-        # 销毁车辆和雷达传感器
+        #销毁车辆和雷达传感器
         if lidar is not None:
             lidar.stop()  # 确保停止传感器线程
             lidar.destroy()  # 销毁雷达传感器
