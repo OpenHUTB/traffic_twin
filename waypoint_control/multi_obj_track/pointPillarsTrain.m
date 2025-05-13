@@ -118,7 +118,7 @@ if ~exist(sampleLocation, 'dir')
     mkdir(sampleLocation); % 创建文件夹
 end
 % 从给定的数据存储对象 cds 中进行数据采样;返回两个输出,包含采样后的点云数据的存储对象和边界框标签的存储对象。
-[ldsSampled,bdsSampled] = sampleLidarData(cds,classNames,'MinPoints',20,...                  
+[ldsSampled,bdsSampled] = sampleLidarData(cds,classNames,'MinPoints',15,...                  
                             'Verbose',false,'WriteLocation',sampleLocation);
 cdsSampled = combine(ldsSampled,bdsSampled); % 合并采样数据
 %  数据增强：过采样
