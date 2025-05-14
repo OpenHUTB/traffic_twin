@@ -93,13 +93,19 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
     # 获取雷达检测范围内的全部车辆
     # 获取附近的所有车辆
     vehicle_list = world.get_actors().filter("*vehicle*")
+    pedestrian_list = world.get_actors().filter("*walker*")
 
     # 筛选出距离雷达小于 45 米的车辆
-    def dist(v):
-        return v.get_location().distance(location)
+    # def dist(v):
+    #     return v.get_location().distance(location)
+    def dist(actor):
+        return actor.get_location().distance(location)
     # 筛选出距离小于 LIDAR_RANGE 的车辆
-    vehicle_list = list(filter(lambda v: dist(v) < FUSION_DETECTION_ACTUAL_DIS, vehicle_list))
+    # vehicle_list = list(filter(lambda v: dist(v) < FUSION_DETECTION_ACTUAL_DIS, vehicle_list))
+    vehicle_list = list(filter(lambda actor: dist(actor) < FUSION_DETECTION_ACTUAL_DIS, vehicle_list))
+    pedestrian_list = list(filter(lambda actor: dist(actor) < FUSION_DETECTION_ACTUAL_DIS, pedestrian_list))
     vehicle_labels = []  # 车辆标签列表
+    pedestrian_labels = []  # 车辆标签列表
     # 获取标签NX9
     for vehicle in vehicle_list:
         bounding_box = vehicle.bounding_box
@@ -142,6 +148,50 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
         vehicle_id = vehicle.id
         vehicle_labels.append((time_stamp, vehicle_id, label))
     all_vehicle_labels.append(vehicle_labels)
+
+    # 获取行人标签
+    step = 2  # 每隔1个元素遍历（步长为2）
+    for pedestrian in pedestrian_list[::step]:
+        # for pedestrian in pedestrian_list:
+        bounding_box = pedestrian.bounding_box
+        bbox_z = bounding_box.location.z
+        location = pedestrian.get_transform().location
+        rotation = pedestrian.get_transform().rotation
+        bounding_box_location = np.array([location.x, location.y, bbox_z, 1])
+        # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
+        bounding_box_location_lidar = lidar_to_world_inv @ bounding_box_location  # 矩阵乘法
+        bounding_box_location_lidar = bounding_box_location_lidar[:3]  # 去掉齐次坐标部分，得到三维坐标
+
+        # 获取边界框的宽长高
+        bounding_box_extent = bounding_box.extent
+        length = 2 * bounding_box_extent.x
+        width = 2 * bounding_box_extent.y
+        height = 2 * bounding_box_extent.z
+
+        bounding_box_rotation = np.array([rotation.yaw, rotation.pitch, rotation.roll])
+        # 将 Euler 角（pitch, yaw, roll）转换为旋转矩阵（3x3）
+        rotation_matrix_world = R.from_euler('zyx', bounding_box_rotation, degrees=True).as_matrix()
+        # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
+        rotation_matrix_lidar = lidar_to_world_inv[:3, :3] @ rotation_matrix_world
+        rotation_lidar = R.from_matrix(rotation_matrix_lidar)
+        euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=True)
+        # 输出转换后的 pitch, yaw, roll
+        yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
+
+        # 构造标签数据（Nx9 格式）
+        label = [
+            bounding_box_location_lidar[0],  # x
+            bounding_box_location_lidar[1],  # y
+            bounding_box_location_lidar[2] + height / 2,  # z ,需要把z替换成bounding_box.z
+            length,
+            width,
+            height,
+            # pitch_lidar,  # pitch
+            # roll_lidar,  # roll
+            # yaw_lidar  # yaw
+        ]
+        pedestrian_id = pedestrian.id
+        pedestrian_labels.append((time_stamp, pedestrian_id, label))
 
 
 # 定义函数来保存雷达点云数据
@@ -365,6 +415,69 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
     return vehicle_list
 
 
+# 生成随机运动行人
+def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    pedestrian_list = []
+
+    # 获取普通行人蓝图（排除特殊类型）
+    walker_bps = [
+        bp for bp in world.get_blueprint_library().filter('walker.pedestrian*')
+        if not bp.id.split('.')[-1] in {'child', 'skeleton'}
+    ]
+
+
+    for _ in range(num_pedestrians):
+        # 获取安全生成位置
+        spawn_point = None
+        for _ in range(3):  # 最多尝试3次
+            location = world.get_random_location_from_navigation()
+            if location and 0 < location.z < 1.0:
+                spawn_point = carla.Transform(location)
+                break
+        if not spawn_point:
+            continue
+
+        # 生成行人
+        bp = random.choice(walker_bps)
+        pedestrian = world.try_spawn_actor(bp, spawn_point)
+        if not pedestrian:
+            continue
+
+
+        # 通过Actor接口启用物理
+        try:
+            pedestrian.set_simulate_physics(True)
+            world.tick()  # 同步模式下必须tick
+        except RuntimeError as e:
+            print(f"设置物理失败: {e}")
+            pedestrian.destroy()
+            continue
+
+        # # 绑定控制器
+        # controller_bp = world.get_blueprint_library().find('controller.ai.walker')
+        # controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
+        # if controller:
+        #     controller.start()
+        #     controller.go_to_location(world.get_random_location_from_navigation())
+        #     pedestrian_list.append((pedestrian, controller))
+        # else:
+        #     pedestrian.destroy()
+
+        controller_bp = world.get_blueprint_library().find('controller.ai.walker')
+        controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
+        controller.start()  # 启用自动行走
+        controller.go_to_location(world.get_random_location_from_navigation())  # 设置目标点
+
+        # 只将行人添加到列表，控制器不保存
+        pedestrian_list.append(pedestrian)
+
+        print(f"Spawned pedestrian: {pedestrian.id}")
+
+    return pedestrian_list
+
+
 def destroy_actor(lidar, camera_dict, vehicles, sensor_queue):
     if lidar is not None:
         lidar.stop()  # 确保停止传感器线程
@@ -473,6 +586,9 @@ def main():
         camera_loc = intersection_config.camera_positions
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=args.number_of_vehicles, random_seed=random_seed)
+        # 生成随机运动行人
+        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20)
+
         lidar_transform = carla.Transform(
             carla.Location(x=ego_transform.location.x, y=ego_transform.location.y, z=ego_transform.location.z + 0.82),
             ego_transform.rotation)

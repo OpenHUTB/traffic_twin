@@ -405,9 +405,9 @@ def main():
     lidar = None
     vehicles = []
     addtion_param = {
-        'channels': '64',
+        'channels': '128',
         'range': '200',
-        'points_per_second': '2200000',
+        'points_per_second': '4000000',
         'rotation_frequency': '20'
     }
     try:
