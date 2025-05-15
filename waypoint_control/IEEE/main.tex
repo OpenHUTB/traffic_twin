@@ -26,7 +26,7 @@ citecolor=blue]{hyperref}
 \usepackage{color,xcolor}
 \usepackage{makecell}
 \begin{document}
-\title{UVDT: A Baseline Benchmark for Urban Vehicle Digital Twins via LiDAR-Camera Fusion in Multi-Intersection Scenarios}
+\title{UVDT: A Baseline Benchmark for Urban Traffic Flow Digital Twins via Roadside LiDAR-Camera Fusion}
 \author{Haidong~Wang\(^*\),~Pengfei~Xiao,Ao~Liu, Jianhua~Zhang,~and Qia~Shan
 
 \thanks{H. Wang is with Hunan University of Technology and Business, Changsha 410082, China, and Xiangjiang Laboratory; P. Xiao, A. Liu, J. Zhang and Q. Shan are with Hunan University Of Technology and Business, Changsha 410082, China (e-mail: whd@hutb.edu.cn; 2893666867@qq.com; 2496556459@qq.com; zhangjianhua6682@126.com; s540534349@163.com).}}
@@ -56,9 +56,12 @@ A digital twin refers to the creation of a digital model corresponding to the re
 This technology can simulate, analyze, and optimize the real world in a virtual environment, thus providing support for decision-making\cite{Alpher21b}. 
 In the field of autonomous driving, digital twin technology can accurately replicate factors such as traffic flow, road structure, and pedestrian behavior, providing a precise testing and training environment for the perception, planning, and control of autonomous driving systems\cite{Alpher24}\cite{Alpher20d}.
 
-The focus of this research is to apply digital twin technology to the development and testing of autonomous driving systems to improve the interpretability and robustness of autonomous driving systems by replicating real traffic flow scenarios\cite{Alpher24b}.
-By constructing high-precision digital twin models and combining reinforcement learning with simulation platforms, we are able to simulate complex driving scenarios and train and optimize autonomous driving algorithms\cite{Alpher22c}. 
-At the same time, digital twin technology can provide smarter decision support for traffic management, promoting the development of smart city construction\cite{Alpher17b}.
+The digital twin system proposed in this study breaks through the limitations of traditional traffic simulation and innovatively builds the first quantifiable and verifiable traffic flow digital twin benchmark platform.
+As autonomous driving technology develops towards L4/L5 levels, traditional testing methods can no longer meet the verification needs of high precision and high efficiency\cite{Alpher24b}.
+At the same time, the in-depth advancement of smart city construction has also put forward higher requirements for the digital modeling and evaluation of traffic systems.
+The system not only realizes high-fidelity visualization of traffic scenes, but more importantly, it establishes a multi-dimensional quantitative evaluation system that can accurately analyze traffic flow parameters, identify the deviation between the behavior of the autonomous driving system and the real traffic flow, and provide data support for road design optimization and environmental modeling improvement.
+The current industry urgently needs such innovative solutions to cope with key challenges such as the high cost of autonomous driving testing and the insufficient accuracy of traditional simulation\cite{Alpher22c}.
+Not only that, the system also realizes a complete closed loop from scene perception to decision verification, which can significantly improve the test efficiency and safety verification capabilities of the autonomous driving system, and provide innovative solutions for the optimized deployment of smart transportation systems\cite{Alpher17b}.
 
 \begin{figure}[t]
 	\centering
@@ -67,14 +70,12 @@ At the same time, digital twin technology can provide smarter decision support f
 	\label{fig:1} 
 \end{figure}
 
-Digital twin systems rely heavily on the fusion of multi-source sensor data (such as LiDAR, cameras, and millimeter-wave radar) to achieve accurate object recognition and positioning. The accuracy of the detection algorithm directly determines the quality of the behavior modeling of traffic participants in the virtual environment and the fidelity of scenario restoration. 
-Although the application of deep learning technology has significantly improved the accuracy and system robustness of vehicle detection, the problem of target loss caused by vehicle occlusion, extreme lighting conditions, or sudden changes in viewing angles in complex urban scenarios is still a technical bottleneck that needs to be overcome\cite{Alpher23c}.
-Such defects can lead to multiple chain reactions and make it impossible for the digital twin system to continuously update the dynamic state of the vehicle (including key parameters such as position, speed, acceleration, etc.), ultimately causing the virtual model to be out of touch with the actual physical entity.
-
-In addition, the digital twin system is also limited by the sensor detection distance (such as the effective detection distance of millimeter-wave radar in rainy and foggy weather) and environmental noise interference (such as the deterioration of the signal-to-noise ratio of the camera under low illumination). 
-When we track the vehicle to obtain the trajectory, the frequency of ID switching increases. 
-This data discontinuity will distort the interactive logic of the virtual traffic flow, such as making wrong right-of-way decisions in intersection game scenarios. 
-More seriously, the processing lag of the non-real-time system will cause the gradual failure of the prediction function, and ultimately make the digital twin system lose its guiding value to the physical world.
+However, the digital twin system faces several key technical bottlenecks in the process of achieving high-fidelity traffic scene modeling.
+First, the problem of multi-target tracking in complex urban scenes is particularly prominent. Frequent target detection failures caused by factors such as mutual occlusion between vehicles, extreme changes in lighting conditions, and sudden changes in sensor viewing angles seriously affect the system's continuous and accurate estimation of the dynamic state parameters of traffic participants\cite{Alpher23c}.
+Second, the performance of multi-source heterogeneous sensors is significantly restricted by environmental conditions. Specifically, under severe meteorological conditions, the electromagnetic wave attenuation of millimeter-wave radars shortens the effective detection distance; while in low-light environments, vision-based perception systems face the technical difficulty of a sharp drop in image signal-to-noise ratio.
+In particular, the identity switching problem in the multi-target tracking process will destroy the spatiotemporal continuity of traffic flow, which will lead to deviations in the system's behavior prediction and decision-making in complex scenes such as intersections.
+In addition, the time series asynchrony problem caused by non-real-time data processing will cause cumulative errors in the prediction model, ultimately resulting in a progressive mismatch between the digital twin system and the physical world.
+These technical challenges have largely limited the engineering application value of digital twin technology in autonomous driving system verification and intelligent traffic management.
 
 In response to the above problems, this study conducts research from four dimensions: multi-object tracking at a single intersection, multi-object tracking at multiple intersections, trajectory inference and restoration, and digital twin system construction, as shown in Fig. \ref{fig:1}. 
 First, the object-level fusion detection method based on cameras and LiDAR is used to improve vehicle detection accuracy and thus enhance tracking robustness. 
@@ -87,22 +88,14 @@ Finally, the integrated control algorithm is used to accurately simulate vehicle
 
 We have summarized research work on different aspects of UVDT.
 
-\textbf{Vehicle Detection.}
-UVDT mainly uses LiDAR and cameras for vehicle object detection.
-Several recent studies have explored the fusion of LiDAR and camera data for vehicle detection,demonstrating significant improvements in both accuracy and robustness. 
-For instance, MVDNet (2018) utilizes a multi-view fusion approach, where LiDAR point clouds are projected to different views (such as bird’s-eye view and front view) and matched with camera images, combining depth information from LiDAR and texture information from the camera. 
-This method improves detection performance, especially in complex environments\cite{Alpher22h}. 
-Building on this, PointPillars introduces a fast encoder for LiDAR data, using a grid-based encoding approach that could potentially be integrated with camera data in future fusion methods to enhance detection speed and efficiency\cite{Alpher19}.
-Another study combines LiDAR and camera data by feeding them into separate convolutional neural networks, where the features extracted from both modalities are fused to perform object detection\cite{Alpher20e}. 
-This approach has shown significant improvements in detection performance, particularly in dynamic environments with occlusions or sparse LiDAR data.
-Lastly, ST-MVDNet introduces a self-training framework using a teacher-student mutual learning mechanism, where the teacher network is trained on the fused LiDAR and camera data, while the student network is exposed to strong data augmentation simulating missing sensor modalities\cite{Alpher22f}. 
-
-This approach enhances the model’s robustness against sensor failures by ensuring consistency between the teacher and student models, allowing the system to better handle missing or noisy data during inference.
-These methods collectively highlight the importance of sensor fusion and advanced learning techniques in achieving robust and accurate vehicle detection, even in challenging conditions.
-We use a combination of PointPillars-based 3D point cloud detection method and YOLOv4-based 2D image detection method for multimodal object detection.
-These two deep learning methods have shown excellent detection performance in their respective fields.
-
 \textbf{Multi-Object Tracking.}
+The development of multi-object tracking technology depends largely on the performance improvement of front-end object detection.
+In recent years, detection methods based on multi-sensor fusion have provided more reliable data input for tracking systems.
+MVDNet (2018) effectively improves the detection accuracy in complex environments by fusing LiDAR point clouds and camera images through multi-view projection\cite{Alpher22h}.
+Building on this, PointPillars introduces a fast encoder for LiDAR data, using a grid-based encoding approach that could potentially be integrated with camera data in future fusion methods to enhance detection speed and efficiency\cite{Alpher19}.
+We use a combination of PointPillars-based 3D point cloud detection method and YOLOv4-based 2D image detection method for multimodal object detection.
+
+In terms of tracking algorithms, researchers have proposed a variety of innovative methods.
 Specker and his team proposed an online multi-camera multi-object tracking method, which dynamically optimizes cross-camera target association through an innovative Corrective Matching Cascade strategy, significantly improving tracking accuracy and ID consistency in complex scenarios while ensuring real-time processing\cite{Alpher24e}.
 Shim and his team proposes a robust multi-target multi-camera vehicle tracking system designed for city-scale traffic management, addressing challenges like occlusion and cross-camera identity consistency by integrating spatial-temporal constraints and deep feature fusion to enable real-time vehicle monitoring and behavior analysis across urban camera networks\cite{Alpher21e}.
 Most existing algorithms, with a few exceptions, can be seen as special cases of the multi-modal fusion problem. 
@@ -161,10 +154,15 @@ The network begins with a feature encoder, which is a simplified PointNet. It co
 Next, the network has a 2-D CNN backbone that consists of encoder-decoder blocks. Each encoder block consists of convolution, batch-norm, and relu layers to extract features at different spatial resolutions. Each decoder block consists of transpose convolution, batch-norm, and relu layers.
 The network then concatenates output features at the end of each decoder block, and passes these features through six detection heads with convolutional and sigmoid layers to predict occupancy, location, size, angle, heading, and class.
 
-\textbf{ReID.}
-In practical applications, ID switching caused by tracking accuracy and the limitation of sensor detection distance will cause the loss or confusion of target identity information, which becomes a fatal problem affecting the fidelity and reliability of digital twin models.
-Especially in complex scenarios, when the target is temporarily blocked or leaves the sensor field of view, traditional tracking algorithms often find it difficult to maintain the continuity of the target identity.
-Re-identification technology is used to solve this problem. It extracts the deep surface features of the target (such as appearance, motion pattern, etc.) and establishes feature associations across cameras or time periods, so as to re-identify the same target in the previous video sequence frame in the current video sequence frame.
+\textbf{Trajectory Association between Intersections.}
+Multi-intersection trajectory association is essentially a multi-dimensional combinatorial optimization problem, and its complexity grows exponentially with the increase in the number of monitoring nodes and targets.
+Due to the differences in observation angles, occlusion conditions, and sensor performance at different intersections, targets often have inconsistent feature representation when they move across intersections.
+Especially in complex scenarios, when targets are temporarily occluded or leave the sensor's field of view, traditional tracking algorithms often have difficulty maintaining the continuity of target identity.
+These limitations seriously affect the fidelity and reliability of digital twin models.
+
+To solve this problem, we adopt a strategy that combines deep feature matching with global optimization, extracts multimodal feature representations with strong discriminability through the CNN architecture, and constructs a spatiotemporal constraint graph for global association optimization.
+In terms of specific implementation, the system first obtains a unified feature representation of the target through deep metric learning, which can effectively overcome the domain differences between different cameras.
+Then, a hierarchical optimization framework is used to generate candidate association pairs based on feature similarity at the bottom layer, and global consistency verification is performed at the upper layer in combination with kinematic constraints and road network topology.
 
 This method can not only effectively alleviate the tracking interruption problem caused by the short disappearance of the target, but also improve the target consistency maintenance ability of the digital twin system in long time sequence scenarios, providing a more robust perception basis for applications such as autonomous driving and intelligent monitoring.\cite{Alpher24d}.
 
@@ -261,7 +259,7 @@ These two waypoints are then fed into the navigation algorithm module, which sub
 
 In the simulation environment, vehicle trajectory planning is achieved by utilizing the A* algorithm to search for the shortest path within the graph structure constructed from the topological map. 
 The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby effectively guiding the current node \(p_{n}\) to search for the target node \(p_{g}\).
-The core of this algorithm lies in the evaluation function 
+The core of this algorithm lies in the following evaluation function. 
 \begin{align}
 	f(n) = \sum_{k = 1}^{n} \frac{d_{k} \cdot\left(1+\alpha \phi_{k}\right)}{1 + \frac{\gamma}{\kappa_k + \epsilon}}+\left\|\left[\begin{array}{c}
 		p_{n}-p_{g} \\
