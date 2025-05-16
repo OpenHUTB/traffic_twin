@@ -89,7 +89,7 @@ def rename_intersection(input_string):
 
 
 # 保存车辆标签
-def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicle_labels):
+def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicle_labels, all_pedestrian_labels):
     # 获取雷达检测范围内的全部车辆
     # 获取附近的所有车辆
     vehicle_list = world.get_actors().filter("*vehicle*")
@@ -105,7 +105,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
     vehicle_list = list(filter(lambda actor: dist(actor) < FUSION_DETECTION_ACTUAL_DIS, vehicle_list))
     pedestrian_list = list(filter(lambda actor: dist(actor) < FUSION_DETECTION_ACTUAL_DIS, pedestrian_list))
     vehicle_labels = []  # 车辆标签列表
-    pedestrian_labels = []  # 车辆标签列表
+    pedestrian_labels = []  # 行人标签列表
     # 获取标签NX9
     for vehicle in vehicle_list:
         bounding_box = vehicle.bounding_box
@@ -192,10 +192,11 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
         ]
         pedestrian_id = pedestrian.id
         pedestrian_labels.append((time_stamp, pedestrian_id, label))
+    all_pedestrian_labels.append(pedestrian_labels)
 
 
 # 定义函数来保存雷达点云数据
-def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, lidar_to_world_inv, all_vehicle_labels, junc, town_folder):
+def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, actual_pedestrian_num,lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder):
     global global_time
     # 获取当前帧编号
     current_frame = radar_data.frame
@@ -204,7 +205,7 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     timestamp = global_time
     global_time = timestamp + 0.05
     location = ego_vehicle_transform.location
-    save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels)
+    save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels, all_pedestrian_labels)
 
     # 获取雷达数据并将其转化为numpy数组
     points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
@@ -278,15 +279,29 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
         'CameraData': CameraData  # 使用结构体数组
     }
     vehicle_list = []
-    # 保存每一帧融合检测实际范围内的车辆数量
+    pedestrian_list = []
+    # 保存每一帧融合检测实际范围内的车辆和行人数量
     vehicle_list = world.get_actors().filter("*vehicle*")
+    pedestrian_list = world.get_actors().filter("*walker*")
 
-    def dist(v):
-        return v.get_location().distance(ego_vehicle_transform.location)
+    # def dist(v):
+    #     return v.get_location().distance(ego_vehicle_transform.location)
+    def dist(actor):
+        return actor.get_location().distance(ego_vehicle_transform.location)
 
-    vehicle_list = [v for v in vehicle_list if dist(v) < FUSION_DETECTION_ACTUAL_DIS]
+    vehicle_list = [actor for actor in vehicle_list if dist(actor) < FUSION_DETECTION_ACTUAL_DIS]
+    pedestrian_list = [actor for actor in pedestrian_list if dist(actor) < FUSION_DETECTION_ACTUAL_DIS]
     vehicle_count = len(vehicle_list)
+    pedestrian_count = len(pedestrian_list)
     actual_vehicle_num.append((timestamp, vehicle_count))
+    actual_pedestrian_num.append((timestamp, pedestrian_count))
+
+    # def dist(actor):
+    #     return actor.get_location().distance(location)
+    # # 筛选出距离小于 LIDAR_RANGE 的车辆
+    # vehicle_list = list(filter(lambda actor: dist(actor) < FUSION_DETECTION_ACTUAL_DIS, vehicle_list))
+    # pedestrian_list = list(filter(lambda actor: dist(actor) < FUSION_DETECTION_ACTUAL_DIS, pedestrian_list))
+
     # 将点云数据保存为 .mat 文件
     # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
     scipy.io.savemat(file_name, {'datalog': datalog})
@@ -478,7 +493,7 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
     return pedestrian_list
 
 
-def destroy_actor(lidar, camera_dict, vehicles, sensor_queue):
+def destroy_actor(lidar, camera_dict, vehicles, sensor_queue, pedestrians):
     if lidar is not None:
         lidar.stop()  # 确保停止传感器线程
         lidar.destroy()  # 销毁雷达传感器
@@ -491,6 +506,9 @@ def destroy_actor(lidar, camera_dict, vehicles, sensor_queue):
 
     for vehicle in vehicles:
         vehicle.destroy()
+
+    for pedestrian in pedestrians:
+        pedestrian.destroy()
     # 清空队列
     while not sensor_queue.empty():
         sensor_queue.get()
@@ -573,9 +591,9 @@ def main():
     tm = client.get_trafficmanager(8000)
     tm.set_synchronous_mode(True)
     addtion_param = {
-        'channels': '64',
+        'channels': '128',
         'range': '200',
-        'points_per_second': '2200000',
+        'points_per_second': '4000000',
         'rotation_frequency': '20'
     }
     try:
@@ -612,8 +630,11 @@ def main():
         # 启动相机、雷达传感器
         lidar, camera_dict = setup_sensors(world, addtion_param, sensor_queue, lidar_transform, camera_loc)
         actual_vehicle_num = []
+        actual_pedestrian_num = []
         all_vehicle_labels = []
+        all_pedestrian_labels = []
         vehicles_traj = {}
+        pedestrians_traj = {}
         for _ in range(DATA_MUN):
             world.tick()
             actor_list = world.get_actors().filter('vehicle.*')
@@ -632,11 +653,33 @@ def main():
             for _ in range(1 + len(camera_dict)):
                 data, sensor_name = sensor_queue.get(True, 1.0)
                 if "lidar" in sensor_name:  # lidar数据
-                    save_radar_data(data, world, ego_transform, actual_vehicle_num, lidar_to_world_inv, all_vehicle_labels, junc, town_folder)
+                    save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder)
                 else:
                     save_camera_data(data, sensor_name, junc, town_folder)
             # time.sleep(0.05)
+        for _ in range(DATA_MUN):
+            world.tick()
+            actor_list = world.get_actors().filter('walker.*')
+            for actor in actor_list:
+                pedestrian_id = actor.id
+                location = actor.get_location()
+                x = location.x,
+                y = location.y,
+                z = location.z,
+                # 如果该车辆ID不存在于字典中，则初始化一个空列表
+                if pedestrian_id not in pedestrians_traj:
+                    pedestrians_traj[pedestrian_id] = [[x, y, z]]
+                else:
+                    pedestrians_traj[pedestrian_id].append([x, y, z])
+            # 同步保存多传感器数据
+            for _ in range(1 + len(camera_dict)):
+                data, sensor_name = sensor_queue.get(True, 1.0)
+                if "lidar" in sensor_name:  # lidar数据
+                    save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder)
+                else:
+                    save_camera_data(data, sensor_name, junc, town_folder)
         folder_name = f"{town_folder}/{junc}/vehicle_data"
+        # folder_name = f"{town_folder}/{junc}/pedestrian_data"
         # 检查文件夹是否已存在，若不存在则创建
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
