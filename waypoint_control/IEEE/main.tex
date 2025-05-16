@@ -470,6 +470,12 @@ However, the Maximum Position Error (MaxPE: 105.89m) and Final Position Error (F
 For Mean Lateral Error (MLE) and Mean Longitudinal Error (MLOE), Town10 performs slightly better (MLE: 1.98 vs. 2.19, MLOE: 0.26 vs. 0.53), suggesting more precise lateral and longitudinal control, though overall stability is lacking. 
 In terms of Mean Delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seconds), demonstrating higher task execution efficiency.
 
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=\linewidth]{picture/picture8.png} 
+	\caption{In addition to the default environments (Town01/Town10) of CARLA, our UVDT framework is successfully deployed in two other custom city scenes. Top: Changsha CEC Software Park. (Left) Real scene; (Right) Digital twin. Bottom: Hunan University of Technology and Business. (Left) Real scene; (Right) Digital twin.} 
+	\label{fig:8} 
+\end{figure}
 
 \begin{table}[t]
 	\centering
@@ -557,7 +563,7 @@ However, due to ID switching, the trajectory of the same vehicle at a single int
 If only one trajectory is selected as the current intersection's trajectory for a vehicle, issues arise when the same vehicle returns to the intersection.
 
 \textbf{Shortcomings of Current Research.}
-Although our experiments have achieved some success, there are still some limitations. 
+As shown in Fig. \ref{fig:8}, although our experiments have been replicated in multiple real scenarios, there are still some limitations.
 For example, the detection accuracy of PointPillars is not high, resulting in suboptimal tracking performance. 
 Additionally, false detections may occur when acquiring images of vehicles corresponding to current trajectories, potentially leading to trajectory matching errors.
 
