@@ -1,38 +1,25 @@
-\documentclass[lettersize,journal]{IEEEtran}
-\usepackage{amsmath,amsfonts}
+\documentclass[journal,twoside,web]{ieeecolor}
+\usepackage{generic}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
-\usepackage{array}
-\usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
-\usepackage{textcomp}
-\usepackage{stfloats}
-\usepackage{url}
-\usepackage{verbatim}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{multirow}  
+\usepackage{multirow}
+\usepackage{textcomp}
+\usepackage{adjustbox}
 \usepackage{graphicx}
-\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
+\usepackage{epsfig}
+\usepackage{epstopdf}
+\epstopdfsetup{update}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
-\usepackage{balance}
-% 设置超链接跳转
-\usepackage[colorlinks,
-linkcolor=blue,
-anchorcolor=blue,
-citecolor=blue]{hyperref} 
-\usepackage{amsmath}
-
-% 改变字体颜色
-\usepackage{color,xcolor}
-\usepackage{makecell}
+\markboth{\journalname, VOL. XX, NO. XX, XXXX}
+{Author \MakeLowercase{\textit{et al.}}: Title}
 \begin{document}
-\title{UVDT: A Baseline Benchmark for Urban Vehicle Digital Twins via LiDAR-Camera Fusion in Multi-Intersection Scenarios}
+\title{UVDT: A Baseline Benchmark for Urban Traffic Flow Digital Twins via Roadside LiDAR-Camera Fusion}
 \author{Haidong~Wang\(^*\),~Pengfei~Xiao,Ao~Liu, Jianhua~Zhang,~and Qia~Shan
-
 \thanks{H. Wang is with Hunan University of Technology and Business, Changsha 410082, China, and Xiangjiang Laboratory; P. Xiao, A. Liu, J. Zhang and Q. Shan are with Hunan University Of Technology and Business, Changsha 410082, China (e-mail: whd@hutb.edu.cn; 2893666867@qq.com; 2496556459@qq.com; zhangjianhua6682@126.com; s540534349@163.com).}}
-
-\markboth{Journal of \LaTeX\ Class Files,~Vol.~18, No.~9, September~2020}%
-{How to Use the IEEEtran \LaTeX \ Templates}
 
 \maketitle
 
@@ -42,7 +29,8 @@ The multi-object tracking performance is optimized by fusing LiDAR detection and
 Cross-scenario vehicle re-recognition is improved by generating rich training data. 
 The digital twin-based vehicle control method provides high-precision path planning and control for the autonomous driving system, ensuring accurate vehicle navigation in complex traffic scenarios. 
 The experimental results show that UVDT can provide high-fidelity simulation scenarios for the testing and optimization of autonomous driving systems, which promotes the development of intelligent transportation systems and provides important support for the construction of future smart cities.
-The source code and datasets are available at \url{https://github.com/OpenHUTB/traffic_twin}.
+The source code and datasets are available at \underline 
+{https://github.com/OpenHUTB/traffic\_twin}.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -56,27 +44,27 @@ A digital twin refers to the creation of a digital model corresponding to the re
 This technology can simulate, analyze, and optimize the real world in a virtual environment, thus providing support for decision-making\cite{Alpher21b}. 
 In the field of autonomous driving, digital twin technology can accurately replicate factors such as traffic flow, road structure, and pedestrian behavior, providing a precise testing and training environment for the perception, planning, and control of autonomous driving systems\cite{Alpher24}\cite{Alpher20d}.
 
-The focus of this research is to apply digital twin technology to the development and testing of autonomous driving systems to improve the interpretability and robustness of autonomous driving systems by replicating real traffic flow scenarios\cite{Alpher24b}.
-By constructing high-precision digital twin models and combining reinforcement learning with simulation platforms, we are able to simulate complex driving scenarios and train and optimize autonomous driving algorithms\cite{Alpher22c}. 
-At the same time, digital twin technology can provide smarter decision support for traffic management, promoting the development of smart city construction\cite{Alpher17b}.
+The digital twin system proposed in this study breaks through the limitations of traditional traffic simulation and innovatively builds the first quantifiable and verifiable traffic flow digital twin benchmark platform.
+As autonomous driving technology develops towards L4/L5 levels, traditional testing methods can no longer meet the verification needs of high precision and high efficiency\cite{Alpher24b}.
+At the same time, the in-depth advancement of smart city construction has also put forward higher requirements for the digital modeling and evaluation of traffic systems.
+The system not only realizes high-fidelity visualization of traffic scenes, but more importantly, it establishes a multi-dimensional quantitative evaluation system that can accurately analyze traffic flow parameters, identify the deviation between the behavior of the autonomous driving system and the real traffic flow, and provide data support for road design optimization and environmental modeling improvement.
+The current industry urgently needs such innovative solutions to cope with key challenges such as the high cost of autonomous driving testing and the insufficient accuracy of traditional simulation\cite{Alpher22c}.
+Not only that, the system also realizes a complete closed loop from scene perception to decision verification, which can significantly improve the test efficiency and safety verification capabilities of the autonomous driving system, and provide innovative solutions for the optimized deployment of smart transportation systems\cite{Alpher17b}.
 
-\begin{figure}[t]
-	\centering
-	\includegraphics[width=\linewidth]{picture/picture1.png} 
-	\caption{The overall preview of the digital twin is provided through UVDT. The technical process from real vehicle trajectory to digital twin trajectory and traffic flow simulation is demonstrated.} 
-	\label{fig:1} 
+\begin{figure}[!t]
+	\centerline{\includegraphics[width=\columnwidth]{picture/picture1.eps}}
+	\caption{The overall preview of the digital twin is provided through UVDT. The technical process from real vehicle trajectory to digital twin trajectory and traffic flow simulation is demonstrated.}
+	\label{fig1}
 \end{figure}
 
-Digital twin systems rely heavily on the fusion of multi-source sensor data (such as LiDAR, cameras, and millimeter-wave radar) to achieve accurate object recognition and positioning. The accuracy of the detection algorithm directly determines the quality of the behavior modeling of traffic participants in the virtual environment and the fidelity of scenario restoration. 
-Although the application of deep learning technology has significantly improved the accuracy and system robustness of vehicle detection, the problem of target loss caused by vehicle occlusion, extreme lighting conditions, or sudden changes in viewing angles in complex urban scenarios is still a technical bottleneck that needs to be overcome\cite{Alpher23c}.
-Such defects can lead to multiple chain reactions and make it impossible for the digital twin system to continuously update the dynamic state of the vehicle (including key parameters such as position, speed, acceleration, etc.), ultimately causing the virtual model to be out of touch with the actual physical entity.
+However, the digital twin system faces several key technical bottlenecks in the process of achieving high-fidelity traffic scene modeling.
+First, the problem of multi-target tracking in complex urban scenes is particularly prominent. Frequent target detection failures caused by factors such as mutual occlusion between vehicles, extreme changes in lighting conditions, and sudden changes in sensor viewing angles seriously affect the system's continuous and accurate estimation of the dynamic state parameters of traffic participants\cite{Alpher23c}.
+Second, the performance of multi-source heterogeneous sensors is significantly restricted by environmental conditions. Specifically, under severe meteorological conditions, the electromagnetic wave attenuation of millimeter-wave radars shortens the effective detection distance; while in low-light environments, vision-based perception systems face the technical difficulty of a sharp drop in image signal-to-noise ratio.
+In particular, the identity switching problem in the multi-target tracking process will destroy the spatiotemporal continuity of traffic flow, which will lead to deviations in the system's behavior prediction and decision-making in complex scenes such as intersections.
+In addition, the time series asynchrony problem caused by non-real-time data processing will cause cumulative errors in the prediction model, ultimately resulting in a progressive mismatch between the digital twin system and the physical world.
+These technical challenges have largely limited the engineering application value of digital twin technology in autonomous driving system verification and intelligent traffic management.
 
-In addition, the digital twin system is also limited by the sensor detection distance (such as the effective detection distance of millimeter-wave radar in rainy and foggy weather) and environmental noise interference (such as the deterioration of the signal-to-noise ratio of the camera under low illumination). 
-When we track the vehicle to obtain the trajectory, the frequency of ID switching increases. 
-This data discontinuity will distort the interactive logic of the virtual traffic flow, such as making wrong right-of-way decisions in intersection game scenarios. 
-More seriously, the processing lag of the non-real-time system will cause the gradual failure of the prediction function, and ultimately make the digital twin system lose its guiding value to the physical world.
-
-In response to the above problems, this study conducts research from four dimensions: multi-object tracking at a single intersection, multi-object tracking at multiple intersections, trajectory inference and restoration, and digital twin system construction, as shown in Fig. \ref{fig:1}. 
+In response to the above problems, this study conducts research from four dimensions: multi-object tracking at a single intersection, multi-object tracking at multiple intersections, trajectory inference and restoration, and digital twin system construction, as shown in Fig. \ref{fig1}. 
 First, the object-level fusion detection method based on cameras and LiDAR is used to improve vehicle detection accuracy and thus enhance tracking robustness. 
 At the same time, the Re-identification (ReID) technology is introduced to achieve identity association across camera scenarios through vehicle appearance features (such as skeleton models, color changes, etc.), effectively solving the ID switching problem and ensuring trajectory continuity and consistency under complex lighting and occlusion conditions\cite{Alpher23}. 
 Secondly, in terms of trajectory reasoning, relying on the efficient navigation algorithm framework of the CARLA simulation platform, the shortest path planning strategy is used for trajectory inference. 
@@ -87,22 +75,14 @@ Finally, the integrated control algorithm is used to accurately simulate vehicle
 
 We have summarized research work on different aspects of UVDT.
 
-\textbf{Vehicle Detection.}
-UVDT mainly uses LiDAR and cameras for vehicle object detection.
-Several recent studies have explored the fusion of LiDAR and camera data for vehicle detection,demonstrating significant improvements in both accuracy and robustness. 
-For instance, MVDNet (2018) utilizes a multi-view fusion approach, where LiDAR point clouds are projected to different views (such as bird’s-eye view and front view) and matched with camera images, combining depth information from LiDAR and texture information from the camera. 
-This method improves detection performance, especially in complex environments\cite{Alpher22h}. 
-Building on this, PointPillars introduces a fast encoder for LiDAR data, using a grid-based encoding approach that could potentially be integrated with camera data in future fusion methods to enhance detection speed and efficiency\cite{Alpher19}.
-Another study combines LiDAR and camera data by feeding them into separate convolutional neural networks, where the features extracted from both modalities are fused to perform object detection\cite{Alpher20e}. 
-This approach has shown significant improvements in detection performance, particularly in dynamic environments with occlusions or sparse LiDAR data.
-Lastly, ST-MVDNet introduces a self-training framework using a teacher-student mutual learning mechanism, where the teacher network is trained on the fused LiDAR and camera data, while the student network is exposed to strong data augmentation simulating missing sensor modalities\cite{Alpher22f}. 
-
-This approach enhances the model’s robustness against sensor failures by ensuring consistency between the teacher and student models, allowing the system to better handle missing or noisy data during inference.
-These methods collectively highlight the importance of sensor fusion and advanced learning techniques in achieving robust and accurate vehicle detection, even in challenging conditions.
-We use a combination of PointPillars-based 3D point cloud detection method and YOLOv4-based 2D image detection method for multimodal object detection.
-These two deep learning methods have shown excellent detection performance in their respective fields.
-
 \textbf{Multi-Object Tracking.}
+The development of multi-object tracking technology depends largely on the performance improvement of front-end object detection.
+In recent years, detection methods based on multi-sensor fusion have provided more reliable data input for tracking systems.
+MVDNet (2018) effectively improves the detection accuracy in complex environments by fusing LiDAR point clouds and camera images through multi-view projection\cite{Alpher22h}.
+Building on this, PointPillars introduces a fast encoder for LiDAR data, using a grid-based encoding approach that could potentially be integrated with camera data in future fusion methods to enhance detection speed and efficiency\cite{Alpher19}.
+We use a combination of PointPillars-based 3D point cloud detection method and YOLOv4-based 2D image detection method for multimodal object detection.
+
+In terms of tracking algorithms, researchers have proposed a variety of innovative methods.
 Specker and his team proposed an online multi-camera multi-object tracking method, which dynamically optimizes cross-camera target association through an innovative Corrective Matching Cascade strategy, significantly improving tracking accuracy and ID consistency in complex scenarios while ensuring real-time processing\cite{Alpher24e}.
 Shim and his team proposes a robust multi-target multi-camera vehicle tracking system designed for city-scale traffic management, addressing challenges like occlusion and cross-camera identity consistency by integrating spatial-temporal constraints and deep feature fusion to enable real-time vehicle monitoring and behavior analysis across urban camera networks\cite{Alpher21e}.
 Most existing algorithms, with a few exceptions, can be seen as special cases of the multi-modal fusion problem. 
@@ -114,6 +94,11 @@ To enhance model expressiveness, some studies have employed higher-order relatio
 Joint optimization and iterative optimization strategies have also been widely used to improve performance.
 We use Joint Integrated Probabilistic Data Association (JIPDA), which combines data from multiple sensors and optimizes probabilistic associations to effectively handle data uncertainty and missing information in target tracking, improving tracking accuracy and robustness in complex environments.
 
+\begin{figure*}[t]
+	\centerline{\includegraphics[width=\textwidth]{picture/picture2.eps}}
+	\caption{In the given scenario, synchronized cameras and LiDAR sensors detect vehicles, while the tracking system performs both single-intersection and multi-intersection multi-object tracking. The tracking data is subsequently utilized for trajectory reconstruction, ultimately enabling the creation of a digital twin that accurately replicates the traffic scenario. Where \(W_{s}\) and \(W_{e}\) are the coordinates of the endpoints of the tracked trajectory in the simulation scenario, and \(T_{1}\) and \(T_{2}\) are the trajectories tracked at different intersections.}
+	\label{fig2}
+\end{figure*}
 
 \textbf{Vehicle ReID.}
 Bing and his team proposed a part-based regularization method, which enhances the accuracy of vehicle re-identification by detecting local parts of vehicles, such as lights and wheels\cite{Alpher19b}. 
@@ -124,13 +109,6 @@ The most advanced technologies in the field of vehicle re-identification current
 
 Inspired by person ReID techniques for video sequences, we developed a retrained vehicle ReID network based on ResNet-50. 
 The network has acquired comprehensive feature representations through large-scale image training, enabling effective vehicle re-identification performance.
-
-\begin{figure*}[t]
-	\centering
-	\includegraphics[width=\textwidth]{picture/picture2.png} 
-	\caption{In the given scenario, synchronized cameras and LiDAR sensors detect vehicles, while the tracking system performs both single-intersection and multi-intersection multi-object tracking. The tracking data is subsequently utilized for trajectory reconstruction, ultimately enabling the creation of a digital twin that accurately replicates the traffic scenario. Where \(W_{s}\) and \(W_{e}\) are the coordinates of the endpoints of the tracked trajectory in the simulation scenario, and \(T_{1}\) and \(T_{2}\) are the trajectories tracked at different intersections.}
-	\label{fig:2}
-\end{figure*}
 
 \textbf{Digital Twin.}
 After obtaining the trajectory data of all tracked vehicles, we will use the vehicle control algorithm to reproduce the traffic flow in the simulation scenario.
@@ -146,7 +124,7 @@ Subsequently, the PID controller is employed to control the vehicle, guiding it 
 \subsection{Problem Definition}
 
 In UVDT, the vehicle detection and tracking system for single-intersection scenarios adopts a multimodal data fusion architecture.
-As illustrated in Fig. \ref{fig:2}, the input source \(F_{t}\) integrates 3D point cloud data captured by LiDAR and synchronized RGB images from six calibrated cameras, achieving heterogeneous sensor data collaboration through spatiotemporal alignment.
+As illustrated in Fig. \ref{fig2}, the input source \(F_{t}\) integrates 3D point cloud data captured by LiDAR and synchronized RGB images from six calibrated cameras, achieving heterogeneous sensor data collaboration through spatiotemporal alignment.
 The tracker generates the vehicle trajectory \(T_{v}\) of a single intersection and the image \(i_{v}\) of the corresponding vehicle through the detection bounding boxes \(b_{2D}\) and \(b_{3D}\) obtained by object detection algorithms.
 For cross-intersection vehicle trajectories matching, we employ a re-identification network to extract appearance feature vectors \(f\), then compute their cosine similarity to produce a logical matching matrix \(C_{M \times N}\).
 Vehicle trajectories exceeding a predefined similarity threshold are matched and output as \(T_{t}\).
@@ -161,10 +139,15 @@ The network begins with a feature encoder, which is a simplified PointNet. It co
 Next, the network has a 2-D CNN backbone that consists of encoder-decoder blocks. Each encoder block consists of convolution, batch-norm, and relu layers to extract features at different spatial resolutions. Each decoder block consists of transpose convolution, batch-norm, and relu layers.
 The network then concatenates output features at the end of each decoder block, and passes these features through six detection heads with convolutional and sigmoid layers to predict occupancy, location, size, angle, heading, and class.
 
-\textbf{ReID.}
-In practical applications, ID switching caused by tracking accuracy and the limitation of sensor detection distance will cause the loss or confusion of target identity information, which becomes a fatal problem affecting the fidelity and reliability of digital twin models.
-Especially in complex scenarios, when the target is temporarily blocked or leaves the sensor field of view, traditional tracking algorithms often find it difficult to maintain the continuity of the target identity.
-Re-identification technology is used to solve this problem. It extracts the deep surface features of the target (such as appearance, motion pattern, etc.) and establishes feature associations across cameras or time periods, so as to re-identify the same target in the previous video sequence frame in the current video sequence frame.
+\textbf{Trajectory Association between Intersections.}
+Multi-intersection trajectory association is essentially a multi-dimensional combinatorial optimization problem, and its complexity grows exponentially with the increase in the number of monitoring nodes and targets.
+Due to the differences in observation angles, occlusion conditions, and sensor performance at different intersections, targets often have inconsistent feature representation when they move across intersections.
+Especially in complex scenarios, when targets are temporarily occluded or leave the sensor's field of view, traditional tracking algorithms often have difficulty maintaining the continuity of target identity.
+These limitations seriously affect the fidelity and reliability of digital twin models.
+
+To solve this problem, we adopt a strategy that combines deep feature matching with global optimization, extracts multimodal feature representations with strong discriminability through the CNN architecture, and constructs a spatiotemporal constraint graph for global association optimization.
+In terms of specific implementation, the system first obtains a unified feature representation of the target through deep metric learning, which can effectively overcome the domain differences between different cameras.
+Then, a hierarchical optimization framework is used to generate candidate association pairs based on feature similarity at the bottom layer, and global consistency verification is performed at the upper layer in combination with kinematic constraints and road network topology.
 
 This method can not only effectively alleviate the tracking interruption problem caused by the short disappearance of the target, but also improve the target consistency maintenance ability of the digital twin system in long time sequence scenarios, providing a more robust perception basis for applications such as autonomous driving and intelligent monitoring.\cite{Alpher24d}.
 
@@ -224,15 +207,14 @@ Through this process, we are ultimately able to obtain the trajectories of vehic
 
 \textbf{Reference System.}
 
-We placed an imaginary ego-vehicle in the center of the intersection, which serves as a reference system, as shown in Fig. \ref{fig:3}. 
+We placed an imaginary ego-vehicle in the center of the intersection, which serves as a reference system, as shown in Fig. \ref{fig3}. 
 For multi-object tracking we input not only the detection frame, but also the position of the camera and radar relative to the self-vehicle, as well as the position of the ego-vehicle. 
 The position coordinates of the self-vehicle in the experiment were always O(0,0,0), i.e. stationary. 
 Tracking initially generates trajectory coordinates \(\text P_1\) relative to the LiDAR, which we also fit to the world coordinates \(\text P_2\) in the simulation scenario.
-\begin{figure}[t]
-	\centering
-	\includegraphics[width=\linewidth]{picture/picture3.png} 
+\begin{figure}[!t]
+	\centerline{\includegraphics[width=\columnwidth]{picture/picture3.eps}}
 	\caption{Sensor configuration and coordinate transformation process: (a) Multi-sensor arrangement on the ego vehicle, including 6 cameras (2.62 meters upward offset) and 1 lidar (0.82 meters upward offset); (b) Coordinate transformation process from the ego vehicle system (left) to the lidar coordinate system (right) through JPDA, and finally converted to world coordinate in the simulation scenario through the transformation matrix. All distance measurements are in meters.} 
-	\label{fig:3} 
+	\label{fig3} 
 \end{figure}
 
 \subsection{Multi Intersection and Multi-Object Tracking}
@@ -261,7 +243,7 @@ These two waypoints are then fed into the navigation algorithm module, which sub
 
 In the simulation environment, vehicle trajectory planning is achieved by utilizing the A* algorithm to search for the shortest path within the graph structure constructed from the topological map. 
 The A* algorithm evaluates the comprehensive cost of nodes and, at each step, selects the node with the lowest comprehensive cost for expansion, thereby effectively guiding the current node \(p_{n}\) to search for the target node \(p_{g}\).
-The core of this algorithm lies in the evaluation function 
+The core of this algorithm lies in the following evaluation function. 
 \begin{align}
 	f(n) = \sum_{k = 1}^{n} \frac{d_{k} \cdot\left(1+\alpha \phi_{k}\right)}{1 + \frac{\gamma}{\kappa_k + \epsilon}}+\left\|\left[\begin{array}{c}
 		p_{n}-p_{g} \\
@@ -284,12 +266,11 @@ This method can be represented as:
 \end{align}
 where \(S\) is the trajectory collection, \(T_i(t)\) represents the \(i\)-th trajectory. 
 The limits \(\lim_{t \to t_i^+} T_i(t)\) and \(\lim_{t \to t_{i+1}^+} T_{i+1}(t)\) correspond to the end waypoint of the \(i\)-th trajectory and the start waypoint of the \((i+1)\)-th trajectory, respectively.
-As demonstrated in Fig. \ref{fig:5}, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
-\begin{figure}[t]
-	\centering
-	\includegraphics[width=\linewidth]{picture/picture5.png} 
+As demonstrated in Fig. \ref{fig5}, we can derive the complete vehicle trajectory collection, effectively reconstructing the trajectories of all vehicles.
+\begin{figure}[!t]
+	\centerline{\includegraphics[width=\columnwidth]{picture/picture5.eps}}
 	\caption{Trajectory restoration diagram, showing how to generate predicted trajectories between intersections from multi-object tracking trajectories and then obtain the complete vehicle trajectory.} 
-	\label{fig:5} 
+	\label{fig5} 
 \end{figure}
 
 \subsection{Twin of Trajectory}
@@ -362,6 +343,32 @@ Among them,
 Compared with \(MCTA\), \(IMCTA\) intuitively demonstrates the independent evaluation and synergy of detection capability and cross-camera association capability, transforming complex cross-camera evaluation into a transparent framework that is quantifiable, adjustable, and diagnosable. 
 The higher the value, the better the performance of the multi-camera tracking system.
 
+\begin{table*}[t]
+	\centering
+	\caption{MULTI-OBJECTIVE TRACKING EVALUATION}
+	\label{tab:2}
+	\small
+	\begin{tabular}{@{}l@{\hspace{1em}}c@{\hspace{0.5em}}*{10}{r}@{}}
+		\toprule
+		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{RMOTA} & \textbf{RMOTP} \\
+		\midrule
+		\multirow{5}{*}{\shortstack[l]{Town01 \\ (16 intersections, f- \\ lat roads, sparsely \\ populated buildings)}} 
+		& 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0.0000 & 37.5000 & 8.2945 & 79.9222\\
+		& 2 & 64.8065 & 61.5385 & 1.0297 & 450 & 391 & 21 & 55.5556 & 33.3333 & 22.4122 & 86.7746\\
+		& 3 & 63.2135 & 45.4407 & 1.1887 & 359 & 174 & 15 & 0.0000 & 25.0000 & -15.8562 & 86.9053\\
+		& 4 & 65.8206 & 96.7662 & 0.0369 & 13 & 202 & 20 & 40.0000 & 20.0000 & 60.2369 & 89.0919\\
+		& 5 & 41.4035 & 90.0763 & 0.0580 & 13 & 167 & 10 & 50.0000 & 0.0000 & 33.3333 & 88.2471\\
+		\midrule
+		\multirow{5}{*}{\shortstack[l]{Town10 \\ (7 intersections, hig- \\ h-density, including \\ steep slopes)}} 
+		& 1 & 30.6653 & 59.7166 & 0.7960 & 398 & 1334 & 28 & 8.3333 & 50.0000 & 8.5239 & 84.6488\\
+		& 2 & 56.4410 & 70.6095 & 1.1380 & 569 & 1055 & 29 & 13.3333 & 26.6667 & 31.7506 & 81.0920\\
+		& 3 & 51.9805 & 75.6714 & 0.6160 & 308 & 885 & 17 & 14.2857 & 35.7143 & 34.3462 & 84.2826\\
+		& 4 & 52.1930 & 86.1427 & 0.2680 & 134 & 763 & 50 & 27.2727 & 36.3636 & 40.6642 & 88.6035\\
+		& 5 & 45.4243 & 62.2719 & 1.6540 & 827 & 1640 & 35 & 12.5000 & 37.5000 & 16.7388 & 86.0825\\
+		\bottomrule
+	\end{tabular}
+\end{table*}
+
 \textbf{Twin Accuracy.}
 In the twin experimental evaluation, we verify the effectiveness of the system by comparing the comprehensive performance of the following three key trajectories: (1) the actual trajectory of the vehicle, (2) the observed trajectory reconstructed based on the multi-object tracking algorithm, and (3) the expected trajectory generated by the control system.
 This study uses Trajectory Overlap Ratio (TOR) for comprehensive evaluation, which quantifies both the shape similarity of the trajectory and the spatiotemporal consistency of the waypoints.
@@ -391,32 +398,6 @@ where \(p_{\pi_{1}(k)}\) and \(q_{\pi_{2}(k)}\) represent the three-dimensional 
 
 \subsection{Preparation}
 
-\begin{table*}[t]
-	\centering
-	\caption{MULTI-OBJECTIVE TRACKING EVALUATION}
-	\label{tab:2}
-	\small
-	\begin{tabular}{@{}l@{\hspace{1em}}c@{\hspace{0.5em}}*{10}{r}@{}}
-		\toprule
-		\textbf{Scene} & \textbf{Int.} & \textbf{Rcll} & \textbf{Prcn} & \textbf{FTR} & \textbf{FP} & \textbf{FN} & \textbf{IDS} & \textbf{MT} & \textbf{ML} & \textbf{RMOTA} & \textbf{RMOTP} \\
-		\midrule
-		\multirow{5}{*}{\shortstack[l]{Town01 \\ (16 intersections, f- \\ lat roads, sparsely \\ populated buildings)}} 
-		& 1 & 30.1025 & 59.9258 & 0.5106 & 216 & 750 & 18 & 0.0000 & 37.5000 & 8.2945 & 79.9222\\
-		& 2 & 64.8065 & 61.5385 & 1.0297 & 450 & 391 & 21 & 55.5556 & 33.3333 & 22.4122 & 86.7746\\
-		& 3 & 63.2135 & 45.4407 & 1.1887 & 359 & 174 & 15 & 0.0000 & 25.0000 & -15.8562 & 86.9053\\
-		& 4 & 65.8206 & 96.7662 & 0.0369 & 13 & 202 & 20 & 40.0000 & 20.0000 & 60.2369 & 89.0919\\
-		& 5 & 41.4035 & 90.0763 & 0.0580 & 13 & 167 & 10 & 50.0000 & 0.0000 & 33.3333 & 88.2471\\
-		\midrule
-		\multirow{5}{*}{\shortstack[l]{Town10 \\ (7 intersections, hig- \\ h-density, including \\ steep slopes)}} 
-		& 1 & 30.6653 & 59.7166 & 0.7960 & 398 & 1334 & 28 & 8.3333 & 50.0000 & 8.5239 & 84.6488\\
-		& 2 & 56.4410 & 70.6095 & 1.1380 & 569 & 1055 & 29 & 13.3333 & 26.6667 & 31.7506 & 81.0920\\
-		& 3 & 51.9805 & 75.6714 & 0.6160 & 308 & 885 & 17 & 14.2857 & 35.7143 & 34.3462 & 84.2826\\
-		& 4 & 52.1930 & 86.1427 & 0.2680 & 134 & 763 & 50 & 27.2727 & 36.3636 & 40.6642 & 88.6035\\
-		& 5 & 45.4243 & 62.2719 & 1.6540 & 827 & 1640 & 35 & 12.5000 & 37.5000 & 16.7388 & 86.0825\\
-		\bottomrule
-	\end{tabular}
-\end{table*}
-
 \textbf{Simulation Environment.}
 We conducted simulation experiments in CARLA, whose advantage lies in its provision of a highly realistic virtual environment capable of accurately simulating complex traffic scenarios and diverse driving conditions. 
 CARLA supports flexible sensor configurations, such as cameras and LiDAR, facilitating multimodal data acquisition and fusion experiments\cite{Alpher22e}. 
@@ -436,7 +417,7 @@ Each frame of data synchronously collects six-directional camera images and LiDA
 \subsection{Experimental Effect}
 
 \textbf{Multi-Object Tracking.}
-Table. \ref{tab:2} presents the multi-object tracking performance metrics across different scenarios (Town01 and Town10) and intersections (Intersection 1-5). 
+Table \ref{tab:2} presents the multi-object tracking performance metrics across different scenarios (Town01 and Town10) and intersections (Intersection 1-5). 
 The data reveals significant variations in performance across different intersections. 
 In Town01, Intersection 4 shows better performance in terms of Recall (65.8206) and Precision (96.7662), while Intersection 3 has a higher False Track Ratio (1.1887), indicating a greater proportion of incorrect tracking. 
 In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and Precision (86.1427), but Intersection 5 has significantly higher False Positives (827) and False Negatives (1640) compared to other intersections, suggesting a higher number of misidentified and missed targets.
@@ -444,18 +425,18 @@ In Town10, Intersection 4 also demonstrates relatively high Recall (52.1930) and
 Identity Switches (IDS) are notably higher in Intersection 4 of both Town01 and Town10, with values of 20 and 50 respectively, indicating more frequent target identity switches at these intersections. 
 The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in Town01 has a higher MT (55.5556), while Intersection 1 in Town10 has a higher ML (50.0000), reflecting significant differences in tracking stability across these intersections.
 
-\begin{figure}[t]
+\begin{figure}[!t]
 	\centering
-	\includegraphics[width=\linewidth]{picture/picture6.png} 
+	\centerline{\includegraphics[width=\columnwidth]{picture/picture6.eps}}
 	\caption{Analysis of the impact of point cloud detection threshold on multi-object tracking performance. Experiments show that the accuracy and threshold of vehicle detection are the key factors affecting tracking performance.} 
-	\label{fig:6} 
+	\label{fig6} 
 \end{figure}
 
-\begin{figure}[h!]
+\begin{figure}[!t]
 	\centering
-	\includegraphics[width=\linewidth]{picture/picture7.png} 
+		\centerline{\includegraphics[width=\columnwidth]{picture/picture7.eps}}
 	\caption{Comparative analysis of vehicle re-identification threshold effects on trajectory matching accuracy, illustrating the relationship between threshold values and the alignment degree between tracked trajectories and ground truth trajectories in urban traffic scenarios.} 
-	\label{fig:7} 
+	\label{fig7} 
 \end{figure}
 
 Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (\(RMOTA\): 60.2369; \(RMOTP\): 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (\(RMOTA\): 16.7388), indicating weaker tracking reliability.
@@ -463,7 +444,7 @@ However, detection accuracy is also affected by the number of vehicles passing t
 These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
 
 \textbf{Twin.}
-The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Table. \ref{tab:3}). 
+The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Table \ref{tab:3}). 
 These two tables compare the performance evaluation metrics of the digital twin in two scenarios, Town01 and Town10. 
 The TOR in Town01 is significantly higher than that in Town10 in the comparison of the Tracking Trajectory with the Digital Twin trajectory (TT-DT), indicating that it has a superior path tracking ability, which may be due to the simpler environment or the more stable control algorithm.
 However, for the comparison between the Tracked Trajectory and Ground Truth (TT-GT), it is higher in Town10, probably because our point cloud dataset was collected in Town10 and is more suitable for vehicle detection in this scenario.
@@ -472,22 +453,27 @@ However, the Maximum Position Error (MaxPE: 105.89m) and Final Position Error (F
 For Mean Lateral Error (MLE) and Mean Longitudinal Error (MLOE), Town10 performs slightly better (MLE: 1.98 vs. 2.19, MLOE: 0.26 vs. 0.53), suggesting more precise lateral and longitudinal control, though overall stability is lacking. 
 In terms of Mean Delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seconds), demonstrating higher task execution efficiency.
 
+\begin{figure}[!t]
+	\centerline{\includegraphics[width=\columnwidth]{picture/picture8.eps}}
+	\caption{In addition to the default environments (Town01/Town10) of CARLA, our UVDT framework is successfully deployed in two other custom city scenes. Top: Changsha CEC Software Park. (Left) Real scene; (Right) Digital twin. Bottom: Hunan University of Technology and Business. (Left) Real scene; (Right) Digital twin.} 
+	\label{fig8} 
+\end{figure}
 
 \begin{table}[t]
 	\centering
 	\caption{Table of Trajectory Overlap Rate and Vehicle Control Indicators}
 	\label{tab:3}
-	 \renewcommand\arraystretch{1.3}
+	\renewcommand\arraystretch{1.3}
 	\begin{tabular}{|c|c|c|c|c|c|}
-
+		
 		\hline
 		Scene & Type & TOR(\%) & MPE(m) & MaxPE(m) & FPE(m) \\
 		\hline
 		\multirow{3}{*}{Town01} & TT-DT & 50.2143 & 79.5798 & 33.1382 & 19.8970 \\
 		\cline{2-6}
 		& TT-GT & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\
-        \cline{2-6}
-        & Control & \multicolumn{4}{|c|}{MLE:2.1889, MLOE:0.5345, MD:1.2015} \\
+		\cline{2-6}
+		& Control & \multicolumn{4}{|c|}{MLE:2.1889, MLOE:0.5345, MD:1.2015} \\
 		\hline
 		\multirow{3}{*}{Town10} & TT-DT & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
 		\cline{2-6}
@@ -504,7 +490,7 @@ We conducted ablation studies on LiDAR detection and multi-intersection multi-ob
 
 \textbf{Detecting Vehicles in 3D Point Clouds.}
 During the process of detecting vehicles in the 3D point cloud, we set a threshold for the detection results.
-Before optimizing the tracker hyperparameters, we conducted multiple experiments in the Town10 scenario, and the experimental results are shown in Fig. \ref{fig:6}.
+Before optimizing the tracker hyperparameters, we conducted multiple experiments in the Town10 scenario, and the experimental results are shown in Fig. \ref{fig6}.
 When the threshold is too low, some non-vehicle objects, such as trees and buildings, will be mistaken for vehicles. In some cases, even the cargo loaded on the vehicle will be mistaken for a vehicle, and the recognition accuracy will be greatly reduced.
 On the contrary, if the threshold is too high, some vehicles will be missed, such as smaller cars, which are occasionally mistaken for boxes and ignored.
 When the threshold is 0.6, there is obvious feature crossover, which is the best choice for comprehensive tracking performance.
@@ -512,7 +498,7 @@ When the threshold is 0.6, there is obvious feature crossover, which is the best
 \textbf{Multi-Intersection and Multi-Object Tracking.}
 In the multi-intersection multi-target tracking experiment, the most critical task is the re-identification of vehicles across different intersections. 
 Therefore, we also set a threshold for the re-identification results: if the similarity score exceeds the threshold, the targets are considered the same vehicle; otherwise, they are deemed different vehicles. 
-During the experiment, we adjusted the threshold several times in the Town10 scenario, and the experimental results are shown in the Fig. \ref{fig:7}.
+During the experiment, we adjusted the threshold several times in the Town10 scenario, and the experimental results are shown in the Fig. \ref{fig7}.
 We use 0.5 as the ReID threshold because it achieves the best balance between security, stability, and scalability, avoiding both the extreme error of a low threshold and the risk of trajectory breakage of a high threshold.
 
 \subsection{Adaptive Data Association Threshold}
@@ -540,12 +526,11 @@ The process is as follows:
 1.Maximizing tracking performance by fitting existing data with a Gaussian process and constructing an objective function model in a 6-dimensional parameter space; 
 2.A small number of random parameter combinations are selected to calculate the value of the acquisition function, and the next parameter to be tested is selected (e.g., the point with the largest Expected Improvement); 
 3.Run the experiment to get the \(MOTA\) corresponding to the new parameters, add to the dataset, and repeat until the maximum number of iterations is reached or convergence is achieved.
-The improvement results after optimization compared with before optimization are shown in Fig. \ref{fig:4}.   
-\begin{figure}[t]
-	\centering
-	\includegraphics[width=\linewidth]{picture/picture4.png} 
+The improvement results after optimization compared with before optimization are shown in Fig. \ref{fig4}.   
+\begin{figure}[!t]
+	\centerline{\includegraphics[width=\columnwidth]{picture/picture4.eps}}
 	\caption{Comparison of \(RMOTA\) improvement (\%) after hyperparameter optimization on Town01 and Town10. The results demonstrate the effectiveness of the optimization strategies used in different scenarios.} 
-	\label{fig:4} 
+	\label{fig4} 
 \end{figure}
 
 \subsection{Limitations and Future Directions}
@@ -559,7 +544,7 @@ However, due to ID switching, the trajectory of the same vehicle at a single int
 If only one trajectory is selected as the current intersection's trajectory for a vehicle, issues arise when the same vehicle returns to the intersection.
 
 \textbf{Shortcomings of Current Research.}
-Although our experiments have achieved some success, there are still some limitations. 
+As shown in Fig. \ref{fig8}, although our experiments have been replicated in multiple real scenarios, there are still some limitations.
 For example, the detection accuracy of PointPillars is not high, resulting in suboptimal tracking performance. 
 Additionally, false detections may occur when acquiring images of vehicles corresponding to current trajectories, potentially leading to trajectory matching errors.
 
@@ -580,41 +565,28 @@ We hope that new large-scale datasets will be introduced in the future to furthe
 \section{Acknowledgements}
 The authors gratefully acknowledge the financial support provided by the Natural Science Foundation of Hunan Province (No.2024JJ6190), Research on a new generation of brain-like intelligent computing framework based on ultra-large-scale real neural systems (No.24XJJCYJ01001), Scientific research project of Hunan Provincial Department of Education (No.22B0646), the Open Project of Xiangjiang Laboratory (No.23XJ03009), Xiangjiang Laboratory key project subproject (No.22XJ01001-2), the “Digital Intelligence +” interdisciplinary research project of Hunan University Of Technology and Business (No.2023SZJ19).
 
-
 \bibliographystyle{IEEEtran}
 \bibliography{reference}
 
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/Haidong Wang/Haidong Wang.jpg}}]
-	{Haidong Wang}
-	received the B.E. degree in Computer Science and Technology from Hunan University Of Technology and Business, Changsha, China, in 2014, the M.Sc. degree in Computer Technology from the University of Chinese Academy of Sciences (UCAS), Beijing, 	China, in 2017, and Ph.D. degree in Hunan University, Changsha, China. His current research interests include brain-like vision, deep learning and reinforcement learning.
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/HaidongWang/HaidongWang.eps}}]{Haidong Wang} received the B.E. degree in Computer Science and Technology from Hunan University Of Technology and Business, Changsha, China, in 2014, the M.Sc. degree in Computer Technology from the University of Chinese Academy of Sciences (UCAS), Beijing, 	China, in 2017, and Ph.D. degree in Hunan University, Changsha, China. His current research interests include brain-like vision, deep learning and reinforcement learning.
 \end{IEEEbiography}
 
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/Pengfei Xiao/Pengfei Xiao.jpg}}]
-	{Pengfei Xiao}
-	received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2022, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like perception, deep learning and autonomous driving.
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/PengfeiXiao/PengfeiXiao.eps}}]{Pengfei Xiao} received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2022, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like perception, deep learning and autonomous driving.
 \end{IEEEbiography}
 
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/Ao Liu/Ao Liu.jpg}}]
-	{Ao Liu}
-	received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2023, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like control and deep learning.
-\end{IEEEbiography}
-
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/Qia Shan/Qia Shan.jpg}}]
-	{Qia Shan}
-	received the B.E. degree in Network Engineering from Hainan University, Haikou, China, in 2020, and is currently pursuing the M.Sc. degree in Software Engineering at Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like affective computing and deep learning.
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/AoLiu/AoLiu.eps}}]{Ao Liu} received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2023, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like control and deep learning.
 \end{IEEEbiography}
 
 \vfill\null
 \newpage
-
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/Jianhua Zhang/Jianhua Zhang.jpg}}]
-	{Jianhua Zhang}
-	received the B.E. degree in Software Engineering from Taiyuan University of Technology, TaiYuan, China, in 2022,and M.Sc. degree in Software Engineering from the Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like vision and deep learning.
-\end{IEEEbiography}
-
-
-
-
+\begin{minipage}[t][0pt][t]{0.48\textwidth}
+	\vspace{-10ex}
+	\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/QiaShan/QiaShan.eps}}]{Qia Shan} received the B.E. degree in Network Engineering from Hainan University, Haikou, China, in 2020, and is currently pursuing the M.Sc. degree in Software Engineering at Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like affective computing and deep learning.
+	\end{IEEEbiography}
+	
+	\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/JianhuaZhang/JianhuaZhang.eps}}]{Jianhua Zhang} received the B.E. degree in Software Engineering from Taiyuan University of Technology, TaiYuan, China, in 2022,and M.Sc. degree in Software Engineering from the Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like vision and deep learning.
+	\end{IEEEbiography}
+    \vspace{\fill} % 弹性填充剩余空间
+\end{minipage}
 \end{document}
-
-

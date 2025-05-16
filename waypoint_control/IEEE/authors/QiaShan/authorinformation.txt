@@ -1,0 +1,4 @@
+% 作者信息
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{./authors/HaidongWang}}]{Haidong Wang}
+	  received the B.E. degree in Network Engineering from Hainan University, Haikou, China, in 2020, and is currently pursuing the M.Sc. degree in Software Engineering at Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like affective computing and deep learning.
+\end{IEEEbiography}
