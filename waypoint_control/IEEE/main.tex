@@ -148,17 +148,22 @@ Next, the network has a 2-D CNN backbone that consists of encoder-decoder blocks
 The network then concatenates output features at the end of each decoder block, and passes these features through six detection heads with convolutional and sigmoid layers to predict occupancy, location, size, angle, heading, and class.
 
 \textbf{Trajectory Association between Intersections.}
-Multi-intersection trajectory association is essentially a multi-dimensional combinatorial optimization problem, and its complexity grows exponentially with the increase in the number of monitoring nodes and targets.
-Due to the differences in observation angles, occlusion conditions, and sensor performance at different intersections, targets often have inconsistent feature representation when they move across intersections.
-Especially in complex scenarios, when targets are temporarily occluded or leave the sensor's field of view, traditional tracking algorithms often have difficulty maintaining the continuity of target identity.
-These limitations seriously affect the fidelity and reliability of digital twin models.
+Multi-intersection trajectory association is a typical high-dimensional combinatorial optimization problem, and its computational complexity increases exponentially with the increase in the number of monitoring nodes and targets.
+Due to differences in observation angles, occlusion conditions, and sensor performance at different intersections, targets often exhibit inconsistent feature representations when moving across intersections.
+Especially in complex scenarios, when targets are temporarily occluded or leave the sensor's field of view, traditional global matching algorithms are not only computationally inefficient (with a complexity of \(O(R^2 T^2)\), where \(R\) is the total number of intersections and \(T\)  is the number of trajectories at the current intersection), but are also prone to mismatching due to interference from irrelevant areas, seriously affecting the fidelity and reliability of digital twin models.
 
-To solve this problem, we adopt a strategy that combines deep feature matching with global optimization, extracts multimodal feature representations with strong discriminability through the CNN architecture, and constructs a spatiotemporal constraint graph for global association optimization.
-In terms of specific implementation, the system first obtains a unified feature representation of the target through deep metric learning, which can effectively overcome the domain differences between different cameras.
-Then, a hierarchical optimization framework is used to generate candidate association pairs based on feature similarity at the bottom layer, and global consistency verification is performed at the upper layer in combination with kinematic constraints and road network topology.
+To solve this problem, we innovatively proposed a spatiotemporal constraint matching method for adjacent intersections, achieving a performance breakthrough through a dual optimization strategy.
+In the spatial dimension, this method only matches topologically adjacent intersections (average number of adjacencies \(K \ll R\)), reducing the complexity to \(O(R)\); in the temporal dimension, a dynamic sliding window is used to screen candidate trajectories, reducing the number of single matching operations from \(O(T^2)\) to \(O(T)\).
+Then, the trajectories of the same vehicle are associated through deep feature matching, and the final vehicle trajectory is obtained after being sorted in chronological order.
+The spatiotemporal constraint matching is formulated as:
+\begin{align}
+	\mathcal{M}^{*} = \underset{\mathcal{M} \in \Phi}{\operatorname{argmax}} \sum_{(i, j)} \mathcal{S}(f_{i}, f_{j}) \cdot \mathbb{I}_{\Delta t}(t_{i}, t_{j}) \cdot \mathbb{I}_{\mathrm{adj}}(r_{i}, r_{j})
+\end{align}
 
-This method can not only effectively alleviate the tracking interruption problem caused by the short disappearance of the target, but also improve the target consistency maintenance ability of the digital twin system in long time sequence scenarios, providing a more robust perception basis for applications such as autonomous driving and intelligent monitoring.\cite{Alpher24d}.
+The optimal trajectory association set \(M^{*}\) is obtained by solving in the space of all possible matching combinations \(\Phi\).
+Among them, \(S(f_{i}, f_{j})\) is a similarity function that calculates the matching degree of two trajectories based on the appearance feature \(f\) of deep learning; \(\mathbb{I}_{\Delta t}(t_{i}, t_{j})\) is a time constraint indicator function, which takes the value of 1 when the time difference \(\Delta t = |t_i - t_j|\) between the two trajectories falls within the preset interval \([\alpha, \beta]\); and \(\mathbb{I}_{\text{adj}}(r_{i}, r_{j})\) is a spatial adjacency indicator function, which takes the value of 1 when the intersections \(r_{i}\) and \(r_{j}\) where the two trajectories are located are adjacent in the road network topology.
 
+Through long-term series consistency modeling of the digital twin system, this method not only solves the tracking interruption problem caused by the short-term disappearance of the target, but also optimizes the vehicle trajectory association efficiency, thereby providing a more stable perception basis for scenarios such as autonomous driving and intelligent monitoring\cite{Alpher24d}.
 \subsection{Single Intersection Multi-Object Tracking}
 
 We fuse detections from our LiDAR and cameras at a single intersection and use the tracker JDPA object to track the target.
@@ -169,7 +174,6 @@ The tracker adopts a recursive state estimation framework to propagate and updat
 The operation \(\otimes\) represents the element-wise multiplication between state vectors, while \(c_{j}\) serves as a normalization factor for category \(j\) to dynamically adjust the relative weights of different objectives during the fusion process.
 This mathematical representation captures the essential mechanism for maintaining consistent multi-object tracking through temporal state propagation and weighted information fusion.
 The normalization procedure ensures numerical stability while preserving the probabilistic interpretation of the state estimates, which is particularly crucial when dealing with target interactions and measurement uncertainties in complex tracking scenarios.
-
 \begin{align}
 	\mu(k) & = \frac{c_{j} \otimes [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}{c_{j}^{T} [ \mu_1(k-1), \ldots, \mu_N(k-1) ]^T}
 \end{align}
@@ -296,7 +300,6 @@ Specifically, for any adjacent waypoint pair, the algorithm uniformly inserts ne
 It is worth noting that the current method assumes that the input waypoints are all on the real trajectory, and for the filtering of possible external or noise points, an additional robust processing mechanism is needed, which will be an important direction for future research.
 
 The PID controller consists of three main components: Proportional control (P), Integral control (I), and Derivative control (D). Each component serves a specific purpose, enabling the regulation of different aspects of the system.
-
 \begin{align}
 	u = K_p e + K_i \int \left( e - \frac{\text{sat}(u)-u}{K_p} \right) dt + K_d \dot{e}
 \end{align}
@@ -447,26 +450,6 @@ The Mostly Tracked (MT) and Mostly Lost (ML) metrics show that Intersection 2 in
 	\label{fig:7} 
 \end{figure}
 
-Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (\(RMOTA\): 60.2369; \(RMOTP\): 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (\(RMOTA\): 16.7388), indicating weaker tracking reliability.
-However, detection accuracy is also affected by the number of vehicles passing through the intersection, and the system accuracy improves significantly in low traffic conditions.
-These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
-
-\textbf{Twin.}
-The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Table \ref{tab:3}). 
-These two tables compare the performance evaluation metrics of the digital twin in two scenarios, Town01 and Town10. 
-The TOR in Town01 is significantly higher than that in Town10 in the comparison of the Tracking Trajectory with the Digital Twin trajectory (TT-DT), indicating that it has a superior path tracking ability, which may be due to the simpler environment or the more stable control algorithm.
-However, for the comparison between the Tracked Trajectory and Ground Truth (TT-GT), it is higher in Town10, probably because our point cloud dataset was collected in Town10 and is more suitable for vehicle detection in this scenario.
-In terms of Mean Position Error (MPE), the two are close (Town01: 79.58m, Town10: 82.41m). 
-However, the Maximum Position Error (MaxPE: 105.89m) and Final Position Error (FPE: 105.09m) in Town10 far exceed those in Town01 (MaxPE: 33.14m, FPE: 19.90m), revealing severe localization deviations in extreme cases, likely caused by complex environments or dynamic obstacles. 
-For Mean Lateral Error (MLE) and Mean Longitudinal Error (MLOE), Town10 performs slightly better (MLE: 1.98 vs. 2.19, MLOE: 0.26 vs. 0.53), suggesting more precise lateral and longitudinal control, though overall stability is lacking. 
-In terms of Mean Delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seconds), demonstrating higher task execution efficiency.
-
-\begin{figure}[!t]
-	\centerline{\includegraphics[width=\columnwidth]{picture/picture8.eps}}
-	\caption{In addition to the default environments (Town01/Town10) of CARLA, our UVDT framework is successfully deployed in two other custom city scenes. Top: Changsha CEC Software Park. (Left) Real scene; (Right) Digital twin. Bottom: Hunan University of Technology and Business. (Left) Real scene; (Right) Digital twin.} 
-	\label{fig:8} 
-\end{figure}
-
 \begin{table}[t]
 	\centering
 	\caption{Table of Trajectory Overlap Rate and Vehicle Control Indicators}
@@ -491,6 +474,26 @@ In terms of Mean Delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 		\hline
 	\end{tabular}
 \end{table}
+
+Overall, the tracking performance varies significantly across intersections. Intersection 4 in Town01 achieves high scores for both metrics (\(RMOTA\): 60.2369; \(RMOTP\): 89.0919), while Intersection 5 in Town10 shows notably lower accuracy (\(RMOTA\): 16.7388), indicating weaker tracking reliability.
+However, detection accuracy is also affected by the number of vehicles passing through the intersection, and the system accuracy improves significantly in low traffic conditions.
+These data highlight the performance variations of the multi-object tracking system across different scenarios and intersections, providing valuable insights for further optimization.
+
+\textbf{Twin.}
+The performance of the digital twin is primarily reflected by two sets of metrics: trajectory coincidence and control error (as shown in Table \ref{tab:3}). 
+These two tables compare the performance evaluation metrics of the digital twin in two scenarios, Town01 and Town10. 
+The TOR in Town01 is significantly higher than that in Town10 in the comparison of the Tracking Trajectory with the Digital Twin trajectory (TT-DT), indicating that it has a superior path tracking ability, which may be due to the simpler environment or the more stable control algorithm.
+However, for the comparison between the Tracked Trajectory and Ground Truth (TT-GT), it is higher in Town10, probably because our point cloud dataset was collected in Town10 and is more suitable for vehicle detection in this scenario.
+In terms of Mean Position Error (MPE), the two are close (Town01: 79.58m, Town10: 82.41m). 
+However, the Maximum Position Error (MaxPE: 105.89m) and Final Position Error (FPE: 105.09m) in Town10 far exceed those in Town01 (MaxPE: 33.14m, FPE: 19.90m), revealing severe localization deviations in extreme cases, likely caused by complex environments or dynamic obstacles. 
+For Mean Lateral Error (MLE) and Mean Longitudinal Error (MLOE), Town10 performs slightly better (MLE: 1.98 vs. 2.19, MLOE: 0.26 vs. 0.53), suggesting more precise lateral and longitudinal control, though overall stability is lacking. 
+In terms of Mean Delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seconds), demonstrating higher task execution efficiency.
+
+\begin{figure}[!t]
+	\centerline{\includegraphics[width=\columnwidth]{picture/picture8.eps}}
+	\caption{In addition to the default environments (Town01/Town10) of CARLA, our UVDT framework is successfully deployed in two other custom city scenes. Top: Changsha CEC Software Park. (Left) Real scene; (Right) Digital twin. Bottom: Hunan University of Technology and Business. (Left) Real scene; (Right) Digital twin.} 
+	\label{fig:8} 
+\end{figure}
 
 \begin{table}[t]
 	\centering
@@ -609,7 +612,7 @@ The authors gratefully acknowledge the financial support provided by the Natural
 \bibliography{reference}
 
 
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/HaidongWang/HaidongWang.eps}}]{Haidong Wang} received the B.E. degree in Computer Science and Technology from Hunan University Of Technology and Business, Changsha, China, in 2014, the M.Sc. degree in Computer Technology from the University of Chinese Academy of Sciences (UCAS), Beijing, 	China, in 2017, and Ph.D. degree in Hunan University, Changsha, China. His current research interests include brain-like vision, deep learning and reinforcement learning.
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/HaidongWang/HaidongWang.eps}}]{Haidong Wang} received the B.E. degree in Computer Science and Technology from Hunan University Of Technology and Business, Changsha, China, in 2014, the M.Sc. degree in Computer Technology from the University of Chinese Academy of Sciences (UCAS), Beijing, China, in 2017, and Ph.D. degree in Hunan University, Changsha, China. His current research interests include brain-like vision, deep learning and reinforcement learning.
 \end{IEEEbiography}
 
 \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/PengfeiXiao/PengfeiXiao.eps}}]{Pengfei Xiao} received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2022, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like perception, deep learning and autonomous driving.
@@ -618,15 +621,10 @@ The authors gratefully acknowledge the financial support provided by the Natural
 \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/AoLiu/AoLiu.eps}}]{Ao Liu} received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2023, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like control and deep learning.
 \end{IEEEbiography}
 
-\vfill\null
-\newpage
-\begin{minipage}[t][0pt][t]{0.48\textwidth}
-	\vspace{-10ex}
-	\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/QiaShan/QiaShan.eps}}]{Qia Shan} received the B.E. degree in Network Engineering from Hainan University, Haikou, China, in 2020, and is currently pursuing the M.Sc. degree in Software Engineering at Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like affective computing and deep learning.
-	\end{IEEEbiography}
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/QiaShan/QiaShan.eps}}]{Qia Shan} received the B.E. degree in Network Engineering from Hainan University, Haikou, China, in 2020, and is currently pursuing the M.Sc. degree in Software Engineering at Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like affective computing and deep learning.
+\end{IEEEbiography}
 	
-	\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/JianhuaZhang/JianhuaZhang.eps}}]{Jianhua Zhang} received the B.E. degree in Software Engineering from Taiyuan University of Technology, TaiYuan, China, in 2022,and M.Sc. degree in Software Engineering from the Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like vision and deep learning.
-	\end{IEEEbiography}
-    \vspace{\fill} % 弹性填充剩余空间
-\end{minipage}
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/JianhuaZhang/JianhuaZhang.eps}}]{Jianhua Zhang} received the B.E. degree in Software Engineering from Taiyuan University of Technology, TaiYuan, China, in 2022,and M.Sc. degree in Software Engineering from the Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like vision and deep learning.
+\end{IEEEbiography}
+
 \end{document}
