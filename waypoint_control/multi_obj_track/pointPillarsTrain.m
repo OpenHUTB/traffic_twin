@@ -33,10 +33,10 @@ axis off;
 % 定义裁剪参数
 
 xMin = -69.12;  % X 轴最小值
-yMin = -39.68;  % Y 轴最小值
+yMin = -39.84;  % Y 轴最小值
 zMin = -5.0;    % Z 轴最小值
 xMax = 69.12;   % X 轴最大值
-yMax = 39.68;   % Y 轴最大值
+yMax = 39.84;   % Y 轴最大值
 zMax = 5.0;     % Z 轴最大值
 
 pointCloudRange = [xMin xMax yMin yMax zMin zMax];
@@ -118,7 +118,7 @@ if ~exist(sampleLocation, 'dir')
     mkdir(sampleLocation); % 创建文件夹
 end
 % 从给定的数据存储对象 cds 中进行数据采样;返回两个输出,包含采样后的点云数据的存储对象和边界框标签的存储对象。
-[ldsSampled,bdsSampled] = sampleLidarData(cds,classNames,'MinPoints',15,...                  
+[ldsSampled,bdsSampled] = sampleLidarData(cds,classNames,'MinPoints',10,...                  
                             'Verbose',false,'WriteLocation',sampleLocation);
 cdsSampled = combine(ldsSampled,bdsSampled); % 合并采样数据
 %  数据增强：过采样
@@ -136,7 +136,7 @@ helperShowPointCloudWith3DBoxes(ptCld,bboxes,labels,classNames,colors)
 
 %% 创建 PointPillars 对象检测器
 anchorBoxes = calculateAnchorsPointPillars(trainLabels);
-voxelSize = [0.16, 0.16]; % 体素大小
+voxelSize = [0.12, 0.12]; % 体素大小
 
 % 创建 PointPillars 模型
 detector = pointPillarsObjectDetector(pointCloudRange, classNames, ...
@@ -147,7 +147,9 @@ checkpointPath = fullfile(dataPath,'checkpointPath');
 if ~exist(checkpointPath, 'dir')
     mkdir(checkpointPath); % 创建文件夹
 end
+
 executionEnvironment = "auto"; % 或者设置为 "gpu" 或 "cpu"
+
 options = trainingOptions('adam',...        % 指定使用的优化器为 Adam（自适应矩估计
     Plots = "training-progress",...         % 参数表示训练过程中绘制图表以显示训练进度
     MaxEpochs = 60,...                      % 指定训练的最大周期数（epochs）
