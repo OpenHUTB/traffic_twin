@@ -678,8 +678,9 @@ def main():
                     save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder)
                 else:
                     save_camera_data(data, sensor_name, junc, town_folder)
+
+        # 保存车辆数据
         folder_name = f"{town_folder}/{junc}/vehicle_data"
-        # folder_name = f"{town_folder}/{junc}/pedestrian_data"
         # 检查文件夹是否已存在，若不存在则创建
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
@@ -744,7 +745,75 @@ def main():
                          do_compression=True,
                          long_field_names=True)  # 确保MATLAB兼容性
 
-        destroy_actor(lidar, camera_dict, vehicles, sensor_queue)
+
+        # 保存行人数据
+        folder_name = f"{town_folder}/{junc}/pedestrian_data"
+        # 检查文件夹是否已存在，若不存在则创建
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+            print(f"Created folder: {folder_name}")
+        file_path = os.path.join(folder_name, "pedestrian_count.mat")
+        # 将时间戳和车辆数量追加保存到txt文件中
+        pedestrian_data = np.array(actual_vehicle_num)
+        # 保存数据为 mat 文件
+        scipy.io.savemat(file_path, {"pedestrian_data": pedestrian_data})
+
+        flattened_data = [item for sublist in all_pedestrian_labels for item in sublist]
+        processed_data = []
+
+        for entry in flattened_data:
+            timestamp, pedestrian_id, position_with_dims = entry
+            x, y, z, length, width, height = position_with_dims
+            position = (x, y, z)
+            box = (length, width, height)
+            processed_data.append({
+                'Time': timestamp,
+                'TruthID': pedestrian_id,
+                'Position': position,
+                'Box': box
+            })
+
+        truths = np.array(processed_data, dtype=object)
+        file_path = os.path.join(folder_name, "truths.mat")
+        scipy.io.savemat(file_path, {'truths': truths})
+
+        # 保存全部行人ground_truth
+        ground_truth_file_path = os.path.join(town_folder, "ground_truth.mat")
+        # 转换为MATLAB兼容格式
+        # 转换为目标结构
+        mat_data = []
+        for pedestrian_id, trajectory in pedestrians_traj.items():
+            # 创建结构化数组
+            pedestrian_struct = np.zeros((1,), dtype=[
+                ('pedestrianID', np.uint32),
+                ('wrl_pos', 'O')  # 'O'表示Python对象
+            ])
+
+            # 填充数据 - 关键修正点
+            pedestrian_struct[0]['pedestrianID'] = np.uint32(pedestrian_id)
+            # 确保轨迹是二维数组
+            trajectory_array = np.array(trajectory, dtype=np.float64)
+            if trajectory_array.ndim == 1:
+                trajectory_array = trajectory_array.reshape(-1, 3)
+            pedestrian_struct[0]['wrl_pos'] = trajectory_array
+
+            mat_data.append(pedestrian_struct)
+
+        # 转换为MATLAB兼容的cell数组
+        # 关键修正：使用np.empty而不是np.array
+        cell_array = np.empty((1, len(mat_data)), dtype=object)
+        for i, item in enumerate(mat_data):
+            cell_array[0, i] = item
+
+        # 保存为MAT文件
+        scipy.io.savemat(ground_truth_file_path,
+                         {'pedestrian_cells': cell_array},
+                         format='5',
+                         do_compression=True,
+                         long_field_names=True)  # 确保MATLAB兼容性
+
+
+        destroy_actor(lidar, camera_dict, vehicles, sensor_queue, pedestrians)
     except Exception as e:
         print(f"Error occurred during execution: {e}")
     finally:
