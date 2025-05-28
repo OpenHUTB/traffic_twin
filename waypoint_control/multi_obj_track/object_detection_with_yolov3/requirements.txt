@@ -1,0 +1,7 @@
+numpy
+pygame
+matplotlib
+opencv-python
+imutils
+tqdm
+scipy
