@@ -499,7 +499,7 @@ In terms of Mean Delay (MD), Town01 (1.20 seconds) outperforms Town10 (1.38 seco
 In the ablation experiment, we compared the multi-object tracking performance of different object detection algorithms and different sensor combinations in the Town10 scene.
 The experimental results are shown in Table \ref{tab:5}.
 When the camera is used alone, no valid trajectory can be generated (lack of depth information), and although the LiDAR can track the target alone, the overlap between its trajectory and the real annotation is significantly lower than that of the multi-sensor fusion solution; it is worth noting that the (\(RMOTA\) of LiDAR tracking alone is better than the camera-radar fusion, which shows that the camera may introduce noise (such as view occlusion) in position tracking, but it is still indispensable in the target association stage.
-The experiment further shows that the 2D/3D fusion effect of YOLOv4+point cloud is the best (about 8\% higher than the YOLOv3 solution), which verifies the improvement of algorithm optimization on tracking accuracy.
+The experiment further shows that the 2D/3D fusion effect of YOLOv4/LiDAR is the best (about 8\% higher than the YOLOv3 solution), which verifies the improvement of algorithm optimization on tracking accuracy.
 These results show that although the camera will suppress the position tracking accuracy, it has an irreplaceable role in target association, and the system design needs to be optimized through sensor complementarity.
 
 
@@ -550,11 +550,13 @@ These results show that although the camera will suppress the position tracking 
 		\cline{2-6}
 		& TT-GT & 28.9800 & 33.8796 & 35.0967 & 35.0967 \\
 		\hline
-		\multirow{1}{*}{Camera} & — & — & — & — & — \\
-		\hline
-		\multirow{2}{*}{YOLOv3+LiDAR} & TT-DT & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\	
+		\multirow{2}{*}{Camera} & TT-DT & — & — & — & — \\
 		\cline{2-6}
-		& TT-GT & 18.4326 & 59.3773 & 79.6541 & 64.0980 \\
+		& TT-GT & — & — & — & — \\
+		\hline
+		\multirow{2}{*}{YOLOv3+LiDAR} & TT-DT & 10.0866 & 98.2137 & 100.6244 & 98.7246 \\	
+		\cline{2-6}
+		& TT-GT & 31.9012 & 78.6352 & 102.4719 & 59.6735 \\
 		\hline
 		\multirow{2}{*}{YOLOv4+LiDAR} & TT-DT & 10.8957 & 82.4108 & 105.8893 & 105.0854 \\
 		\cline{2-6}
