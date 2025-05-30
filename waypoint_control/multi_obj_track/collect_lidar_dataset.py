@@ -289,7 +289,7 @@ def setup_sensors(world, addtion_param, transform, lidar_to_world_inv, data_stru
 
 
 # 生成自动驾驶车辆
-def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
+def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
     # 设置随机种子
     random.seed(random_seed)
     np.random.seed(random_seed)
@@ -322,7 +322,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
 
 
 # 生成随机运动行人
-def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
+def spawn_autonomous_pedestrians(world, num_pedestrians=200, random_seed=42):
     random.seed(random_seed)
     np.random.seed(random_seed)
     pedestrian_list = []
@@ -416,9 +416,9 @@ def main():
         # 静止 ego_vehicle 的位置
         ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=1), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 先生成自动驾驶车辆
-        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=random_seed)
+        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=random_seed)
         # 生成行人
-        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20)
+        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=200, random_seed=20)
         #启动行人碰撞
         for pedestrian in pedestrians:
             if "walker.pedestrian." in pedestrian.type_id:

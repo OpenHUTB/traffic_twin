@@ -380,7 +380,7 @@ def filter_vehicle_blueprinter(vehicle_blueprints):
 
 
 # 生成自动驾驶车辆
-def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
+def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
     # 设置随机种子
     random.seed(random_seed)
     np.random.seed(random_seed)
@@ -431,7 +431,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=70, random_seed=42):
 
 
 # 生成随机运动行人
-def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=42):
+def spawn_autonomous_pedestrians(world, num_pedestrians=200, random_seed=20):
     random.seed(random_seed)
     np.random.seed(random_seed)
     pedestrian_list = []
@@ -536,7 +536,7 @@ def main():
         metavar='N0',
         default=50,
         type=int,
-        help='Number of vehicles (default: 50)')
+        help='Number of vehicles (default: 30)')
     argparser.add_argument(
         '-w', '--wait',
         action='store_true',
@@ -605,7 +605,12 @@ def main():
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=args.number_of_vehicles, random_seed=random_seed)
         # 生成随机运动行人
-        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20)
+        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=200, random_seed=20)
+        # 启动行人碰撞
+        for pedestrian in pedestrians:
+            if "walker.pedestrian." in pedestrian.type_id:
+                pedestrian.set_collisions(True)
+                pedestrian.set_simulate_physics(True)
 
         lidar_transform = carla.Transform(
             carla.Location(x=ego_transform.location.x, y=ego_transform.location.y, z=ego_transform.location.z + 0.82),
@@ -753,7 +758,7 @@ def main():
             os.makedirs(folder_name)
             print(f"Created folder: {folder_name}")
         file_path = os.path.join(folder_name, "pedestrian_count.mat")
-        # 将时间戳和车辆数量追加保存到txt文件中
+        # 将时间戳和行人数量追加保存到txt文件中
         pedestrian_data = np.array(actual_vehicle_num)
         # 保存数据为 mat 文件
         scipy.io.savemat(file_path, {"pedestrian_data": pedestrian_data})
