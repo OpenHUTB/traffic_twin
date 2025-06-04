@@ -25,14 +25,14 @@
 \markboth{\journalname, VOL. XX, NO. XX, XXXX}
 {Author \MakeLowercase{\textit{et al.}}: Title}
 \begin{document}
-\title{UVDT: A Baseline Benchmark for Urban Traffic Flow Digital Twins via Roadside LiDAR-Camera Fusion}
-\author{Haidong~Wang\orcidlink{0000-0002-4614-5817},~Pengfei~Xiao\orcidlink{0009-0003-6278-463X},Ao~Liu\orcidlink{0009-0006-9153-4295}, Jianhua~Zhang\orcidlink{0009-0009-9097-8523},~and Qia~Shan\orcidlink{0009-0004-0279-7807}
-\thanks{H. Wang is with Hunan University of Technology and Business, Changsha 410082, China, and Xiangjiang Laboratory; P. Xiao, A. Liu, J. Zhang and Q. Shan are with Hunan University Of Technology and Business, Changsha 410082, China (e-mail: whd@hutb.edu.cn; 2893666867@qq.com; 2496556459@qq.com; zhangjianhua6682@126.com; s540534349@163.com).}}
+\title{UVDT: A Baseline Benchmark \\for Urban Traffic Flow Digital Twins \\via Roadside LiDAR-Camera Fusion}
+%\author{Haidong~Wang\orcidlink{0000-0002-4614-5817},~Pengfei~Xiao\orcidlink{0009-0003-6278-463X},Ao~Liu\orcidlink{0009-0006-9153-4295}, Jianhua~Zhang\orcidlink{0009-0009-9097-8523},~and Qia~Shan\orcidlink{0009-0004-0279-7807}
+%\thanks{H. Wang is with Hunan University of Technology and Business, Changsha 410082, China, and Xiangjiang Laboratory; P. Xiao, A. Liu, J. Zhang and Q. Shan are with Hunan University Of Technology and Business, Changsha 410082, China (e-mail: whd@hutb.edu.cn; 2893666867@qq.com; 2496556459@qq.com; zhangjianhua6682@126.com; s540534349@163.com).}}
 
 \maketitle
 
 \begin{abstract}
-In this paper, we explore the application of digital twins in autonomous driving and propose Urban Vehicle Digital Twin(UVDT), which replicates the traffic flow by investigating four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and restoration, and twinning. 
+In this paper, we explore the application of digital twins in autonomous driving and propose Urban Vehicle Digital Twin (UVDT), which replicates the traffic flow by investigating four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and restoration, and twinning. 
 The multi-object tracking performance is optimized by fusing LiDAR detection and camera detection data to improve the accuracy and robustness of vehicle detection, which in turn solves the challenges posed by occlusion and view angle changes. 
 Cross-scenario vehicle re-recognition is improved by generating rich training data. 
 The digital twin-based vehicle control method provides high-precision path planning and control for the autonomous driving system, ensuring accurate vehicle navigation in complex traffic scenarios. 
@@ -120,9 +120,9 @@ The network has acquired comprehensive feature representations through large-sca
 
 \textbf{Digital Twin.}
 After obtaining the trajectory data of all tracked vehicles, we will use the vehicle control algorithm to reproduce the traffic flow in the simulation scenario.
-Kaleb Ben Naveed et al. proposed a hierarchical reinforcement learning-based method for autonomous driving trajectory planning and control. 
-By training a reinforcement learning agent in a simulation environment, this method optimizes the vehicle's control strategy according to environmental changes, achieving efficient trajectory planning and dynamic path adjustment.\cite{Alpher22}
-R. Barea et al. proposed a Deep Reinforcement Learning (DRL)-based control method, where an agent is trained in the CARLA simulation platform to autonomously learn and optimize the vehicle's control strategies (such as throttle, brake, and steering) to ensure safe and smooth driving.\cite{Alpher21}
+Kaleb Ben Naveed \textit{et al.} proposed a hierarchical reinforcement learning-based method for autonomous driving trajectory planning and control. 
+By training a reinforcement learning agent in a simulation environment, this method optimizes the vehicle's control strategy according to environmental changes, achieving efficient trajectory planning and dynamic path adjustment~\cite{Alpher22}.
+R. Barea \textit{et al.} proposed a Deep Reinforcement Learning (DRL)-based control method, where an agent is trained in the CARLA simulation platform to autonomously learn and optimize the vehicle's control strategies (such as throttle, brake, and steering) to ensure safe and smooth driving\cite{Alpher21}.
 We optimize the trajectories obtained from multi-object tracking using a trajectory smoothing algorithm, enabling the vehicle to turn more smoothly and drive more steadily (reducing bumps and sudden maneuvers) while ensuring precise adherence to the planned path at a lower computational cost. 
 Subsequently, the PID controller is employed to control the vehicle, guiding it to follow the optimized trajectory and achieve final trajectory-tracking synchronization.
 
@@ -643,26 +643,26 @@ Multi-object tracking and the inference of unknown trajectories serve as strong 
 This holds significant value for the development of future cities.
 We hope that new large-scale datasets will be introduced in the future to further enhance the effectiveness of digital twins.
 
-\section{Acknowledgements}
-The authors gratefully acknowledge the financial support provided by the Natural Science Foundation of Hunan Province (No.2024JJ6190), Research on a new generation of brain-like intelligent computing framework based on ultra-large-scale real neural systems (No.24XJJCYJ01001), Scientific research project of Hunan Provincial Department of Education (No.22B0646), the Open Project of Xiangjiang Laboratory (No.23XJ03009), Xiangjiang Laboratory key project subproject (No.22XJ01001-2), the “Digital Intelligence +” interdisciplinary research project of Hunan University Of Technology and Business (No.2023SZJ19).
+%\section{Acknowledgements}
+%The authors gratefully acknowledge the financial support provided by the Natural Science Foundation of Hunan Province (No.2024JJ6190), Research on a new generation of brain-like intelligent computing framework based on ultra-large-scale real neural systems (No.24XJJCYJ01001), Scientific research project of Hunan Provincial Department of Education (No.22B0646), the Open Project of Xiangjiang Laboratory (No.23XJ03009), Xiangjiang Laboratory key project subproject (No.22XJ01001-2), the “Digital Intelligence +” interdisciplinary research project of Hunan University Of Technology and Business (No.2023SZJ19).
 
 \bibliographystyle{IEEEtran}
 \bibliography{reference}
 
 
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/HaidongWang/HaidongWang.eps}}]{Haidong Wang} received the B.E. degree in Computer Science and Technology from Hunan University Of Technology and Business, Changsha, China, in 2014, the M.Sc. degree in Computer Technology from the University of Chinese Academy of Sciences (UCAS), Beijing, China, in 2017, and Ph.D. degree in Hunan University, Changsha, China. His current research interests include brain-like vision, deep learning and reinforcement learning.
-\end{IEEEbiography}
-
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/PengfeiXiao/PengfeiXiao.eps}}]{Pengfei Xiao} received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2022, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like perception, deep learning and autonomous driving.
-\end{IEEEbiography}
-
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/AoLiu/AoLiu.eps}}]{Ao Liu} received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2023, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like control and deep learning.
-\end{IEEEbiography}
-
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/QiaShan/QiaShan.eps}}]{Qia Shan} received the B.E. degree in Network Engineering from Hainan University, Haikou, China, in 2020, and is currently pursuing the M.Sc. degree in Software Engineering at Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like affective computing and deep learning.
-\end{IEEEbiography}
-	
-\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/JianhuaZhang/JianhuaZhang.eps}}]{Jianhua Zhang} received the B.E. degree in Software Engineering from Taiyuan University of Technology, TaiYuan, China, in 2022,and M.Sc. degree in Software Engineering from the Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like vision and deep learning.
-\end{IEEEbiography}
+%\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/HaidongWang/HaidongWang.eps}}]{Haidong Wang} received the B.E. degree in Computer Science and Technology from Hunan University Of Technology and Business, Changsha, China, in 2014, the M.Sc. degree in Computer Technology from the University of Chinese Academy of Sciences (UCAS), Beijing, China, in 2017, and Ph.D. degree in Hunan University, Changsha, China. His current research interests include brain-like vision, deep learning and reinforcement learning.
+%\end{IEEEbiography}
+%
+%\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/PengfeiXiao/PengfeiXiao.eps}}]{Pengfei Xiao} received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2022, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like perception, deep learning and autonomous driving.
+%\end{IEEEbiography}
+%
+%\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/AoLiu/AoLiu.eps}}]{Ao Liu} received the B.E. degree in Computer Science and Technology from Changsha College, China, in 2023, and is now studying in Hunan University of Commerce and Industry, Changsha, China, pursuing a professional type master's degree in Computer Technology. His current research interests include brain-like control and deep learning.
+%\end{IEEEbiography}
+%
+%\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/QiaShan/QiaShan.eps}}]{Qia Shan} received the B.E. degree in Network Engineering from Hainan University, Haikou, China, in 2020, and is currently pursuing the M.Sc. degree in Software Engineering at Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like affective computing and deep learning.
+%\end{IEEEbiography}
+%	
+%\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{authors/JianhuaZhang/JianhuaZhang.eps}}]{Jianhua Zhang} received the B.E. degree in Software Engineering from Taiyuan University of Technology, TaiYuan, China, in 2022,and M.Sc. degree in Software Engineering from the Hunan University Of Technology and Business, Changsha, China. His current research interests include brain-like vision and deep learning.
+%\end{IEEEbiography}
 
 \end{document}
