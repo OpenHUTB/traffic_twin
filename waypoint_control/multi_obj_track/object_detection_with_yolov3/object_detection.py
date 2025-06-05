@@ -37,7 +37,6 @@ def get_box_dimensions(outputs, height, width):
 def process_mat_files(data_path):
     # 获取所有.mat文件
     mat_files = [f for f in os.listdir(data_path) if f.endswith('.mat')]
-
     for mat_file in tqdm(mat_files, desc="Processing .mat files"):
         file_path = os.path.join(data_path, mat_file)
         try:
@@ -87,12 +86,13 @@ def process_mat_files(data_path):
                 # 应用NMS
                 indexes = cv2.dnn.NMSBoxes(boxes, confs, 0.5, 0.4)
 
-                # 过滤掉交通灯检测结果
+                # 过滤掉交通灯和行人检测结果
                 filtered_boxes = []
                 if len(indexes) > 0:
-                    for i in indexes.flatten():
-                        if classes[class_ids[i]] != "traffic light":
-                            x, y, w, h = boxes[i]
+                    for j in indexes.flatten():
+                        class_name = classes[class_ids[j]]
+                        if class_name not in ["traffic light", "person"]:  # 同时过滤交通灯和行人
+                            x, y, w, h = boxes[j]
                             filtered_boxes.append([x, y, w, h])
                 detections = None
                 # 保存检测结果
@@ -103,19 +103,59 @@ def process_mat_files(data_path):
 
                 camera_data[0][i][3] = detections
 
-            datalog[0][0][1] = camera_data
-            sio.savemat(file_path, {'datalog': datalog}, do_compression=True)
+            # 创建MATLAB结构体数组
+            datalog = {
+                'LidarData': datalog[0][0][0],  # 保持原有雷达结构
+                'CameraData': np.zeros(len(camera_data[0]), dtype=[
+                    ('ImagePath', 'O'),
+                    ('Pose', 'O'),
+                    ('Timestamp', 'f8'),
+                    ('Detections', 'O')
+                ])
+            }
 
+            # 填充CameraData
+            for n in range(len(camera_data[0])):
+                # 安全获取检测结果，确保不是None
+                detections = camera_data[0][n][3] if (
+                        len(camera_data[0][n]) > 3 and camera_data[0][n][3] is not None) else np.zeros((0, 4),
+                                                                                                       dtype=np.float64)
+
+                # 确保detections是numpy数组后再转换类型
+                if not isinstance(detections, np.ndarray):
+                    detections = np.array(detections, dtype=np.float64) if detections is not None else np.zeros((0, 4),
+                                                                                                                dtype=np.float64)
+                else:
+                    detections = detections.astype(np.float64) if detections.size > 0 else np.zeros((0, 4),
+                                                                                                    dtype=np.float64)
+
+                # 确保所有数值数据都是double类型
+                position = np.array(camera_data[0][n][1][0][0][0], dtype=np.float64).tolist()
+                orientation = np.array(camera_data[0][n][1][0][0][1], dtype=np.float64).tolist()
+                timestamp = float(camera_data[0][n][2])
+                velocity = [0.0, 0.0, 0.0]  # 明确使用浮点数
+
+                # 填充数据（全部确保为double类型）
+                datalog['CameraData'][n] = (
+                    str(camera_data[0][n][0][0]),  # ImagePath转换为字符串
+                    {
+                        'Position': position,
+                        'Velocity': velocity,
+                        'Orientation': orientation
+                    },
+                    timestamp,
+                    detections
+                )
+            sio.savemat(file_path, {'datalog': datalog})
         except Exception as e:
             print(f"Error processing {mat_file}: {str(e)}")
             continue
-
     print("All files processed successfully.")
 
 
 if __name__ == "__main__":
 
-    # data_path = r"C:\Users\ASUS\Desktop\multi_obj_track\Town10HD_Opt\test_data_junc1"
-    current_dir = os.path.dirname(os.path.abspath(__file__))   # 收集的相机和雷达数据目录
-    data_path = os.path.join(current_dir, "test_data_junc1")
+    data_path = r"C:\Users\ASUS\Desktop\multi_obj_track\Town10HD_Opt\test_data_junc1"
+    # current_dir = os.path.dirname(os.path.abspath(__file__))   # 收集的相机和雷达数据目录
+    # data_path = os.path.join(current_dir, "test_data_junc1")
     process_mat_files(data_path)
