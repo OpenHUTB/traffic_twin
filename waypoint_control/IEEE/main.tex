@@ -25,18 +25,18 @@
 \markboth{\journalname, VOL. XX, NO. XX, XXXX}
 {Author \MakeLowercase{\textit{et al.}}: Title}
 \begin{document}
-\title{UTFDT: A Baseline Benchmark \\for Urban Traffic Flow Digital Twins \\via Roadside LiDAR-Camera Fusion}
+\title{UTDT: A Baseline Benchmark \\for Urban Traffic Flow Digital Twins \\via Roadside LiDAR-Camera Fusion}
 %\author{Haidong~Wang\orcidlink{0000-0002-4614-5817},~Pengfei~Xiao\orcidlink{0009-0003-6278-463X},Ao~Liu\orcidlink{0009-0006-9153-4295}, Jianhua~Zhang\orcidlink{0009-0009-9097-8523},~and Qia~Shan\orcidlink{0009-0004-0279-7807}
 %\thanks{H. Wang is with Hunan University of Technology and Business, Changsha 410082, China, and Xiangjiang Laboratory; P. Xiao, A. Liu, J. Zhang and Q. Shan are with Hunan University Of Technology and Business, Changsha 410082, China (e-mail: whd@hutb.edu.cn; 2893666867@qq.com; 2496556459@qq.com; zhangjianhua6682@126.com; s540534349@163.com).}}
 
 \maketitle
 
 \begin{abstract}
-In this paper, we explore the application of digital twins in autonomous driving and propose Urban Traffic Flow Digital Twin (UTFDT), which replicates the traffic flow by investigating four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and restoration, and twinning. 
+In this paper, we explore the application of digital twins in autonomous driving and propose Urban Traffic Flow Digital Twin (UTDT), which replicates the traffic flow by investigating four aspects: single-intersection multi-object tracking, multi-intersection multi-object tracking, trajectory inference and restoration, and twinning. 
 The multi-object tracking performance is optimized by fusing LiDAR detection and camera detection data to improve the accuracy and robustness of vehicle detection, which in turn solves the challenges posed by occlusion and view angle changes. 
 Cross-scenario vehicle re-recognition is improved by generating rich training data. 
 The digital twin-based vehicle control method provides high-precision path planning and control for the autonomous driving system, ensuring accurate vehicle navigation in complex traffic scenarios. 
-The experimental results show that UTFDT can provide high-fidelity simulation scenarios for the testing and optimization of autonomous driving systems, which promotes the development of intelligent transportation systems and provides important support for the construction of future smart cities.
+The experimental results show that UTDT can provide high-fidelity simulation scenarios for the testing and optimization of autonomous driving systems, which promotes the development of intelligent transportation systems and provides important support for the construction of future smart cities.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -59,7 +59,7 @@ Not only that, the system also realizes a complete closed loop from scene percep
 
 \begin{figure}[!t]
 	\centerline{\includegraphics[width=\columnwidth]{picture/picture1.eps}}
-	\caption{The overall preview of the digital twin is provided through UTFDT. The technical process from real vehicle trajectory to digital twin trajectory and traffic flow simulation is demonstrated.}
+	\caption{The overall preview of the digital twin is provided through UTDT. The technical process from real vehicle trajectory to digital twin trajectory and traffic flow simulation is demonstrated.}
 	\label{fig:1}
 \end{figure}
 
@@ -79,7 +79,7 @@ Finally, the integrated control algorithm is used to accurately simulate vehicle
 
 \section{Related Work}
 
-We have summarized research work on different aspects of UTFDT.
+We have summarized research work on different aspects of UTDT.
 
 \textbf{Multi-Object Tracking.}
 The development of multi-object tracking technology depends largely on the performance improvement of front-end object detection.
@@ -119,7 +119,7 @@ Subsequently, the PID controller is employed to control the vehicle, guiding it 
 
 \subsection{Problem Definition}
 
-In UTFDT, the vehicle detection and tracking system for single-intersection scenarios adopts a multimodal data fusion architecture.
+In UTDT, the vehicle detection and tracking system for single-intersection scenarios adopts a multimodal data fusion architecture.
 As illustrated in Fig. \ref{fig:2}, the input source \(F_{t}\) integrates 3D point cloud data captured by LiDAR and synchronized RGB images from six calibrated cameras, achieving heterogeneous sensor data collaboration through spatiotemporal alignment.
 The tracker generates the vehicle trajectory \(T_{v}\) of a single intersection and the image \(i_{v}\) of the corresponding vehicle through the detection bounding boxes \(b_{2D}\) and \(b_{3D}\) obtained by object detection algorithms.
 For cross-intersection vehicle trajectories matching, we employ a re-identification network to extract appearance feature vectors \(f\), then compute their cosine similarity to produce a logical matching matrix \(C_{M \times N}\).
@@ -537,7 +537,7 @@ The improvement results are shown in Fig. \ref{fig:4}.
 
 \begin{figure}[!t]
 	\centerline{\includegraphics[width=\columnwidth]{picture/picture8.eps}}
-	\caption{Our UTFDT framework is successfully deployed in two other custom city scenes. Top: Changsha CEC Software Park. Bottom: Around a University in Changsha. (Left) Real scene; (Right) Digital twin.} 
+	\caption{Our UTDT framework is successfully deployed in two other custom city scenes. Top: Changsha CEC Software Park. Bottom: Around a University in Changsha. (Left) Real scene; (Right) Digital twin.} 
 	\label{fig:8} 
 \end{figure}
 \subsection{Limitations and Future Directions}
@@ -556,7 +556,7 @@ In future work, we aim to transition these experiments to an online framework to
 
 \section{Conclusion}
 
-Through a series of experiments, we have demonstrated the application value of UTFDT in intelligent transportation. 
+Through a series of experiments, we have demonstrated the application value of UTDT in intelligent transportation. 
 Digital twin technology can not only accurately replicate real-world traffic scenarios but also effectively predict future traffic conditions. 
 Multi-object tracking and the inference of unknown trajectories serve as strong evidence of this capability. 
 This holds significant value for the development of future cities.
