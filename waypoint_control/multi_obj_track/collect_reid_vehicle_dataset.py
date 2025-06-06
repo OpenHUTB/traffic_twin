@@ -24,7 +24,7 @@ BUS_CLASS_ID = 16
 # 设置参数
 DROP_BUFFER_TIME = 60   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
 IMAGES_SAVE_TIME = 20   # 保存图片的数量
-OUTPUT_DIR = "./reid_data"  # 数据保存路径
+OUTPUT_DIR = "./reid_data/vehicle"  # 数据保存路径
 # 相机位置
 camera_location = [
                 carla.Transform(carla.Location(x=-111, y=-2, z=2.800176), carla.Rotation(yaw=-90)),
