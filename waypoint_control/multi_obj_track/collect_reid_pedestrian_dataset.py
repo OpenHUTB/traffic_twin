@@ -16,11 +16,9 @@ import numpy as np
 import cv2
 import scipy.io
 from queue import Queue
-from queue import Empty
+# from queue import Empty
 # 定义车辆类别的标签编号（在CARLA中，车辆的类别 ID 通常为10）
-CAR_CLASS_ID = 14
-TRUCK_CLASS_ID = 15
-BUS_CLASS_ID = 16
+PEDESTRIAN_CLASS_ID = 12
 # 设置参数
 DROP_BUFFER_TIME = 60   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
 IMAGES_SAVE_TIME = 20   # 保存图片的数量
@@ -75,7 +73,7 @@ def sensor_callback(sensor_data, sensor_queue, sensor_name):
 
 
 # 生成行人并拍摄图像
-def generate_pedestrian_images(folder_name, world, spawn_points, tm):
+def generate_pedestrian_images(walker_bps, folder_name, world, spawn_points, tm):
     # 创建文件夹
     folder_path = os.path.join(OUTPUT_DIR, folder_name)
     if not os.path.exists(folder_path):
@@ -87,10 +85,10 @@ def generate_pedestrian_images(folder_name, world, spawn_points, tm):
     segmentation_cameras = []
 
     # 获取普通行人蓝图（排除特殊类型）
-    walker_bps = [
-        bp for bp in world.get_blueprint_library().filter('walker.pedestrian*')
-        if not bp.id.split('.')[-1] in {'child', 'skeleton'}
-    ]
+    # walker_bps = [
+    #     bp for bp in world.get_blueprint_library().filter('walker.pedestrian*')
+    #     if not bp.id.split('.')[-1] in {'child', 'skeleton'}
+    # ]
     # 生成行人
 
     pedestrian_type = random.choice(walker_bps)
@@ -157,7 +155,7 @@ def generate_pedestrian_images(folder_name, world, spawn_points, tm):
 
 def save_label(image, label_dict):
     """
-     处理语义分割相机的输出，提取车辆像素并拟合二维框。
+     处理语义分割相机的输出，提取行人像素并拟合二维框。
      """
     # 确保 label_dict 是一个字典
     if label_dict is None:
@@ -169,20 +167,20 @@ def save_label(image, label_dict):
 
     # unique_classes = np.unique(segmentation_mask)  # 获取所有唯一的类别 ID
     # print(f"Unique classes in segmentation mask: {unique_classes}")
-    # 获取车辆像素的坐标
-    vehicle_pixels = np.column_stack(np.where((segmentation_mask == CAR_CLASS_ID) |
-                                              (segmentation_mask == TRUCK_CLASS_ID) |
-                                              (segmentation_mask == BUS_CLASS_ID)))
-    # 如果没有检测到车辆像素，则返回None
-    if vehicle_pixels.size == 0:
+    # 获取行人像素的坐标
+    pedestrian_pixels = np.column_stack(
+        np.where(segmentation_mask == PEDESTRIAN_CLASS_ID)
+    )
+    # 如果没有检测到行人像素，则返回None
+    if pedestrian_pixels.size == 0:
         return None
         # 获取当前帧编号
     current_frame = image.frame
     # 获取二维边界框 (x_min, y_min, x_max, y_max)
-    x_min = vehicle_pixels[:, 1].min()
-    x_max = vehicle_pixels[:, 1].max()
-    y_min = vehicle_pixels[:, 0].min()
-    y_max = vehicle_pixels[:, 0].max()
+    x_min = pedestrian_pixels[:, 1].min()
+    x_max = pedestrian_pixels[:, 1].max()
+    y_min = pedestrian_pixels[:, 0].min()
+    y_max = pedestrian_pixels[:, 0].max()
 
     box_width = x_max-x_min
     box_height = y_max-y_min
@@ -212,8 +210,8 @@ def save_label_to_mat(label_dicts, folder_path):
         scipy.io.savemat(file_name, {"LabelData": label_data})
 
 
-def destroy_vehicle_sensor(vehicle, cameras, segmentation_cameras, sensor_queue):
-    vehicle.destroy()
+def destroy_pedestrian_sensor(pedestrian, cameras, segmentation_cameras, sensor_queue):
+    pedestrian.destroy()
     for cam in cameras:
         if cam is not None:
             cam.stop()  # 停止相机传感器
@@ -230,24 +228,16 @@ def destroy_vehicle_sensor(vehicle, cameras, segmentation_cameras, sensor_queue)
     del sensor_queue
 
 
-def filter_vehicle_blueprinter(vehicle_blueprints):
+def filter_pedestrian_blueprinter(pedestrian_blueprints):
     """
-    :param vehicle_blueprints: 车辆蓝图
-    :return: 过滤自行车后的车辆蓝图
+        :param pedestrian_blueprints: 行人蓝图
+        :return: 过滤特殊行人后的行人蓝图
     """
-    filtered_vehicle_blueprints = [bp for bp in vehicle_blueprints if 'bike' not in bp.id and
-                                   'omafiets' not in bp.id and
-                                   'century' not in bp.id and
-                                   'vespa' not in bp.id and
-                                   'motorcycle' not in bp.id and
-                                   'harley' not in bp.id and
-                                   'yamaha' not in bp.id and
-                                   'kawasaki' not in bp.id and
-                                   'mini' not in bp.id and
-                                   'vehicle.carlamotors.firetruck' not in bp.id and
-                                   'vehicle.carlamotors.european_hgv' not in bp.id and
-                                   'vehicle.mitsubishi.fusorosa' not in bp.id]
-    return filtered_vehicle_blueprints
+    filtered_pedestrian_blueprints = [
+        bp for bp in pedestrian_blueprints
+        if not bp.id.split('.')[-1] in {'child', 'skeleton'}
+    ]
+    return filtered_pedestrian_blueprints
 
 
 # 主函数
@@ -269,20 +259,21 @@ def main():
         tm.set_synchronous_mode(True)
 
         blueprint_library = world.get_blueprint_library()
-        vehicle_blueprints = blueprint_library.filter('vehicle.*')
-        filter_bike_blueprinter = filter_vehicle_blueprinter(vehicle_blueprints)
-        spawn_points = world.get_map().get_spawn_points()
+        pedestrian_blueprints = blueprint_library.filter('walker.*')
+        filter_pedestrians_blueprinter = filter_pedestrian_blueprinter(pedestrian_blueprints)
+        spawn_points = world.get_map().get_spawn_points()  # 随机可行走点
 
         # 为每个蓝图创建数据集文件夹
-        for folder_index in range(len(filter_bike_blueprinter)):
-            vehicle_print = filter_bike_blueprinter[folder_index]
+        for folder_index in range(len(filter_pedestrians_blueprinter)):
+            pedestrian_print = filter_pedestrians_blueprinter[folder_index]
             folder_name = f"{folder_index + 1}"
-            print(f"Generating images for: {folder_name} ({vehicle_print})")
-            pedestrian, cameras, segmentation_cameras, sensor_queue, label_dicts, folder_path = generate_pedestrian_images(folder_name, world, spawn_points, tm)
+            print(f"Generating images for: {folder_name} ({pedestrian_print})")
+            pedestrian, cameras, segmentation_cameras, sensor_queue, label_dicts, folder_path = generate_pedestrian_images(filter_pedestrians_blueprinter, folder_name, world, spawn_points, tm)
             # 将ground_truth保存为mat文件
             save_label_to_mat(label_dicts, folder_path)
-            destroy_vehicle_sensor(pedestrian, cameras, segmentation_cameras, sensor_queue)
+            destroy_pedestrian_sensor(pedestrian, cameras, segmentation_cameras, sensor_queue)
 
+        # print(len(filter_pedestrians_blueprinter))
         print("Data collection completed!")
     finally:
         settings = world.get_settings()
