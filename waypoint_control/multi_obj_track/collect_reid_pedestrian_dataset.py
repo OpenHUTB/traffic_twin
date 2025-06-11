@@ -25,8 +25,8 @@ IMAGES_SAVE_TIME = 20   # 保存图片的数量
 OUTPUT_DIR = "./reid_data/pedestrian"  # 数据保存路径
 # 相机位置
 camera_location = [
-                carla.Transform(carla.Location(x=-111, y=-2, z=2.800176), carla.Rotation(yaw=-90)),
-                carla.Transform(carla.Location(x=-106, y=-25, z=2.800176), carla.Rotation(yaw=90))
+                carla.Transform(carla.Location(x=-119, y=-23, z=2.800176), carla.Rotation(yaw=-90)),
+                carla.Transform(carla.Location(x=-119, y=-40, z=2.800176), carla.Rotation(yaw=90))
                 ]
 
 # 确保输出目录存在
