@@ -25,8 +25,8 @@ IMAGES_SAVE_TIME = 20   # 保存图片的数量
 OUTPUT_DIR = "./reid_data/pedestrian"  # 数据保存路径
 # 相机位置
 camera_location = [
-                carla.Transform(carla.Location(x=-119, y=-23, z=2.800176), carla.Rotation(yaw=-90)),
-                carla.Transform(carla.Location(x=-119, y=-40, z=2.800176), carla.Rotation(yaw=90))
+                carla.Transform(carla.Location(x=-111, y=-10, z=2.800176), carla.Rotation(yaw=-90)),
+                carla.Transform(carla.Location(x=-109, y=-28, z=2.800176), carla.Rotation(yaw=90))
                 ]
 
 # 确保输出目录存在
@@ -73,7 +73,7 @@ def sensor_callback(sensor_data, sensor_queue, sensor_name):
 
 
 # 生成行人并拍摄图像
-def generate_pedestrian_images(walker_bps, folder_name, world, spawn_points, tm):
+def generate_pedestrian_images(walker_bps, folder_name, world, spawn_points, spawn_location, tm):
     # 创建文件夹
     folder_path = os.path.join(OUTPUT_DIR, folder_name)
     if not os.path.exists(folder_path):
@@ -90,6 +90,7 @@ def generate_pedestrian_images(walker_bps, folder_name, world, spawn_points, tm)
     #     if not bp.id.split('.')[-1] in {'child', 'skeleton'}
     # ]
     # 生成行人
+    # spawn_location = carla.Location(x=-119, y=-20, z=0.0)
 
     pedestrian_type = random.choice(walker_bps)
     pedestrian = world.try_spawn_actor(pedestrian_type, spawn_point)
@@ -100,17 +101,13 @@ def generate_pedestrian_images(walker_bps, folder_name, world, spawn_points, tm)
     spectator.set_transform(spectator_transform)
     world.tick()
 
-    # 假设已生成行人对象
-    target_location = carla.Location(x=x, y=y - 20, z=0.5)  # 目标地点（Z轴需≥0）
+    # 行人控制
+    walker_control = carla.WalkerControl()
+    walker_control.direction = carla.Vector3D(x=0.0, y=1.0, z=0.0)  # 设置行人的运动方向 (这里是朝着x轴正方向)
+    walker_control.speed = 1.0  # 设置行人的速度
 
-    # 绑定AI控制器
-    controller_bp = world.get_blueprint_library().find('controller.ai.walker')
-    controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
-    controller.start()  # 必须启动控制器
-
-    # 设置目标点
-    controller.go_to_location(target_location)
-
+    # 让行人开始移动
+    pedestrian.apply_control(walker_control)
 
     sensor_queue = Queue()
     # 等待行人落地开始行驶后再开始收集数据集
@@ -262,13 +259,14 @@ def main():
         pedestrian_blueprints = blueprint_library.filter('walker.*')
         filter_pedestrians_blueprinter = filter_pedestrian_blueprinter(pedestrian_blueprints)
         spawn_points = world.get_map().get_spawn_points()  # 随机可行走点
+        spawn_location = carla.Location(x=-119, y=-20, z=0.0)
 
         # 为每个蓝图创建数据集文件夹
         for folder_index in range(len(filter_pedestrians_blueprinter)):
             pedestrian_print = filter_pedestrians_blueprinter[folder_index]
             folder_name = f"{folder_index + 1}"
             print(f"Generating images for: {folder_name} ({pedestrian_print})")
-            pedestrian, cameras, segmentation_cameras, sensor_queue, label_dicts, folder_path = generate_pedestrian_images(filter_pedestrians_blueprinter, folder_name, world, spawn_points, tm)
+            pedestrian, cameras, segmentation_cameras, sensor_queue, label_dicts, folder_path = generate_pedestrian_images(filter_pedestrians_blueprinter, folder_name, world, spawn_points, spawn_location, tm)
             # 将ground_truth保存为mat文件
             save_label_to_mat(label_dicts, folder_path)
             destroy_pedestrian_sensor(pedestrian, cameras, segmentation_cameras, sensor_queue)
