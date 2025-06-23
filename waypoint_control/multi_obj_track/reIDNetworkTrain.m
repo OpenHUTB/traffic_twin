@@ -1,7 +1,7 @@
 %% 重新训练ReID网络
 % 加载数据并准备训练集与验证集
 currentPath = fileparts(mfilename('fullpath'));
-datasetFolder = "processed_data";
+datasetFolder = "total";
 dataFolder = fullfile(currentPath ,datasetFolder);
 imds = imageDatastore(dataFolder,IncludeSubfolders=true,LabelSource="foldernames");
 
@@ -19,7 +19,7 @@ dsVal = subset(ds,numTraining+1:size(imds.Files,1));
 
 %% 生成遮挡数据
 % 指定用于存储遮挡数据的文件夹。
-occlusionDatasetDirectory = fullfile(currentPath, "vehicleOcclusionDataset");
+occlusionDatasetDirectory = fullfile(currentPath, "OcclusionDataset");
 % 检查 generateOcclusionData 是否存在，如果不存在则设置其值为 true，表示需要生成遮挡数据
 if ~exist("generateOcclusionData","var")
     generateOcclusionData = true;
@@ -31,7 +31,6 @@ if generateOcclusionData && ~exist(occlusionDatasetDirectory,"dir")
         helperGenerateOcclusionData(img,writeInfo,outputFormat,datasetFolder));
     generateOcclusionData = false;
 end
-
 %% 训练数据预览
 dsTrain = imageDatastore(fullfile(occlusionDatasetDirectory,datasetFolder),IncludeSubfolders=true,LabelSource="foldernames");
 
