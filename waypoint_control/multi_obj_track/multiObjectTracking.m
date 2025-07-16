@@ -32,7 +32,14 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     [ptCld, lidarBboxes] = helperExtractLidarData(datalog);
     
     % 显示点云数据
-    ax = pcshow(ptCld);
+    disp(class(ptCld));
+    pointCld = pointCloud(...
+        ptCld.Location, ...          % 必需：N×3 坐标
+        'Intensity', ptCld.Intensity ... % 可选：强度值
+    );
+    disp(class(pointCld));
+    disp(pointCld);
+    ax = pcshow(pointCld);
     showShape("Cuboid", lidarBboxes, Color="green", Parent=ax, Opacity=0.15, LineWidth=1);
     % zoom(ax, 'on'); % 启用缩放
     zoom(ax, 8);
@@ -137,7 +144,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         cameraDetections = cell(0, 1);
         for k = 1:numel(datalog.CameraData)
             [img, camBBox, cameraPose] = helperExtractCameraData(datalog, dataPath, k);
-            cameraBoxes{k} = camBBox; %#ok<SAGROW>
+            cameraBoxes{k} = camBBox; 
             thisCameraDetections = helperAssembleCameraDetections(cameraBoxes{k}, cameraPose, time, k + 1, egoPose);
             cameraDetections = [cameraDetections; thisCameraDetections]; %#ok<AGROW> 
         end
