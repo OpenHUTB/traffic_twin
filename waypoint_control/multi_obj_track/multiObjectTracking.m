@@ -33,13 +33,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     
     % 显示点云数据
     disp(class(ptCld));
-    pointCld = pointCloud(...
-        ptCld.Location, ...          % 必需：N×3 坐标
-        'Intensity', ptCld.Intensity ... % 可选：强度值
-    );
-    disp(class(pointCld));
-    disp(pointCld);
-    ax = pcshow(pointCld);
+    ax = pcshow(ptCld);
     showShape("Cuboid", lidarBboxes, Color="green", Parent=ax, Opacity=0.15, LineWidth=1);
     % zoom(ax, 'on'); % 启用缩放
     zoom(ax, 8);
