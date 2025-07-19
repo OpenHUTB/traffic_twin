@@ -156,7 +156,12 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                 % Plot camera image and detections
                 % 获取相机图像的路径
                 originalPath = fullfile(dataFolder,dataLog.CameraData(idx(i)).ImagePath);
-                parts = strsplit(dataFolder, '\');
+                if ispc
+                    parts = strsplit(dataFolder, '\');
+                else
+                    parts = strsplit(dataFolder, '/');
+                end
+                %parts = strsplit(dataFolder, '/');
                 parts(ismember(parts, '')) = [];
                 % 获取最后两个元素
                 lastTwoDirs = parts(end-1:end);
@@ -176,7 +181,6 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                 cameraPose = dataLog.CameraData(idx(i)).Pose;
                 % 创建一个单目相机对象,用于将雷达数据和跟踪数据投影到相机图像上。
                 camera = getMonoCamera(idx(i),cameraPose);
-                
                 % 将雷达数据投影到相机图像上
                 [lidarBox, isValid] = cuboidProjection(camera, pos, dim, yaw);
                 % 在图像上插入雷达数据的投影框
