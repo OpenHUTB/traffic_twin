@@ -3,6 +3,8 @@ import argparse
 import scipy.io
 import json
 import numpy as np
+import os
+import random
 from fastdtw import fastdtw
 from config import IntersectionConfig, town_configurations
 from global_route_planner import GlobalRoutePlanner
@@ -31,7 +33,8 @@ def trace_route(start_waypoint, end_waypoint, global_router):
 
 
 def interpolate_trajectory(trajectory, target_length, i, k):
-
+    l = len(trajectory)
+    n = target_length
     # 计算需要删除或增加的点的数量
     num_to_remove_or_add = abs(len(trajectory) - target_length)
     trajectory = np.array(trajectory)
@@ -54,11 +57,15 @@ def interpolate_trajectory(trajectory, target_length, i, k):
 
     # 如果 trajectory 长度超过 target_length
     while len(trajectory) > target_length:
-        # 每隔一定间隔删除一个点
-        step = len(trajectory) // num_to_remove_or_add
-        indices_to_remove = [i for i in range(1, len(trajectory), step)][:num_to_remove_or_add]
-        # 删除点
-        trajectory = np.delete(trajectory, indices_to_remove, axis=0)
+        current_len = len(trajectory)
+        to_remove = current_len - target_length
+
+        # 关键改进：动态调整步长
+        step = max(1, round(current_len / to_remove))
+
+        # 均匀选择要删除的点（保留首尾）
+        remove_indices = list(range(step // 2, current_len, step))[:to_remove]
+        trajectory = np.delete(trajectory, remove_indices, axis=0)
 
     return trajectory
 
@@ -105,7 +112,8 @@ def main():
         help='Name of the town to use (e.g., Town01, Town10HD_Opt)'
     )
     args = argparser.parse_args()
-
+    np.random.seed(42)
+    random.seed(42)
     # 连接到Carla服务器
     client = carla.Client(args.host, args.port)
     client.set_timeout(10.0)
@@ -331,6 +339,7 @@ def main():
 
     # 保存全部车辆轨迹到waypoint.txt
     with open('Waypoints.txt', 'w') as file:
+
         # 遍历每辆车的轨迹
         for vehicle_index, tr in enumerate(all_vehicle_traj):
             # 遍历轨迹中的每个数据点
@@ -342,6 +351,10 @@ def main():
                     file.write(output_string + '\n')
                 else:
                     file.write(output_string)  # 最后一个数据点，不添加换行符
+    if os.path.exists('Waypoints.txt'):
+        print("✅ 文件已生成！路径:", os.path.abspath('Waypoints.txt'))
+    else:
+        print("❌ 文件未生成！可能原因：写入失败或路径错误")
 
     # 将保存的轨迹按时间排序
     # 读取文件
