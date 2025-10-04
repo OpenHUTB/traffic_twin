@@ -18,12 +18,18 @@ function demoSingleJuncEvaluation(junc, juncNum)
     % 跟踪到的路口车辆轨迹
     tracksData = load(tracksDataPath);
     tracksData = tracksData.evaluationTracks;
-    
+    % Town01 and Town10
+    %    for i = 1:numel(tracksData)
+    %        tracksData(i).Position(3) = -0.7;
+    %    end
+    % ZhongDian int 1
+    %for i = 1:numel(tracksData)
+    %   tracksData(i).Position(3) = -43.58; 
+    %end
+    % ZhongDian int 2
     for i = 1:numel(tracksData)
-        tracksData(i).Position(3) = -0.7;
+       tracksData(i).Position(3) = -45.78; 
     end
-    
-    
     % 使用欧几里得距离评估 CLEAR MOT 指标
     metric = trackCLEARMetrics(SimilarityMethod="Euclidean",EuclideanScale=2);
     
