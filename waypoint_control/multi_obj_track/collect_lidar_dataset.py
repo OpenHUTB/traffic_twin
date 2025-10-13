@@ -150,7 +150,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
 
     # 获取行人标签
     step = 2  # 每隔1个元素遍历（步长为2）
-    for pedestrian in pedestrian_list[::step]:
+    for pedestrian in pedestrian_list[1::step]:
     # for pedestrian in pedestrian_list:
         bounding_box = pedestrian.bounding_box
         bbox_z = bounding_box.location.z
@@ -453,6 +453,7 @@ def main():
             time.sleep(0.05)
             folder_index += 1
         print("Data collection completed!")
+
         #销毁车辆和雷达传感器
         if lidar is not None:
             lidar.stop()  # 确保停止传感器线程
