@@ -1,0 +1,7 @@
+cvxpy
+numpy
+matplotlib
+pygame
+casadi
+networkx
+shapely
