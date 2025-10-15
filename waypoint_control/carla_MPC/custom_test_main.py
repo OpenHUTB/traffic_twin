@@ -122,6 +122,52 @@ try:
 except KeyboardInterrupt:
     print("Simulation interrupted by user.")
 
+# --- 计算平均横向误差与纵向误差 ---
+def compute_errors(traj_real, traj_ref):
+    lateral_errors = []
+    longitudinal_errors = []
+    last_tangent = np.array([1.0, 0.0])  # 默认方向，防止最开始没有定义
+
+    for pt in traj_real:
+        # 找到最近的参考点索引
+        dists = np.linalg.norm(traj_ref - pt, axis=1)
+        idx = np.argmin(dists)
+
+        # 获取参考点的局部切向方向
+        if idx < len(traj_ref) - 1:
+            tangent = traj_ref[idx + 1] - traj_ref[idx]
+        else:
+            tangent = traj_ref[idx] - traj_ref[idx - 1]
+
+        norm_tangent = np.linalg.norm(tangent)
+        if norm_tangent < 1e-6:  # 若方向向量太短（几乎重合）
+            tangent = last_tangent
+        else:
+            tangent = tangent / norm_tangent
+            last_tangent = tangent  # 保存当前方向以备下次使用
+
+        # 法向方向（垂直于切向）
+        normal = np.array([-tangent[1], tangent[0]])
+
+        # 实际误差向量
+        error_vec = pt - traj_ref[idx]
+
+        # 投影得到纵向与横向误差
+        lon_err = np.dot(error_vec, tangent)
+        lat_err = np.dot(error_vec, normal)
+
+        longitudinal_errors.append(lon_err)
+        lateral_errors.append(lat_err)
+
+    mean_lat_error = np.mean(np.abs(lateral_errors))
+    mean_lon_error = np.mean(np.abs(longitudinal_errors))
+    return mean_lat_error, mean_lon_error
+
+
+mean_lat_error, mean_lon_error = compute_errors(trajectory, custom_trajectory)
+print(f"Average Lateral Error: {mean_lat_error:.3f} m")
+print(f"Average Longitudinal Error: {mean_lon_error:.3f} m")
+
 trajectory = np.array(trajectory)
 velocities = np.array(velocities)
 accelerations = np.array(accelerations)
@@ -135,9 +181,9 @@ axs[0, 0].scatter(agent._start_transform.location.x, agent._start_transform.loca
                   zorder=5)
 axs[0, 0].scatter(agent._end_transform.location.x, agent._end_transform.location.y, color='red', label="End", zorder=5)
 
-route_points = np.array([[wp.transform.location.x, wp.transform.location.y] for wp, _ in route])
+route_points = np.array(custom_trajectory)
 axs[0, 0].plot(route_points[:, 0], route_points[:, 1], '--', color='blue', label="Planned Route", alpha=0.6)
-axs[0, 0].set_title("Vehicle Path and Planned Route", fontsize=14)
+axs[0, 0].set_title("Vehicle Path and Planned Route-MPC", fontsize=14)
 axs[0, 0].set_xlabel("X Position", fontsize=12)
 axs[0, 0].set_ylabel("Y Position", fontsize=12)
 axs[0, 0].legend(loc='upper left', fontsize=10)
