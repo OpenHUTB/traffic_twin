@@ -1,0 +1,15 @@
+<annotation>
+    <folder>output</folder>
+    <filename>007738.png</filename>
+    <path>D:\project_self_driving_vehicle\gitcarla\Carla-YOLO-DeepSort-Multi-Object-Tracking\output\007738.png</path>
+    <source>
+        <database>Unknown</database>
+    </source>
+    <size>
+        <width>1024</width>
+        <height>768</height>
+        <depth>3</depth>
+    </size>
+    <segmented>0</segmented>
+
+</annotation>

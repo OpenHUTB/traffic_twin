@@ -3,8 +3,8 @@
 config;
 
 % 用户输入地图名和路口编号
-townName = 'Town10';                 % 例如 Town01 或 Town10）
-juncNum = 1;                         % 请输入路口编号（1 或 2）
+townName = 'Town10';                    % 例如 Town01,Town10,ZhongDian
+juncNum = 1;                            % 请输入路口编号（1,2,3,4,5）
 
 % 根据输入选择配置
 if isfield(dataset, townName)
@@ -43,7 +43,7 @@ if isfield(dataset, townName)
         else
             townPath = [townName '_Metric'];
         end
-        MCTPResults = demoMultiSensorEvaluation(townPath);
+        demoMultiSensorEvaluation(townPath);
     else
         error('路口编号不存在！');
     end

@@ -1,0 +1,37 @@
+<annotation>
+    <folder>output</folder>
+    <filename>007738.png</filename>
+    <path>D:\project_self_driving_vehicle\gitcarla\Carla-YOLO-DeepSort-Multi-Object-Tracking\output\007738.png</path>
+    <source>
+        <database>Unknown</database>
+    </source>
+    <size>
+        <width>1024</width>
+        <height>768</height>
+        <depth>3</depth>
+    </size>
+    <segmented>0</segmented>
+    <object>
+        <name>vehicle</name>
+        <pose>404.68820608415626</pose>
+        <truncated>0</truncated>
+        <difficult>0</difficult>
+        <bndbox>
+            <xmin>1205.6486408226192</xmin>
+            <ymin>236.08318239437943</ymin>
+            <xmax>387.09031297353556</xmax>
+            <ymax>290.96224677338904</ymax>
+        </bndbox>
+    </object>    <object>
+        <name>vehicle</name>
+        <pose>402.71222531499626</pose>
+        <truncated>0</truncated>
+        <difficult>0</difficult>
+        <bndbox>
+            <xmin>1205.6486408226192</xmin>
+            <ymin>252.9877461847998</ymin>
+            <xmax>387.9025460987575</xmax>
+            <ymax>311.42875230567523</ymax>
+        </bndbox>
+    </object>
+</annotation>
