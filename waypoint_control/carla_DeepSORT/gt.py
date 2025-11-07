@@ -202,6 +202,52 @@ for _ in range(50):
     vehicle_list.append(vehicle)
     # print(f"Spawned vehicle: {vehicle.id}")
 
+
+
+# pedestrian_list = []
+#
+# # 获取普通行人蓝图（排除特殊类型）
+# walker_bps = [
+#     bp for bp in world.get_blueprint_library().filter('walker.pedestrian*')
+#     if not bp.id.split('.')[-1] in {'child', 'skeleton'}
+# ]
+#
+#
+# for _ in range(200):
+#     # 获取安全生成位置
+#     spawn_point = None
+#     for _ in range(3):  # 最多尝试3次
+#         location = world.get_random_location_from_navigation()
+#         if location and 0 < location.z < 1.0:
+#             spawn_point = carla.Transform(location)
+#             break
+#     if not spawn_point:
+#         continue
+#
+#     # 生成行人
+#     bp = random.choice(walker_bps)
+#     pedestrian = world.try_spawn_actor(bp, spawn_point)
+#     if not pedestrian:
+#         continue
+#
+#
+#     # 通过Actor接口启用物理
+#     try:
+#         pedestrian.set_simulate_physics(True)
+#         world.tick()  # 同步模式下必须tick
+#     except RuntimeError as e:
+#         print(f"设置物理失败: {e}")
+#         pedestrian.destroy()
+#         continue
+#
+#     controller_bp = world.get_blueprint_library().find('controller.ai.walker')
+#     controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
+#     controller.start()  # 启用自动行走
+#     controller.go_to_location(world.get_random_location_from_navigation())  # 设置目标点
+#
+#     # 只将行人添加到列表，控制器不保存
+#     pedestrian_list.append(pedestrian)
+
 # Retrieve all these type objects
 
 car_objects = world.get_environment_objects(carla.CityObjectLabel.Car)
