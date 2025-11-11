@@ -43,7 +43,7 @@ def create_label_folder():
 def recognize_vehicle_class(vehicle):
     blueprint = vehicle.type_id.lower()  # 获取车辆的蓝图名称并转换为小写
     # 定义需要识别为卡车的特定蓝图ID
-    truck_blueprints = [
+    Truck_blueprints = [
         'vehicle.carlamotors.carlacola',
         'vehicle.carlamotors.european_hgv',
         'vehicle.tesla.cybertruck',
@@ -51,10 +51,10 @@ def recognize_vehicle_class(vehicle):
         'vehicle.mitsubishi.fusorosa'
     ]
     # 检查蓝图名称是否在卡车列表中
-    if blueprint in truck_blueprints:
-        return 'truck'
+    if blueprint in Truck_blueprints:
+        return 'Truck'
     else:
-        return "car"
+        return "Car"
 
 
 def filter_vehicle_blueprinter(vehicle_blueprints):
@@ -96,9 +96,9 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
     # 按方向过滤车辆
     # vehicle_list = filter_vehicle_by_direction(vehicle_list, lidar_yaw, location, angle_tolerance=15, distance_threshold=30)
 
-    car_labels = []  # car 标签列表
-    truck_labels = []  # truck 标签列表
-    pedestrian_labels = []  # 行人标签列表
+    car_labels = []  # Car 标签列表
+    truck_labels = []  # Truck 标签列表
+    pedestrian_labels = []  # Pedestrian 标签列表
 
     # 获取标签NX9
     for vehicle in vehicle_list:
@@ -128,6 +128,9 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
         yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
         # 构造标签数据（Nx9 格式）
 
+        # 判断车辆的类别（Car, Truck）
+        category = recognize_vehicle_class(vehicle)
+
         label = [
             bounding_box_location_lidar[0],  # x
             bounding_box_location_lidar[1],  # y
@@ -135,16 +138,17 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
             length,
             width,
             height,
-            pitch_lidar,  # pitch
-            roll_lidar,  # roll
-            yaw_lidar  # yaw
+            # pitch_lidar,  # pitch
+            # roll_lidar,  # roll
+            yaw_lidar,  # yaw
+            category
         ]
-        # 判断车辆的类别（car, truck）
-        category = recognize_vehicle_class(vehicle)
+        # # 判断车辆的类别（Car, Truck）
+        # category = recognize_vehicle_class(vehicle)
         # 根据类别保存标签
-        if category == "car":
+        if category == "Car":
             car_labels.append(label)
-        elif category == "truck":
+        elif category == "Truck":
             truck_labels.append(label)
 
 
@@ -185,30 +189,81 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
             length,
             width,
             height,
-            pitch_lidar,  # pitch
-            roll_lidar,  # roll
-            yaw_lidar  # yaw
+            # pitch_lidar,  # pitch
+            # roll_lidar,  # roll
+            yaw_lidar,  # yaw
+            'Pedestrian'
         ]
         pedestrian_labels.append(label)  # 行人标签直接保存，无需分类
 
 
+    # # 将 Car ， Truck 和 Pedestrian 数据转换为 NumPy 数组
+    # car_labels = np.array(car_labels, dtype=object)
+    # truck_labels = np.array(truck_labels, dtype=object)
+    # pedestrian_labels = np.array(pedestrian_labels, dtype=object)
+    # # 构造 MATLAB 格式的表格
+    # label_data = {
+    #     "Time": time_stamp,
+    #     "Car": car_labels,  # Car 标签
+    #     "Truck": truck_labels,  # Truck 标签
+    #     "Pedestrian": pedestrian_labels  # Pedestrian 标签
+    # }
 
-    # 将 car ， truck 和 pedestrian 数据转换为 NumPy 数组
-    car_labels = np.array(car_labels, dtype=object)
-    truck_labels = np.array(truck_labels, dtype=object)
-    pedestrian_labels = np.array(pedestrian_labels, dtype=object)
-    # 构造 MATLAB 格式的表格
-    label_data = {
-        "Time": time_stamp,
-        "car": car_labels,  # car 标签
-        "truck": truck_labels,  # truck 标签
-        "pedestrian": pedestrian_labels  # pedestrian 标签
-    }
-    # label_folder = create_label_folder()
-    # file_name = os.path.join(label_folder, f"{current_frame}.mat")
-    # # 保存为 .mat 文件
-    # scipy.io.savemat(file_name, {"LabelData": label_data})
-    return label_data
+    # 将所有类别的标签合并到一个列表中
+    all_labels = []
+
+    # 处理Car标签
+    if len(car_labels) > 0:
+        for label in car_labels:
+            if len(label) >= 7:
+                # 格式化数值为两位小数
+                formatted_label = []
+                for i, value in enumerate(label):
+                    if i < 7:  # 前7个是数值
+                        formatted_label.append(f"{float(value):.2f}")  # 格式化为两位小数
+                    else:  # 第8个及以后是类别名称
+                        formatted_label.append(str(value))
+
+                # 如果只有7个字段，添加类别名
+                if len(formatted_label) == 7:
+                    formatted_label.append("Vehicle")
+
+                all_labels.append(formatted_label)
+
+    # 处理Truck标签
+    if len(truck_labels) > 0:
+        for label in truck_labels:
+            if len(label) >= 7:
+                formatted_label = []
+                for i, value in enumerate(label):
+                    if i < 7:
+                        formatted_label.append(f"{float(value):.2f}")
+                    else:
+                        formatted_label.append(str(value))
+
+                if len(formatted_label) == 7:
+                    formatted_label.append("Truck")
+
+                all_labels.append(formatted_label)
+
+    # 处理Pedestrian标签
+    if len(pedestrian_labels) > 0:
+        for label in pedestrian_labels:
+            if len(label) >= 7:
+                formatted_label = []
+                for i, value in enumerate(label):
+                    if i < 7:
+                        formatted_label.append(f"{float(value):.2f}")
+                    else:
+                        formatted_label.append(str(value))
+
+                if len(formatted_label) == 7:
+                    formatted_label.append("Pedestrian")
+
+                all_labels.append(formatted_label)
+
+    return all_labels
+    # return label_data
 
 
 # 定义回调函数来保存雷达点云数据
@@ -218,7 +273,8 @@ def save_radar_data(radar_data, world, location, lidar_to_world_inv, lidar_yaw, 
     # 获取当前帧编号
     current_frame = radar_data.frame
     # 保存车辆和行人标签
-    label_data = save_point_label(world, location, lidar_to_world_inv, timestamp, current_frame, lidar_yaw)
+    # label_data = save_point_label(world, location, lidar_to_world_inv, timestamp, current_frame, lidar_yaw)
+    all_labels = save_point_label(world, location, lidar_to_world_inv, timestamp, current_frame, lidar_yaw)
 
     # 保存点云数据
     # 获取雷达数据并将其转化为numpy数组
@@ -263,7 +319,7 @@ def save_radar_data(radar_data, world, location, lidar_to_world_inv, lidar_yaw, 
     # 将点云数据保存为 .mat 文件
     # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
     # scipy.io.savemat(file_name, {'datalog': datalog})
-    sensor_queue.put((datalog, label_data))
+    sensor_queue.put((datalog, all_labels))
 
 
 def setup_sensors(world, addtion_param, transform, lidar_to_world_inv, data_struct_list):
@@ -289,7 +345,7 @@ def setup_sensors(world, addtion_param, transform, lidar_to_world_inv, data_stru
 
 
 # 生成自动驾驶车辆
-def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
+def spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=42):
     # 设置随机种子
     random.seed(random_seed)
     np.random.seed(random_seed)
@@ -322,7 +378,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
 
 
 # 生成随机运动行人
-def spawn_autonomous_pedestrians(world, num_pedestrians=200, random_seed=42):
+def spawn_autonomous_pedestrians(world, num_pedestrians=150, random_seed=42):
     random.seed(random_seed)
     np.random.seed(random_seed)
     pedestrian_list = []
@@ -360,16 +416,6 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=200, random_seed=42):
             print(f"设置物理失败: {e}")
             pedestrian.destroy()
             continue
-
-        # # 绑定控制器
-        # controller_bp = world.get_blueprint_library().find('controller.ai.walker')
-        # controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
-        # if controller:
-        #     controller.start()
-        #     controller.go_to_location(world.get_random_location_from_navigation())
-        #     pedestrian_list.append((pedestrian, controller))
-        # else:
-        #     pedestrian.destroy()
 
         controller_bp = world.get_blueprint_library().find('controller.ai.walker')
         controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
@@ -416,9 +462,9 @@ def main():
         # 静止 ego_vehicle 的位置
         ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=1), carla.Rotation(pitch=0, yaw=90, roll=0))
         # 先生成自动驾驶车辆
-        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=random_seed)
+        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
         # 生成行人
-        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=200, random_seed=20)
+        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=150, random_seed=20)
         #启动行人碰撞
         for pedestrian in pedestrians:
             if "walker.pedestrian." in pedestrian.type_id:
@@ -432,23 +478,57 @@ def main():
         sensor_queue = Queue()
         # 启动雷达传感器
         lidar = setup_sensors(world, addtion_param, lidar_transform, lidar_to_world_inv, sensor_queue)
-        folder_index = 1
+        folder_index = 0
 
         # 同步保存雷达数据
         for _ in range(POINT_SAVE_TIME):
             world.tick()
             datalog, label = sensor_queue.get(True, 1.0)
-            # 开始保存
-            # 创建存储数据的文件夹（每个雷达一个文件夹）
-            radar_folder = create_radar_folder()
-            file_name = os.path.join(radar_folder, f"{folder_index}.mat")
-            # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
-            scipy.io.savemat(file_name, {'datalog': datalog})
 
+            # # 开始保存
+            # # 创建存储数据的文件夹（每个雷达一个文件夹）
+            # radar_folder = create_radar_folder()
+            # file_name = os.path.join(radar_folder, f"{folder_index}.mat")
+            # # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
+            # scipy.io.savemat(file_name, {'datalog': datalog})
+            #
+            # label_folder = create_label_folder()
+            # file_name = os.path.join(label_folder, f"{folder_index}.mat")
+            # # 保存为 .mat 文件
+            # scipy.io.savemat(file_name, {"LabelData": label})
+            #
+            # time.sleep(0.05)
+            # folder_index += 1
+
+            # 生成6位数字的文件名
+            file_num = f"{folder_index:06d}"
+            # 1. 直接保存 datalog 为 .npy
+            radar_folder = create_radar_folder()
+            np.save(os.path.join(radar_folder, f"{file_num}.npy"), datalog)
+            # 2. 保存 label 为 .txt
             label_folder = create_label_folder()
-            file_name = os.path.join(label_folder, f"{folder_index}.mat")
-            # 保存为 .mat 文件
-            scipy.io.savemat(file_name, {"LabelData": label})
+            with open(os.path.join(label_folder, f"{file_num}.txt"), 'w') as f:
+                f.write("# format: [x y z dx dy dz heading_angle category_name\n")
+
+                # 处理不同的数据结构
+                if isinstance(label, list):
+                    # 检查是否是嵌套列表（多个标签）
+                    if label and isinstance(label[0], list):
+                        # 多个标签：每行一个标签
+                        for label_item in label:
+                            line = " ".join(str(item) for item in label_item)
+                            f.write(line + "\n")
+                    else:
+                        # 单个标签：一行
+                        line = " ".join(str(item) for item in label)
+                        f.write(line + "\n")
+                else:
+                    # 其他类型（字符串、数字等）
+                    f.write(str(label))
+
+            # 3. 每次保存 file_num 到 num.txt，并换行
+            with open("num.txt", 'a') as f:  # 'a' 表示追加模式
+                f.write(str(file_num) + "\n")  # 添加换行符
 
             time.sleep(0.05)
             folder_index += 1
