@@ -6,12 +6,7 @@ function saveTrackVehiclePicture(trkIDimg2DBox, savedImg, junc)
      if ~exist(imgPath, 'dir')
         mkdir(imgPath);
      end
-     if ispc
-         dirParts = strsplit(junc, '\');
-     else
-         dirParts = strsplit(junc, '/');
-     end
-     %dirParts = strsplit(junc, '/');
+     dirParts = strsplit(junc, filesep);
      townPath = fullfile(imgPath, dirParts{1});
      if ~exist(townPath, 'dir')
         mkdir(townPath);

@@ -132,6 +132,11 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                 cameraBox = zeros(4,0);
                 sensorIdx =0;
             end
+            category = {};
+            for i = 1:6
+                category1 = dataLog.CameraData(i).Category;
+                category = [category ; category1];
+            end
             %  初始化目标跟踪数据
             if ~isempty(tracks)
                 states = horzcat(tracks.State);
@@ -174,6 +179,8 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                 if isempty(cameraBoxData)
                     cameraBoxData = zeros(0, 4);  % 保证维度为 [0, 4]
                 end
+                % 获取当前相机类别数据
+                categoryData = category(sensorIdx == idx(i) + 1, :);
                 % 在图像上插入检测框注释
                 img = insertObjectAnnotation(img,'rectangle',cameraBoxData,'C','Color','blue','LineWidth',2);
 
@@ -202,7 +209,7 @@ classdef helperLidarCameraFusionDisplay < matlab.System
                   trkIds(isValid)：当前视角对应3D融合检测框的ID 1xN uint32
                 %}
                 if  ~isempty(trkBox) && any(isValid) && ~isempty(cameraBoxData) && sum(isValid) == size(cameraBoxData, 1)
-                    trkIDimg2DBox = extractTrackVehiclePicture(cameraBoxData, trkBox(:,:,isValid), trkIds(isValid));
+                    trkIDimg2DBox = extractTrackVehiclePicture(cameraBoxData, trkBox(:,:,isValid), trkIds(isValid), categoryData);
                     saveTrackVehiclePicture(trkIDimg2DBox, savedImg, junc)
                 end 
                 
