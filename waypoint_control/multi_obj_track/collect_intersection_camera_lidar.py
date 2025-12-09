@@ -65,7 +65,6 @@ def create_radar_folder(junc, town_folder):
         print(f"Created folder: {folder_name}")
     return folder_name
 
-
 # 创建保存相机数据的文件夹
 def create_camera_folder(camera_id, junc, town_folder):
     folder_name = f"{town_folder}/{junc}/camera/{camera_id}"
@@ -106,6 +105,9 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
     pedestrian_list = list(filter(lambda actor: dist(actor) < FUSION_DETECTION_ACTUAL_DIS, pedestrian_list))
     vehicle_labels = []  # 车辆标签列表
     pedestrian_labels = []  # 行人标签列表
+    car_labels = []  # Car 标签列表
+    truck_labels = []  # Truck 标签列表
+    pedestrian_labelspy = []  # Pedestrian 标签列表
     # 获取标签NX9
     for vehicle in vehicle_list:
         bounding_box = vehicle.bounding_box
@@ -145,6 +147,26 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
             # roll_lidar,  # roll
             # yaw_lidar  # yaw
         ]
+
+        # 判断车辆的类别（Car, Truck）
+        category = recognize_vehicle_class(vehicle)
+
+        labelpy = [
+            bounding_box_location_lidar[0],  # x
+            bounding_box_location_lidar[1],  # y
+            bounding_box_location_lidar[2] + 0.3,  # z ,需要把z替换成bounding_box.z
+            length,
+            width,
+            height,
+            yaw_lidar,  # yaw
+            category
+        ]
+        # 根据类别保存标签
+        if category == "Car":
+            car_labels.append(labelpy)
+        elif category == "Truck":
+            truck_labels.append(labelpy)
+
         vehicle_id = vehicle.id
         vehicle_labels.append((time_stamp, vehicle_id, label))
     all_vehicle_labels.append(vehicle_labels)
@@ -190,13 +212,82 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
             # roll_lidar,  # roll
             # yaw_lidar  # yaw
         ]
+
+        # 构造标签数据（Nx9 格式）
+        labelpy = [
+            bounding_box_location_lidar[0],  # x
+            bounding_box_location_lidar[1],  # y
+            bounding_box_location_lidar[2] + height / 2,  # z ,需要把z替换成bounding_box.z
+            length,
+            width,
+            height,
+            yaw_lidar,  # yaw
+            'Pedestrian'
+        ]
+        pedestrian_labelspy.append(labelpy)  # 行人标签直接保存，无需分类
+
         pedestrian_id = pedestrian.id
         pedestrian_labels.append((time_stamp, pedestrian_id, label))
     all_pedestrian_labels.append(pedestrian_labels)
 
+    # 将所有类别的标签合并到一个列表中
+    all_labels = []
+
+    # 处理Car标签
+    if len(car_labels) > 0:
+        for label in car_labels:
+            if len(label) >= 7:
+                # 格式化数值为两位小数
+                formatted_label = []
+                for i, value in enumerate(label):
+                    if i < 7:  # 前7个是数值
+                        formatted_label.append(f"{float(value):.2f}")  # 格式化为两位小数
+                    else:  # 第8个及以后是类别名称
+                        formatted_label.append(str(value))
+
+                # 如果只有7个字段，添加类别名
+                if len(formatted_label) == 7:
+                    formatted_label.append("Vehicle")
+
+                all_labels.append(formatted_label)
+
+    # 处理Truck标签
+    if len(truck_labels) > 0:
+        for label in truck_labels:
+            if len(label) >= 7:
+                formatted_label = []
+                for i, value in enumerate(label):
+                    if i < 7:
+                        formatted_label.append(f"{float(value):.2f}")
+                    else:
+                        formatted_label.append(str(value))
+
+                if len(formatted_label) == 7:
+                    formatted_label.append("Truck")
+
+                all_labels.append(formatted_label)
+
+    # 处理Pedestrian标签
+    if len(pedestrian_labels) > 0:
+        for label in pedestrian_labels:
+            if len(label) >= 7:
+                formatted_label = []
+                for i, value in enumerate(label):
+                    if i < 7:
+                        formatted_label.append(f"{float(value):.2f}")
+                    else:
+                        formatted_label.append(str(value))
+
+                if len(formatted_label) == 7:
+                    formatted_label.append("Pedestrian")
+
+                all_labels.append(formatted_label)
+
+    return all_labels
+
 
 # 定义函数来保存雷达点云数据
-def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, actual_pedestrian_num,lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder):
+def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, actual_pedestrian_num,lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num):
     global global_time
     # 获取当前帧编号
     current_frame = radar_data.frame
@@ -205,7 +296,7 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     timestamp = global_time
     global_time = timestamp + 0.05
     location = ego_vehicle_transform.location
-    save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels, all_pedestrian_labels)
+    all_labels = save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels, all_pedestrian_labels)
 
     # 获取雷达数据并将其转化为numpy数组
     points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
@@ -296,15 +387,53 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     actual_vehicle_num.append((timestamp, vehicle_count))
     actual_pedestrian_num.append((timestamp, pedestrian_count))
 
-    # def dist(actor):
-    #     return actor.get_location().distance(location)
-    # # 筛选出距离小于 LIDAR_RANGE 的车辆
-    # vehicle_list = list(filter(lambda actor: dist(actor) < FUSION_DETECTION_ACTUAL_DIS, vehicle_list))
-    # pedestrian_list = list(filter(lambda actor: dist(actor) < FUSION_DETECTION_ACTUAL_DIS, pedestrian_list))
 
     # 将点云数据保存为 .mat 文件
     # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
     scipy.io.savemat(file_name, {'datalog': datalog})
+
+
+    # 提取 points 的前四列
+    locationpy = points[:, :4]
+    # 将 locationpy 转换为 float64（即 double 类型）
+    locationpy = locationpy.astype(np.float32)
+    # 如果 timestamp 是单个值，创建重复的数组
+    if np.isscalar(timestamp):
+        timestamp_array = np.full((locationpy.shape[0], 1), timestamp, dtype=np.float32)
+    else:
+        # 如果 timestamp 已经是数组，确保形状正确
+        timestamp_array = timestamp.reshape(-1, 1)
+
+    # 水平拼接 location 前四列和 timestamp
+    datalogpy = np.column_stack([locationpy, timestamp_array])
+
+    # 1. 直接保存 datalogpy 为 .npy
+    radar_folder = create_radar_folder_py()
+    np.save(os.path.join(radar_folder, f"{file_num}.npy"), datalogpy)
+    # 2. 保存 label 为 .txt
+    label_folder = create_label_folder()
+    with open(os.path.join(label_folder, f"{file_num}.txt"), 'w') as f:
+
+        # 处理不同的数据结构
+        if isinstance(all_labels, list):
+            # 检查是否是嵌套列表（多个标签）
+            if all_labels and isinstance(all_labels[0], list):
+                # 多个标签：每行一个标签
+                for label_item in all_labels:
+                    line = " ".join(str(item) for item in label_item)
+                    f.write(line + "\n")
+            else:
+                # 单个标签：一行
+                line = " ".join(str(item) for item in all_labels)
+                f.write(line + "\n")
+        else:
+            # 其他类型（字符串、数字等）
+            f.write(str(all_labels))
+
+    # 3. 每次保存 file_num 到 num.txt，并换行
+    with open("num.txt", 'a') as f:  # 'a' 表示追加模式
+        f.write(str(file_num) + "\n")  # 添加换行符
+
 
 
 # 定义函数来保存相机图像数据
@@ -516,6 +645,41 @@ def destroy_actor(lidar, camera_dict, vehicles, sensor_queue, pedestrians):
     del sensor_queue
 
 
+# python用法
+# 创建保存雷达数据的文件夹
+def create_radar_folder_py():
+    folder_name = f"train_data"
+    # 检查文件夹是否已存在，若不存在则创建
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+        print(f"Created folder: {folder_name}")
+    return folder_name
+
+# 创建保存标签数据的文件夹
+def create_label_folder():
+    folder_name = f"train_data/label"
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+        print(f"Created folder: {folder_name}")
+    return folder_name
+
+def recognize_vehicle_class(vehicle):
+    blueprint = vehicle.type_id.lower()  # 获取车辆的蓝图名称并转换为小写
+    # 定义需要识别为卡车的特定蓝图ID
+    Truck_blueprints = [
+        'vehicle.carlamotors.carlacola',
+        'vehicle.carlamotors.european_hgv',
+        'vehicle.tesla.cybertruck',
+        'vehicle.carlamotors.firetruck',
+        'vehicle.mitsubishi.fusorosa'
+    ]
+    # 检查蓝图名称是否在卡车列表中
+    if blueprint in Truck_blueprints:
+        return 'Truck'
+    else:
+        return "Car"
+
+
 # 主函数
 def main():
     argparser = argparse.ArgumentParser(
@@ -552,7 +716,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_1',  # 默认路口
+        default='road_intersection_5',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -640,10 +804,11 @@ def main():
         all_pedestrian_labels = []
         vehicles_traj = {}
         pedestrians_traj = {}
+        folder_index = 0
         for _ in range(DATA_MUN):
             world.tick()
-            actor_list = world.get_actors().filter('vehicle.*')
-            for actor in actor_list:
+            actor_list_vehicle = world.get_actors().filter('vehicle.*')
+            for actor in actor_list_vehicle:
                 vehicle_id = actor.id
                 location = actor.get_location()
                 x = location.x,
@@ -654,35 +819,30 @@ def main():
                     vehicles_traj[vehicle_id] = [[x, y, z]]
                 else:
                     vehicles_traj[vehicle_id].append([x, y, z])
-            # 同步保存多传感器数据
-            for _ in range(1 + len(camera_dict)):
-                data, sensor_name = sensor_queue.get(True, 1.0)
-                if "lidar" in sensor_name:  # lidar数据
-                    save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder)
-                else:
-                    save_camera_data(data, sensor_name, junc, town_folder)
-            # time.sleep(0.05)
-        for _ in range(DATA_MUN):
-            world.tick()
-            actor_list = world.get_actors().filter('walker.*')
-            for actor in actor_list:
+
+            actor_list_walker = world.get_actors().filter('walker.*')
+            for actor in actor_list_walker:
                 pedestrian_id = actor.id
                 location = actor.get_location()
                 x = location.x,
                 y = location.y,
                 z = location.z,
-                # 如果该车辆ID不存在于字典中，则初始化一个空列表
+                # 如果该行人ID不存在于字典中，则初始化一个空列表
                 if pedestrian_id not in pedestrians_traj:
                     pedestrians_traj[pedestrian_id] = [[x, y, z]]
                 else:
                     pedestrians_traj[pedestrian_id].append([x, y, z])
             # 同步保存多传感器数据
+            file_num = f"{folder_index:06d}"
             for _ in range(1 + len(camera_dict)):
                 data, sensor_name = sensor_queue.get(True, 1.0)
                 if "lidar" in sensor_name:  # lidar数据
-                    save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder)
+                    save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num)
                 else:
                     save_camera_data(data, sensor_name, junc, town_folder)
+            # time.sleep(0.05)
+            folder_index += 1
+
 
         # 保存车辆数据
         folder_name = f"{town_folder}/{junc}/vehicle_data"
