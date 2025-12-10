@@ -25,7 +25,7 @@ from scipy.spatial.transform import Rotation as R
 from config import IntersectionConfig, town_configurations
 DATA_MUN = 500
 DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
-FUSION_DETECTION_ACTUAL_DIS = 25  # 多目标跟踪的实际检测距离
+FUSION_DETECTION_ACTUAL_DIS = 50  # 多目标跟踪的实际检测距离
 WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
 # 定义全局变量
 global_time = 0.0
@@ -173,7 +173,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
 
     # 获取行人标签
     step = 2  # 每隔1个元素遍历（步长为2）
-    for pedestrian in pedestrian_list[::step]:
+    for pedestrian in pedestrian_list[1::step]:
         # for pedestrian in pedestrian_list:
         bounding_box = pedestrian.bounding_box
         bbox_z = bounding_box.location.z
@@ -268,8 +268,8 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
                 all_labels.append(formatted_label)
 
     # 处理Pedestrian标签
-    if len(pedestrian_labels) > 0:
-        for label in pedestrian_labels:
+    if len(pedestrian_labelspy) > 0:
+        for label in pedestrian_labelspy:
             if len(label) >= 7:
                 formatted_label = []
                 for i, value in enumerate(label):
@@ -876,7 +876,7 @@ def main():
         scipy.io.savemat(file_path, {'truths': truths})
 
         # 保存全部车辆ground_truth
-        ground_truth_file_path = os.path.join(town_folder, "ground_truth.mat")
+        ground_truth_file_path = os.path.join(town_folder, "vehicle_ground_truth.mat")
         # 转换为MATLAB兼容格式
         # 转换为目标结构
         mat_data = []
@@ -943,7 +943,7 @@ def main():
         scipy.io.savemat(file_path, {'truths': truths})
 
         # 保存全部行人ground_truth
-        ground_truth_file_path = os.path.join(town_folder, "ground_truth.mat")
+        ground_truth_file_path = os.path.join(town_folder, "pedestrian_ground_truth.mat")
         # 转换为MATLAB兼容格式
         # 转换为目标结构
         mat_data = []
