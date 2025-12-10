@@ -1,15 +1,24 @@
 function detect3DBoundingBox(junc)
     % 数据路径
     currentPath = fileparts(mfilename('fullpath'));
-    detectModel = fullfile(currentPath,'trainedCustomPointPillarsDetector.mat');
-    pretrainedDetector = load(detectModel,'detector');
-    detector = pretrainedDetector.detector;
+    % detectModel = fullfile(currentPath,'trainedCustomPointPillarsDetector.mat');
+    % pretrainedDetector = load(detectModel,'detector');
+    % detector = pretrainedDetector.detector;
     
     dataPath = fullfile(currentPath, junc);
+
+    folder_path = 'matdata/junc5';
+    file_pattern = fullfile(folder_path, '*.mat');
+    file_list = dir(file_pattern);
+    file_count = length(file_list);
+
+
+    classNames = {'car','truck','pedestrian'};
+    colors = {'green','magenta','blue'};
     
     % 获取目录下的所有 .mat 文件
     matFiles = dir(fullfile(dataPath, "*.mat"));
-    
+    index = 1;
     % 遍历每个 .mat 文件
     for fileIdx = 1:length(matFiles)
         % 加载当前 .mat 文件
@@ -48,20 +57,59 @@ function detect3DBoundingBox(junc)
 
     
             % 增加检测的置信度阈值(路口1使用的0.5) 0.33 0.4 0.8
-            [bboxes, scores, labels] = detect(detector, ptCloudOrg,  'Threshold',0.5);
-            disp('Bounding Boxes:');
-            disp(bboxes);
-            
-            disp('Scores:');
-            disp(scores);
-            
-            disp('Labels:');
-            disp(labels);
-            datalog.LidarData.Detections = bboxes;
+            % [bboxes, scores, labels] = detect(detector, ptCloudOrg,  'Threshold',0.2);
+            % disp('Bounding Boxes:');
+            % disp(bboxes);
+            % 
+            % disp('Scores:');
+            % disp(scores);
+            % 
+            % disp('Labels:');
+            % disp(labels);
+            % datalog.LidarData.Detections = bboxes;
+
+            % 读取文件
+            full_path = fullfile(folder_path, file_list(index).name);
+            load(full_path);
+
+            % 处理数据
+            fprintf('处理第 %d 个文件: %s\n', index, file_list(index).name);
+
+            % 更新索引
+            index = index + 1;
+
+            datalog.LidarData.Detections = datapy.detections;
+
+            % helperShowPointCloudWith3DBoxes(ptCloud,datapy.detections,datapy.detections,classNames,colors)
+
             % 保存更新后的数据到文件
             save(fileName, 'datalog', '-v7.3');
         else
             warning('文件 %s 中不存在有效的点云数据，跳过此文件。\n', fileName);
         end
     end
+end
+
+
+function helperShowPointCloudWith3DBoxes(ptCld,bboxes,labels,classNames,colors)
+    % Validate the length of classNames and colors are the same
+    assert(numel(classNames) == numel(colors), 'ClassNames and Colors must have the same number of elements.');
+    
+    % Get unique categories from labels
+    uniqueCategories = categories(labels); 
+    disp(uniqueCategories)
+    % Create a mapping from category to color
+    colorMap = containers.Map(uniqueCategories, colors); 
+    labelColor = cell(size(labels));
+
+    % Populate labelColor based on the mapping
+    for i = 1:length(labels)
+        labelColor{i} = colorMap(char(labels(i)));
+    end
+
+    figure;
+    ax = pcshow(ptCld); 
+    showShape('cuboid', bboxes, 'Parent', ax, 'Opacity', 0.1, ...
+        'Color', labelColor, 'LineWidth', 0.5);
+    zoom(ax,1.5);
 end
