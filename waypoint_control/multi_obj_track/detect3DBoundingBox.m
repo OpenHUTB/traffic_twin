@@ -1,4 +1,4 @@
-function detect3DBoundingBox(junc)
+function detect3DBoundingBox(junc, juncNum)
     % 数据路径
     currentPath = fileparts(mfilename('fullpath'));
     % detectModel = fullfile(currentPath,'trainedCustomPointPillarsDetector.mat');
@@ -7,7 +7,9 @@ function detect3DBoundingBox(junc)
     
     dataPath = fullfile(currentPath, junc);
 
-    folder_path = 'matdata/junc5';
+    junc = "junc";
+    junc = junc + juncNum;  
+    folder_path = fullfile('matdata', junc);
     file_pattern = fullfile(folder_path, '*.mat');
     file_list = dir(file_pattern);
     file_count = length(file_list);

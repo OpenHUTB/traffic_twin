@@ -3,8 +3,8 @@
 config;
 
 % 用户输入地图名和路口编号
-townName = 'Town10';                    % 例如 Town01,Town10,ZhongDian
-juncNum = 1;                            % 请输入路口编号（1,2,3,4,5）
+townName = 'Town10';                 % 例如 Town01 或 Town10）
+juncNum = 1;                         % 请输入路口编号（1 或 2）
 
 % 根据输入选择配置
 if isfield(dataset, townName)
@@ -20,10 +20,10 @@ if isfield(dataset, townName)
         transMatrix = juncConfig.TransformationMatrix; % 转换矩阵
         
         %% 获取2D检测框
-        detect2DBoundingBox(junc);
+        % detect2DBoundingBox(junc);
         
         %% 获取点云3D检测框
-        detect3DBoundingBox(junc);
+        % detect3DBoundingBox(junc, juncNum);
         
         %% 在指定路口做多目标跟踪 
         % 多目标跟踪生成轨迹并保存
@@ -33,17 +33,17 @@ if isfield(dataset, townName)
         convertTrackToCarlaCoordinate(junc, transMatrix);
         
         %% 计算单个路口跟踪指标并保存
-        currentPath = fileparts(mfilename('fullpath'));
-        folderPath = fullfile(currentPath, 'Evaluation');
+        %currentPath = fileparts(mfilename('fullpath'));
+        %folderPath = fullfile(currentPath, 'Evaluation');
         % 将文件夹添加到路径
-        addpath(folderPath);
-        demoSingleJuncEvaluation(junc, juncConfig.juncNum);
-        if strcmp(townName, 'Town10')
-            townPath = [townName 'HD_Opt_Metric'];
-        else
-            townPath = [townName '_Metric'];
-        end
-        demoMultiSensorEvaluation(townPath);
+        %addpath(folderPath);
+        %demoSingleJuncEvaluation(junc, juncConfig.juncNum);
+        %if strcmp(townName, 'Town10')
+        %    townPath = [townName 'HD_Opt_Metric'];
+        %else
+        %    townPath = [townName '_Metric'];
+        %end
+        %MCTPResults = demoMultiSensorEvaluation(townPath);
     else
         error('路口编号不存在！');
     end

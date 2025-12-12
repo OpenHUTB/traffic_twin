@@ -25,7 +25,7 @@ from scipy.spatial.transform import Rotation as R
 from config import IntersectionConfig, town_configurations
 DATA_MUN = 500
 DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
-FUSION_DETECTION_ACTUAL_DIS = 50  # 多目标跟踪的实际检测距离
+FUSION_DETECTION_ACTUAL_DIS = 25  # 多目标跟踪的实际检测距离
 WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
 # 定义全局变量
 global_time = 0.0
@@ -408,10 +408,10 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     datalogpy = np.column_stack([locationpy, timestamp_array])
 
     # 1. 直接保存 datalogpy 为 .npy
-    radar_folder = create_radar_folder_py()
+    radar_folder = create_radar_folder_py(town_folder, junc)
     np.save(os.path.join(radar_folder, f"{file_num}.npy"), datalogpy)
     # 2. 保存 label 为 .txt
-    label_folder = create_label_folder()
+    label_folder = create_label_folder(town_folder, junc)
     with open(os.path.join(label_folder, f"{file_num}.txt"), 'w') as f:
 
         # 处理不同的数据结构
@@ -647,17 +647,24 @@ def destroy_actor(lidar, camera_dict, vehicles, sensor_queue, pedestrians):
 
 # python用法
 # 创建保存雷达数据的文件夹
-def create_radar_folder_py():
-    folder_name = f"train_data"
+def create_radar_folder_py(town_folder, junc):
+    folder_name = os.path.join("train_data", town_folder, junc, "point")
     # 检查文件夹是否已存在，若不存在则创建
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
         print(f"Created folder: {folder_name}")
     return folder_name
 
+# def create_radar_folder(junc, town_folder):
+#     folder_name = f"{town_folder}/{junc}"
+#     # 检查文件夹是否已存在，若不存在则创建
+#     if not os.path.exists(folder_name):
+#         os.makedirs(folder_name)
+#         print(f"Created folder: {folder_name}")
+#     return folder_name
 # 创建保存标签数据的文件夹
-def create_label_folder():
-    folder_name = f"train_data/label"
+def create_label_folder(town_folder, junc):
+    folder_name = os.path.join("train_data", town_folder, junc, "label")
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
         print(f"Created folder: {folder_name}")
@@ -716,7 +723,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_5',  # 默认路口
+        default='road_intersection_1',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
