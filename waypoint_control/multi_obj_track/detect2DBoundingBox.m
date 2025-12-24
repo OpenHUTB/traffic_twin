@@ -9,6 +9,10 @@ function detect2DBoundingBox(junc)
     % 初始化 YOLOv4 检测器
     name = "tiny-yolov4-coco";
     detector = yolov4ObjectDetector(name);
+
+    % 初始化 YOLOv8 检测器
+    % name = 'yolov8s';
+    % detector = yolov8ObjectDetector(name);
     
     % 遍历每个 .mat 文件
     for fileIdx = 1:length(matFiles)
@@ -61,6 +65,11 @@ function detect2DBoundingBox(junc)
                     cameraData(i).Detections = filteredBboxes;
                 end
             end
+
+            % 将labels作为标签数据保存到datalog中
+            validIndices = ~strcmp(labels, 'traffic light');
+            filteredLabels = labels(validIndices);
+            cameraData(i).Category = filteredLabels;
     
             % 可选：在图片上绘制检测框并显示
             % detectedImg = insertObjectAnnotation(img, "Rectangle", bboxes, labels);
