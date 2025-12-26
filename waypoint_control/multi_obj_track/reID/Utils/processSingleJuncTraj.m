@@ -59,11 +59,13 @@ function juncVehicleTraj = saveTraj(trajStruct, finalTrajFiltered)
         positions = tra{cellElement}.wrl_pos;
         features = tra{cellElement}.mean_hsv;
         timeStamp = tra{cellElement}.timestamp;
+        Category = tra{cellElement}.category;
         juncVehicleTraj.traj{i} = struct( ...
             'trackID', trackID, ...    % 轨迹 ID
             'wrl_pos', positions, ...  % 位置数据
             'mean_hsv', features, ...  % 特征数据
-            'timestamp', timeStamp ... % 轨迹时间
+            'timestamp', timeStamp, ... % 轨迹时间
+            'category', Category ... % 轨迹类别
         );
         juncVehicleTraj.traj_f(i,:) = [timeStamp(1), timeStamp(end)];
     end 

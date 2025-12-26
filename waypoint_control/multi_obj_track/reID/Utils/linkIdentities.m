@@ -38,7 +38,8 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
                             'trackID', current_traj.trackID, ...    % 轨迹 ID
                             'wrl_pos', current_traj.wrl_pos, ...    % 位置数据
                             'mean_hsv', current_traj.mean_hsv, ...  % 特征数据
-                            'timestamp', current_traj.timestamp ... % 轨迹时间
+                            'timestamp', current_traj.timestamp, ... % 轨迹时间
+                            'category', current_traj.category ... % 轨迹类型
                         );
                         matched_traj{end+1} = track;
                         matched_trajectories(key{1}) = matched_traj;
@@ -57,7 +58,8 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
                     'trackID', current_traj.trackID, ...    % 轨迹 ID
                     'wrl_pos', current_traj.wrl_pos, ...    % 位置数据
                     'mean_hsv', current_traj.mean_hsv, ...  % 特征数据
-                    'timestamp', current_traj.timestamp ... % 轨迹时间
+                    'timestamp', current_traj.timestamp, ... % 轨迹时间
+                    'category', current_traj.category ... % 轨迹类型
                 );
                 matched_trajectories(unique_id) = {track};
             end
