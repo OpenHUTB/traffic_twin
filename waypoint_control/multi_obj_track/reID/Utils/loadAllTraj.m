@@ -23,6 +23,7 @@ function loadAllTraj(junc, transMatrix)
     
     % 获取目录下所有文件
     imageFiles = dir(fullfile(tracksVehiclePicturePath, '*.jpeg')); % 或者 '*.jpeg', '*.png' 根据你的图片格式调整
+    categoryFiles = dir(fullfile(tracksVehiclePicturePath, '*.mat')); 
     numImages = numel(imageFiles);
     
     traj_data = cell(1, numImages); 
@@ -31,6 +32,7 @@ function loadAllTraj(junc, transMatrix)
     % 将数据保存到结构体中
     trackerOutput.traj = traj_data;
     trackerOutput.traj_f = traj_f_data;
+
     % 遍历每张图片
     for k = 1:length(imageFiles)
         % 获取当前图片的完整路径
@@ -61,17 +63,21 @@ function loadAllTraj(junc, transMatrix)
         % 将特征重塑为 1x2048 的形式
         features = reshape(features, 1, 2048);
         timestamp = loadedData.allTracks(index).Timestamps;
+        matFilePath = fullfile(tracksVehiclePicturePath, sprintf('%d.mat', trackID));
+        load(matFilePath);
+        category = trajcategory.Category;
         trackerOutput.traj{k} = struct( ...
             'trackID', trackID, ...    % 轨迹 ID
             'wrl_pos', worldPositions, ...  % 位置数据
             'mean_hsv', features, ...  % 特征数据
-            'timestamp', timestamp ... % 轨迹时间
+            'timestamp', timestamp, ... % 轨迹时间
+            'category', category ... % 轨迹类型
         );
        trackerOutput.traj_f(k,:) = [timestamp(1), timestamp(end)];
     end
     juncVehicleTraj = processSingleJuncTraj(trackerOutput);
     baseName = 'traj';
-    dirParts = strsplit(junc, '\');
+    dirParts = strsplit(junc, filesep);
     fileName = [dirParts{2}, '_', baseName, '.mat'];
     juncTracksFolderPath = fullfile(currentPath, dirParts{1});
     if ~exist(juncTracksFolderPath, 'dir')
