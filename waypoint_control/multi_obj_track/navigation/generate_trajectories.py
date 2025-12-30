@@ -270,14 +270,16 @@ def main():
 
     # 读取groundtruth
     data_truth = scipy.io.loadmat('ground_truth.mat')
-    traj_truth = data_truth['vehicle_cells']
+    traj_truth = data_truth['truth_data']
     all_ground_truth = []  # 保存所有的车辆轨迹
     for i in range(len(traj_truth[0])):
         struct = traj_truth[0][i]    # 获取第 i 个 struct
         positions = struct[0][0][1]     # 获取单个的轨迹
         array_3d = np.array(positions)  # 形状为(N,3,1)
-        converted_data = array_3d.squeeze(axis=2).tolist()  # 移除最后一个维度
-        all_ground_truth.append(converted_data)
+        # print(array_3d)
+        # converted_data = array_3d.squeeze(axis=2).tolist()  # 移除最后一个维度
+        # all_ground_truth.append(converted_data)
+        all_ground_truth.append(array_3d)
     # 评估真实轨迹与跟踪轨迹
     # 保存对齐后的真实轨迹
     # 初始化累加器
