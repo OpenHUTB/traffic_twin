@@ -53,8 +53,9 @@ function detect2DBoundingBox(junc)
             if isempty(labels)
                 cameraData(i).Detections = zeros(0, 4); % 如果无检测结果，保存空矩阵
             else 
-                % 过滤掉 labels 为 "traffic light" 的检测结果
-                validIndices = ~strcmp(labels, 'traffic light');
+                % 过滤掉 labels 不为 'person', 'car', 'truck' 的检测结果
+                % validIndices = ~strcmp(labels, 'traffic light');
+                validIndices = ismember(labels, {'person', 'car', 'truck'});
                 disp(validIndices)
                 filteredBboxes = bboxes(validIndices, :);
         
@@ -67,7 +68,7 @@ function detect2DBoundingBox(junc)
             end
 
             % 将labels作为标签数据保存到datalog中
-            validIndices = ~strcmp(labels, 'traffic light');
+            validIndices = ismember(labels, {'person', 'car', 'truck'});
             filteredLabels = labels(validIndices);
             cameraData(i).Category = filteredLabels;
     
