@@ -92,6 +92,80 @@ def single_trajectory(vehicle_path, _map, final_vehicle_path, final_timestamp_li
     all_traj.append(result)
 
 
+# def check_pedestrian_valid_area(location, _map):
+#     """
+#     检查行人是否在合理的活动区域
+#     """
+#     waypoint = _map.get_waypoint(location)
+#
+#     # 1. 检查是否在人行道上
+#     if waypoint.lane_type == carla.LaneType.Sidewalk:
+#         return True
+#
+#     # 2. 检查是否在十字路口（行人过马路）
+#     if waypoint.is_junction:
+#         junction_location = waypoint.get_junction()
+#         distance_to_junction = location.distance(junction_location.bounding_box.location)
+#         if distance_to_junction < 10:  # 在十字路口20米范围内
+#             return True
+#
+#     return False
+
+
+def is_valid_pedestrian_location(location, _map, max_distance=2.0):
+    """
+    验证位置是否适合行人
+    """
+    # 尝试获取人行道航点
+    sidewalk_wp = _map.get_waypoint(
+        location,
+        lane_type=carla.LaneType.Sidewalk,
+        project_to_road=False   # 不投影到道路
+    )
+
+    if sidewalk_wp:
+        distance = location.distance(sidewalk_wp.transform.location)
+        if distance <= max_distance:
+            return True, distance, "sidewalk"
+
+    # 检查是否是行人可以行走的特殊区域类型
+    terrain_wp = _map.get_waypoint(
+        location,
+        lane_type=carla.LaneType.Any,  # 使用Any获取任何类型的航点
+        project_to_road=False
+    )
+
+    # 检查是否是适合行人的地面类型
+    if terrain_wp:
+        distance = location.distance(terrain_wp.transform.location)
+
+        # 检查是否属于行人可通行的区域类型
+        if terrain_wp.lane_type in [
+            carla.LaneType.Sidewalk,  # 人行道
+            carla.LaneType.Parking,  # 停车场
+            carla.LaneType.Border,  # 道路边缘
+            carla.LaneType.Shoulder  # 路肩
+        ]:
+            if distance <= max_distance:
+                return True, distance
+
+    # 检查是否在十字路口范围内（行人过马路）
+    road_wp = _map.get_waypoint(location)
+    if road_wp and road_wp.is_junction:
+        # 检查是否在十字路口范围内
+        junction = road_wp.get_junction()
+        if junction:
+            distance_to_junction = location.distance(junction.bounding_box.location)
+            junction_radius = max(junction.bounding_box.extent.x,
+                                  junction.bounding_box.extent.y)
+
+            # 十字路口加上适当缓冲区作为行人过街区域
+            if distance_to_junction <= junction_radius + 5.0:   # 留出5米缓冲区
+                return True, distance_to_junction, "junction_crossing"
+
+    return False, None, "invalid"
+
+
 def main():
     argparser = argparse.ArgumentParser(
         description=__doc__)
@@ -176,6 +250,16 @@ def main():
         #     continue
 
         if not vehicle_paths:
+            # 排除非行人轨迹，
+            dis_trajectory = person_paths[0][0]
+            dis_location = carla.Location(x=dis_trajectory[0], y=dis_trajectory[1], z=dis_trajectory[2])
+            nearest_waypoint = _map.get_waypoint(dis_location)
+            distance = dis_location.distance(nearest_waypoint.transform.location)
+            # 计算 location 与最近的 waypoint 的距离，如果小于一定的阈值，则判断该轨迹是错误的
+            is_valid, adistance, location_type = is_valid_pedestrian_location(dis_location, _map, 2.0)
+            if distance < 5 and is_valid :
+                continue
+
             # 存储行人最终的轨迹和时间
             final_person_path = []
             final_person_timestamp_list = []
@@ -291,6 +375,15 @@ def main():
                         result.append(combine)
                 person_traj.append(result)
         else:
+            # 排除非车辆轨迹，多目标跟踪和再识别的误差导致轨迹可能是非道路上的点
+            dis_trajectory = vehicle_paths[0][0]
+            dis_location = carla.Location(x=dis_trajectory[0], y=dis_trajectory[1], z=dis_trajectory[2])
+            nearest_waypoint = _map.get_waypoint(dis_location)
+            distance = dis_location.distance(nearest_waypoint.transform.location)
+            # 计算 location 与最近的 waypoint 的距离，如果大于一定的阈值，则判断该轨迹是错误的
+            if distance >= 5:
+                continue
+
             # 存储车辆最终的轨迹和时间
             final_vehicle_path = []
             final_timestamp_list = []
@@ -404,8 +497,8 @@ def main():
                 vehicle_traj.append(result)
 
     # 读取groundtruth
-    data_truth = scipy.io.loadmat('vehicle_ground_truth.mat')
-    traj_truth = data_truth['vehicle_cells']
+    data_truth = scipy.io.loadmat('pedestrian_ground_truth.mat')
+    traj_truth = data_truth['pedestrian_cells']
     all_ground_truth = []  # 保存所有的车辆轨迹
     for i in range(len(traj_truth[0])):
         struct = traj_truth[0][i]    # 获取第 i 个 struct
@@ -423,8 +516,8 @@ def main():
     total_overlap = 0.0
     valid_trajectories = 0  # 有效轨迹计数
 
-    for ge_traj in vehicle_traj:
-    # for ge_traj in person_traj:
+    # for ge_traj in vehicle_traj:
+    for ge_traj in person_traj:
         max_overlap = -1
         best_truth_traj = None
         track_points = np.array([[point[0], point[1]] for point in ge_traj])
