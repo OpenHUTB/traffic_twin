@@ -120,16 +120,36 @@ def is_valid_pedestrian_location(location, _map, max_distance=2.0):
     sidewalk_wp = _map.get_waypoint(
         location,
         lane_type=carla.LaneType.Sidewalk,
-        project_to_road=False  # 不投影到道路
+        project_to_road=False   # 不投影到道路
     )
 
     if sidewalk_wp:
-        # 计算与人行道航点的距离
         distance = location.distance(sidewalk_wp.transform.location)
         if distance <= max_distance:
             return True, distance, "sidewalk"
 
-    # 如果不是人行道，检查是否在十字路口附近（行人过马路）
+    # 检查是否是行人可以行走的特殊区域类型
+    terrain_wp = _map.get_waypoint(
+        location,
+        lane_type=carla.LaneType.Any,  # 使用Any获取任何类型的航点
+        project_to_road=False
+    )
+
+    # 检查是否是适合行人的地面类型
+    if terrain_wp:
+        distance = location.distance(terrain_wp.transform.location)
+
+        # 检查是否属于行人可通行的区域类型
+        if terrain_wp.lane_type in [
+            carla.LaneType.Sidewalk,  # 人行道
+            carla.LaneType.Parking,  # 停车场
+            carla.LaneType.Border,  # 道路边缘
+            carla.LaneType.Shoulder  # 路肩
+        ]:
+            if distance <= max_distance:
+                return True, distance
+
+    # 检查是否在十字路口范围内（行人过马路）
     road_wp = _map.get_waypoint(location)
     if road_wp and road_wp.is_junction:
         # 检查是否在十字路口范围内
@@ -139,13 +159,12 @@ def is_valid_pedestrian_location(location, _map, max_distance=2.0):
             junction_radius = max(junction.bounding_box.extent.x,
                                   junction.bounding_box.extent.y)
 
-            if distance_to_junction <= junction_radius + 5.0:  # 留出5米缓冲区
+            # 十字路口加上适当缓冲区作为行人过街区域
+            if distance_to_junction <= junction_radius + 5.0:   # 留出5米缓冲区
                 return True, distance_to_junction, "junction_crossing"
 
-    # 检查是否在建筑物入口、广场等区域
-    # 这里可能需要额外的地图标记信息
-
     return False, None, "invalid"
+
 
 def main():
     argparser = argparse.ArgumentParser(
@@ -204,14 +223,12 @@ def main():
             category = struct[0][0][5]
             print(category)
             if category == 'person':
-                print(1)
                 positions = struct[0][0][2]  # 获取单个的轨迹
                 timestamp = struct[0][0][4]  # 获取对应轨迹中航点的时间戳0
                 _timestamp = [round(item[0], 2) for item in timestamp]
                 person_paths.append(positions)
                 person_timestamp_list.append(_timestamp)
             else:
-                print(2)
                 positions = struct[0][0][2]  # 获取单个的轨迹
                 timestamp = struct[0][0][4]  # 获取对应轨迹中航点的时间戳0
                 _timestamp = [round(item[0], 2) for item in timestamp]
