@@ -7,6 +7,7 @@ import json
 import numpy as np
 import os
 import random
+import time
 from fastdtw import fastdtw
 from config import IntersectionConfig, town_configurations
 from global_route_planner import GlobalRoutePlanner
@@ -165,6 +166,60 @@ def is_valid_pedestrian_location(location, _map, max_distance=2.0):
 
     return False, None, "invalid"
 
+def create_pedestrian_move(start_location, end_location, world):
+    """创建并控制行人从起点走到终点"""
+
+    # 选择行人蓝图
+    walker_bp = random.choice(
+        world.get_blueprint_library().filter('walker.pedestrian.*')
+    )
+
+    # 设置行人属性
+    walker_bp.set_attribute('is_invincible', 'false')
+
+    # 生成行人
+    transform = carla.Transform(start_location, carla.Rotation())
+    walker = world.try_spawn_actor(walker_bp, transform)
+
+    if walker is None:
+        print("无法生成行人")
+        return None
+    else:
+        print("行人生成成功")
+
+    # 创建AI控制器
+    controller_bp = world.get_blueprint_library().find('controller.ai.walker')
+    controller = world.spawn_actor(controller_bp, carla.Transform(), attach_to=walker)
+
+    # 开始移动
+    controller.start()
+    controller.go_to_location(end_location)
+    controller.set_max_speed(5)  # 设置速度
+
+    try:
+        # 等待行人到达目的地
+        while True:
+            world.tick()
+            current_location = walker.get_location()
+            distance = current_location.distance(end_location)
+
+            print(f"当前距离目标: {distance:.2f} 米")
+
+            if distance < 2.0:  # 当距离小于2米时认为到达
+                print("行人已到达目的地!")
+                controller.stop()
+                break
+
+            time.sleep(0.5)
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # 清理
+        controller.stop()
+        walker.destroy()
+        controller.destroy()
+
 
 def main():
     argparser = argparse.ArgumentParser(
@@ -257,7 +312,7 @@ def main():
             distance = dis_location.distance(nearest_waypoint.transform.location)
             # 计算 location 与最近的 waypoint 的距离，如果小于一定的阈值，则判断该轨迹是错误的
             is_valid, adistance, location_type = is_valid_pedestrian_location(dis_location, _map, 2.0)
-            if distance < 5 and is_valid :
+            if distance < 4 and is_valid :
                 continue
 
             # 存储行人最终的轨迹和时间
@@ -375,14 +430,14 @@ def main():
                         result.append(combine)
                 person_traj.append(result)
         else:
-            # 排除非车辆轨迹，多目标跟踪和再识别的误差导致轨迹可能是非道路上的点
-            dis_trajectory = vehicle_paths[0][0]
-            dis_location = carla.Location(x=dis_trajectory[0], y=dis_trajectory[1], z=dis_trajectory[2])
-            nearest_waypoint = _map.get_waypoint(dis_location)
-            distance = dis_location.distance(nearest_waypoint.transform.location)
-            # 计算 location 与最近的 waypoint 的距离，如果大于一定的阈值，则判断该轨迹是错误的
-            if distance >= 5:
-                continue
+            # # 排除非车辆轨迹，多目标跟踪和再识别的误差导致轨迹可能是非道路上的点
+            # dis_trajectory = vehicle_paths[0][0]
+            # dis_location = carla.Location(x=dis_trajectory[0], y=dis_trajectory[1], z=dis_trajectory[2])
+            # nearest_waypoint = _map.get_waypoint(dis_location)
+            # distance = dis_location.distance(nearest_waypoint.transform.location)
+            # # 计算 location 与最近的 waypoint 的距离，如果大于一定的阈值，则判断该轨迹是错误的
+            # if distance >= 4:
+            #     continue
 
             # 存储车辆最终的轨迹和时间
             final_vehicle_path = []
