@@ -166,7 +166,7 @@ def is_valid_pedestrian_location(location, _map, max_distance=2.0):
 
     return False, None, "invalid"
 
-def create_pedestrian_move(start_location, end_location, world):
+def create_pedestrian_move(start_location, end_location, world, totaltime):
     """创建并控制行人从起点走到终点"""
 
     # 选择行人蓝图
@@ -191,10 +191,29 @@ def create_pedestrian_move(start_location, end_location, world):
     controller_bp = world.get_blueprint_library().find('controller.ai.walker')
     controller = world.spawn_actor(controller_bp, carla.Transform(), attach_to=walker)
 
+    # 判断速度是否合理
+    position_history = []
+    current_location = walker.get_location()
+    distance = current_location.distance(end_location)
+    init_distance = distance
+    print("总距离为:", distance)
+    speed = distance / totaltime
+    if speed > 6:
+        print("速度不合理，其值为: ", speed)
+        return position_history
+    else:
+        print("速度合理，其值为", speed)
+
     # 开始移动
     controller.start()
     controller.go_to_location(end_location)
-    controller.set_max_speed(5)  # 设置速度
+    controller.set_max_speed(speed)  # 设置速度
+
+    original_settings = world.get_settings()
+    settings = world.get_settings()
+    settings.synchronous_mode = True  # 开启同步模式
+    settings.fixed_delta_seconds = 0.05  # 固定时间步长 0.05 秒
+    world.apply_settings(settings)
 
     try:
         # 等待行人到达目的地
@@ -203,14 +222,36 @@ def create_pedestrian_move(start_location, end_location, world):
             current_location = walker.get_location()
             distance = current_location.distance(end_location)
 
-            print(f"当前距离目标: {distance:.2f} 米")
+            # 每0.05秒记录一次位置
+            position_record = {
+                # 'timestamp': time.time(),
+                # 'z': current_location.z,
+                # 'distance': distance,
+                'x': current_location.x,
+                'y': current_location.y
+            }
+            position_history.append(position_record)
 
-            if distance < 2.0:  # 当距离小于2米时认为到达
+            print(f"位置: ({position_record['x']:.2f}, {position_record['y']:.2f})", f"当前距离目标: {distance:.2f} 米")
+
+            if distance < 1:  # 当距离小于1米时认为到达
                 print("行人已到达目的地!")
+                # 打印统计信息
+                # print(f"\n总共记录了 {len(position_history)} 个位置点")
+                # if position_history:
+                #     print(f"起始时间: {position_history[0]['timestamp']:.3f}")
+                #     print(f"结束时间: {position_history[-1]['timestamp']:.3f}")
+                #     print(f"总耗时: {position_history[-1]['timestamp'] - position_history[0]['timestamp']:.3f} 秒")
                 controller.stop()
                 break
 
-            time.sleep(0.5)
+            if distance > (init_distance + 3): # 当距离越来越远时认为路径错误
+                print("路径错误")
+                controller.stop()
+                position_history.clear()
+                break
+
+            # time.sleep(0.05)
 
     except KeyboardInterrupt:
         pass
@@ -219,6 +260,10 @@ def create_pedestrian_move(start_location, end_location, world):
         controller.stop()
         walker.destroy()
         controller.destroy()
+        # 恢复原始设置
+        world.apply_settings(original_settings)
+
+    return position_history
 
 
 def main():
