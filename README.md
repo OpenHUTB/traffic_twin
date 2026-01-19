@@ -98,6 +98,22 @@ pip install mysql-connector-python
 打开CARLA地图，运行 [twin_navigation.py](./intersection_navigation/twin_navigation.py) 。
 
 
+### 论文
+
+```text
+@ARTICLE{11353431,
+  author={Wang, Haidong and Xiao, Pengfei and Liu, Ao and Zhang, Jianhua and Shan, Qia},
+  journal={IEEE Transactions on Intelligent Transportation Systems}, 
+  title={UTDT: A Baseline Benchmark for Urban Traffic Flow Digital Twins via Roadside LiDAR–Camera Fusion}, 
+  year={2026},
+  volume={},
+  number={},
+  pages={1-12},
+  keywords={Trajectory;Digital twins;Autonomous vehicles;Cameras;Accuracy;Laser radar;Spatiotemporal phenomena;Planning;Data models;Synchronization;Digital twins;autonomous driving;vehicle detection;multi-object tracking;trajectory restoration},
+  doi={10.1109/TITS.2026.3651290}}
+```
+
+
 
 
 
