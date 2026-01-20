@@ -196,7 +196,7 @@ def create_pedestrian_move(start_location, end_location, world, totaltime):
     current_location = walker.get_location()
     distance = current_location.distance(end_location)
     init_distance = distance
-    print("总距离为:", distance)
+    # print("总距离为:", distance)
     speed = distance / totaltime
     if speed > 6:
         print("速度不合理，其值为: ", speed)
@@ -219,29 +219,14 @@ def create_pedestrian_move(start_location, end_location, world, totaltime):
         # 等待行人到达目的地
         while True:
             world.tick()
-            current_location = walker.get_location()
-            distance = current_location.distance(end_location)
 
             # 每0.05秒记录一次位置
-            position_record = {
-                # 'timestamp': time.time(),
-                # 'z': current_location.z,
-                # 'distance': distance,
-                'x': current_location.x,
-                'y': current_location.y
-            }
-            position_history.append(position_record)
-
-            print(f"位置: ({position_record['x']:.2f}, {position_record['y']:.2f})", f"当前距离目标: {distance:.2f} 米")
+            current_location = walker.get_location()
+            distance = current_location.distance(end_location)
+            position_history.append(current_location)
 
             if distance < 1:  # 当距离小于1米时认为到达
                 print("行人已到达目的地!")
-                # 打印统计信息
-                # print(f"\n总共记录了 {len(position_history)} 个位置点")
-                # if position_history:
-                #     print(f"起始时间: {position_history[0]['timestamp']:.3f}")
-                #     print(f"结束时间: {position_history[-1]['timestamp']:.3f}")
-                #     print(f"总耗时: {position_history[-1]['timestamp'] - position_history[0]['timestamp']:.3f} 秒")
                 controller.stop()
                 break
 
@@ -394,11 +379,11 @@ def main():
                 end_location = carla.Location(x=end_loc[0], y=end_loc[1], z=end_loc[2])
                 # 使用导航算法生成新轨迹
                 # 处理无法到达的轨迹
-                end_waypoint = _map.get_waypoint(end_location)
-                start_waypoint = _map.get_waypoint(start_location)
+                # end_waypoint = _map.get_waypoint(end_location)
+                # start_waypoint = _map.get_waypoint(start_location)
+                totaltime = person_timestamp_list[k + 1][0]-person_timestamp_list[k][-1]
                 try:
-                    interval_trajectory = set_destination(start_waypoint.transform.location,
-                                                          end_waypoint.transform.location, _map, global_router)
+                    position = create_pedestrian_move(start_location, end_location, totaltime)
                 except Exception as e:
                     is_exception = True
                     if k > 0:
@@ -412,9 +397,9 @@ def main():
                     break
                 # 将 waypoint list 转换成[[x, y, z], [x, y, z], ...]
                 trajectory = []
-                for waypoint in interval_trajectory:
+                for waypoint in position:
                     # 获取 waypoint 的位置
-                    location = waypoint.transform.location
+                    location = waypoint
                     # 提取 x, y, z 值
                     x = location.x
                     y = location.y
