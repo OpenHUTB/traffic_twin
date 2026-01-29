@@ -3,6 +3,11 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
     % 现需将5个路口的轨迹根据时间串联起来，形成完整的车辆轨迹
     threshold = matchThreshold;
     num_roads = length(juncTrajCell);
+    % 创建中间容器
+    for road_idx = 1:num_roads
+        road_trajectories{road_idx} = containers.Map('KeyType', 'char', 'ValueType', 'any');
+    end
+
     % 用于存储匹配结果的容器
     matched_trajectories = containers.Map('KeyType', 'char', 'ValueType', 'any');
 
@@ -10,59 +15,262 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
     if isempty(idCounter)
        idCounter = 0; % 首次使用时，将计数器初始化为0
     end
+    
+    % 将路口轨迹保存至中间容器中
     % 遍历每个路口的数据
     for road_idx = 1:num_roads
         road_data = juncTrajCell{road_idx};
         traj_list = road_data.traj;
-        
-        % 遍历当前路口的每个车辆轨迹
+        % 遍历当前路口的每个轨迹
         for traj_idx = 1:length(traj_list)
             current_traj = traj_list{traj_idx};
-            current_features = current_traj.mean_hsv; % 提取外观特征
-            
-            % 尝试在当前结果集中找到匹配项
-            is_matched = false;
-            if road_idx > 1
-                for key = keys(matched_trajectories)
-                    matched_traj = matched_trajectories(key{1});
+            idCounter = idCounter + 1;
+            currentTimeStamp = matlab_posixtime; 
+            unique_id = sprintf('ID_%s_%06d', currentTimeStamp, idCounter);
+            track = struct( ...
+                'roadID', road_idx, ...                 % 道路ID
+                'trackID', current_traj.trackID, ...    % 轨迹 ID
+                'wrl_pos', current_traj.wrl_pos, ...    % 位置数据
+                'mean_hsv', current_traj.mean_hsv, ...  % 特征数据
+                'timestamp', current_traj.timestamp, ... % 轨迹时间
+                'category', current_traj.category ... % 轨迹类型
+            );
+            road_trajectories{road_idx}(unique_id) = {track};            
+        end
+
+    end
+    
+    % 遍历每个路口的数据
+    for road_idx = 1:num_roads
+        if road_idx == 1
+            for key = keys(road_trajectories{road_idx})
+                road_data = road_trajectories{road_idx}(key{1});
+                data_struct = road_data{1};
+                data_features = data_struct.mean_hsv; % 提取外观特征
+
+                % 尝试在相邻路口中找到匹配项
+                is_matched = false;
+                for key2 = keys(road_trajectories{2})
+                    matched_traj = road_trajectories{2}(key2{1});
                     traj_struct = matched_traj{1};
                     % 这里需要一个函数来计算两个轨迹之间的相似度
                     % 基于外观特征的余弦相似度
-                    similarity_score = 1 - pdist2(current_features,  traj_struct.mean_hsv, 'cosine'); 
-                    
-                    % 设定一个阈值来决定是否匹配
+                    similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
+                     % 设定一个阈值来决定是否匹配
                     if similarity_score > threshold 
                         % 更新匹配轨迹
                         track = struct( ...
                             'roadID', road_idx, ...                 % 道路ID
-                            'trackID', current_traj.trackID, ...    % 轨迹 ID
-                            'wrl_pos', current_traj.wrl_pos, ...    % 位置数据
-                            'mean_hsv', current_traj.mean_hsv, ...  % 特征数据
-                            'timestamp', current_traj.timestamp, ... % 轨迹时间
-                            'category', current_traj.category ... % 轨迹类型
+                            'trackID', data_struct.trackID, ...    % 轨迹 ID
+                            'wrl_pos', data_struct.wrl_pos, ...    % 位置数据
+                            'mean_hsv', data_struct.mean_hsv, ...  % 特征数据
+                            'timestamp', data_struct.timestamp, ... % 轨迹时间
+                            'category', data_struct.category ... % 轨迹类型
                         );
                         matched_traj{end+1} = track;
-                        matched_trajectories(key{1}) = matched_traj;
+                        road_trajectories{2}(key2{1}) = matched_traj;
                         is_matched = true;
                         break;
                     end
                 end
+                for key3 = keys(road_trajectories{3})
+                    matched_traj = road_trajectories{3}(key3{1});
+                    traj_struct = matched_traj{1};
+                    % 这里需要一个函数来计算两个轨迹之间的相似度
+                    % 基于外观特征的余弦相似度
+                    similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
+                     % 设定一个阈值来决定是否匹配
+                    if similarity_score > threshold 
+                        % 更新匹配轨迹
+                        track = struct( ...
+                            'roadID', road_idx, ...                 % 道路ID
+                            'trackID', data_struct.trackID, ...    % 轨迹 ID
+                            'wrl_pos', data_struct.wrl_pos, ...    % 位置数据
+                            'mean_hsv', data_struct.mean_hsv, ...  % 特征数据
+                            'timestamp', data_struct.timestamp, ... % 轨迹时间
+                            'category', data_struct.category ... % 轨迹类型
+                        );
+                        matched_traj{end+1} = track;
+                        road_trajectories{3}(key3{1}) = matched_traj;
+                        is_matched = true;
+                        break;
+                    end
+                end
+                for key4 = keys(road_trajectories{4})
+                    matched_traj = road_trajectories{4}(key4{1});
+                    traj_struct = matched_traj{1};
+                    % 这里需要一个函数来计算两个轨迹之间的相似度
+                    % 基于外观特征的余弦相似度
+                    similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
+                     % 设定一个阈值来决定是否匹配
+                    if similarity_score > threshold 
+                        % 更新匹配轨迹
+                        track = struct( ...
+                            'roadID', road_idx, ...                 % 道路ID
+                            'trackID', data_struct.trackID, ...    % 轨迹 ID
+                            'wrl_pos', data_struct.wrl_pos, ...    % 位置数据
+                            'mean_hsv', data_struct.mean_hsv, ...  % 特征数据
+                            'timestamp', data_struct.timestamp, ... % 轨迹时间
+                            'category', data_struct.category ... % 轨迹类型
+                        );
+                        matched_traj{end+1} = track;
+                        road_trajectories{4}(key4{1}) = matched_traj;
+                        is_matched = true;
+                        break;
+                    end
+                end
+                for key5 = keys(road_trajectories{5})
+                    matched_traj = road_trajectories{5}(key5{1});
+                    traj_struct = matched_traj{1};
+                    % 这里需要一个函数来计算两个轨迹之间的相似度
+                    % 基于外观特征的余弦相似度
+                    similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
+                     % 设定一个阈值来决定是否匹配
+                    if similarity_score > threshold 
+                        % 更新匹配轨迹
+                        track = struct( ...
+                            'roadID', road_idx, ...                 % 道路ID
+                            'trackID', data_struct.trackID, ...    % 轨迹 ID
+                            'wrl_pos', data_struct.wrl_pos, ...    % 位置数据
+                            'mean_hsv', data_struct.mean_hsv, ...  % 特征数据
+                            'timestamp', data_struct.timestamp, ... % 轨迹时间
+                            'category', data_struct.category ... % 轨迹类型
+                        );
+                        matched_traj{end+1} = track;
+                        road_trajectories{5}(key5{1}) = matched_traj;
+                        is_matched = true;
+                        break;
+                    end
+                end
+
+                if ~is_matched
+                    remove(road_trajectories{road_idx}, key{1});
+                end
             end
-            % 如果没有找到匹配项，则作为新轨迹加入结果集
-            if ~is_matched
-                idCounter = idCounter + 1;
-                currentTimeStamp = matlab_posixtime; 
-                unique_id = sprintf('ID_%s_%06d', currentTimeStamp, idCounter);
-                track = struct( ...
-                    'roadID', road_idx, ...                 % 道路ID
-                    'trackID', current_traj.trackID, ...    % 轨迹 ID
-                    'wrl_pos', current_traj.wrl_pos, ...    % 位置数据
-                    'mean_hsv', current_traj.mean_hsv, ...  % 特征数据
-                    'timestamp', current_traj.timestamp, ... % 轨迹时间
-                    'category', current_traj.category ... % 轨迹类型
-                );
-                matched_trajectories(unique_id) = {track};
+        end
+
+        if road_idx == 2 || 3
+            for key = keys(road_trajectories{road_idx})
+                road_data = road_trajectories{road_idx}(key{1});
+                data_struct = road_data{1};
+                data_features = data_struct.mean_hsv; % 提取外观特征
+
+                % 尝试在相邻路口中找到匹配项
+                is_matched = false;
+                for key4 = keys(road_trajectories{4})
+                    matched_traj = road_trajectories{4}(key4{1});
+                    traj_struct = matched_traj{1};
+                    % 这里需要一个函数来计算两个轨迹之间的相似度
+                    % 基于外观特征的余弦相似度
+                    similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
+                     % 设定一个阈值来决定是否匹配
+                    if similarity_score > threshold 
+                        % 更新匹配轨迹
+                        track = struct( ...
+                            'roadID', road_idx, ...                 % 道路ID
+                            'trackID', data_struct.trackID, ...    % 轨迹 ID
+                            'wrl_pos', data_struct.wrl_pos, ...    % 位置数据
+                            'mean_hsv', data_struct.mean_hsv, ...  % 特征数据
+                            'timestamp', data_struct.timestamp, ... % 轨迹时间
+                            'category', data_struct.category ... % 轨迹类型
+                        );
+                        matched_traj{end+1} = track;
+                        road_trajectories{4}(key4{1}) = matched_traj;
+                        is_matched = true;
+                        break;
+                    end
+                end
+                for key5 = keys(road_trajectories{5})
+                    matched_traj = road_trajectories{5}(key5{1});
+                    traj_struct = matched_traj{1};
+                    % 这里需要一个函数来计算两个轨迹之间的相似度
+                    % 基于外观特征的余弦相似度
+                    similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
+                     % 设定一个阈值来决定是否匹配
+                    if similarity_score > threshold 
+                        % 更新匹配轨迹
+                        track = struct( ...
+                            'roadID', road_idx, ...                 % 道路ID
+                            'trackID', data_struct.trackID, ...    % 轨迹 ID
+                            'wrl_pos', data_struct.wrl_pos, ...    % 位置数据
+                            'mean_hsv', data_struct.mean_hsv, ...  % 特征数据
+                            'timestamp', data_struct.timestamp, ... % 轨迹时间
+                            'category', data_struct.category ... % 轨迹类型
+                        );
+                        matched_traj{end+1} = track;
+                        road_trajectories{5}(key5{1}) = matched_traj;
+                        is_matched = true;
+                        break;
+                    end
+                end
+
+                if ~is_matched
+                    remove(road_trajectories{road_idx}, key{1});
+                end
             end
+        end
+    end
+
+    % % 遍历每个路口的数据
+    % for road_idx = 1:num_roads
+    %     road_data = juncTrajCell{road_idx};
+    %     traj_list = road_data.traj;
+    % 
+    %     % 遍历当前路口的每个轨迹
+    %     for traj_idx = 1:length(traj_list)
+    %         current_traj = traj_list{traj_idx};
+    %         current_features = current_traj.mean_hsv; % 提取外观特征
+    % 
+    %         % 尝试在当前结果集中找到匹配项
+    %         is_matched = false;                     
+    %         if road_idx > 1
+    %             for key = keys(matched_trajectories)
+    %                 matched_traj = matched_trajectories(key{1});
+    %                 traj_struct = matched_traj{1};
+    %                 % 这里需要一个函数来计算两个轨迹之间的相似度
+    %                 % 基于外观特征的余弦相似度
+    %                 similarity_score = 1 - pdist2(current_features,  traj_struct.mean_hsv, 'cosine'); 
+    % 
+    %                 % 设定一个阈值来决定是否匹配
+    %                 if similarity_score > threshold 
+    %                     % 更新匹配轨迹
+    %                     track = struct( ...
+    %                         'roadID', road_idx, ...                 % 道路ID
+    %                         'trackID', current_traj.trackID, ...    % 轨迹 ID
+    %                         'wrl_pos', current_traj.wrl_pos, ...    % 位置数据
+    %                         'mean_hsv', current_traj.mean_hsv, ...  % 特征数据
+    %                         'timestamp', current_traj.timestamp, ... % 轨迹时间
+    %                         'category', current_traj.category ... % 轨迹类型
+    %                     );
+    %                     matched_traj{end+1} = track;
+    %                     matched_trajectories(key{1}) = matched_traj;
+    %                     is_matched = true;
+    %                     break;
+    %                 end
+    %             end
+    %         end
+    % 
+    %         % 如果没有找到匹配项，则作为新轨迹加入结果集
+    %         if ~is_matched
+    %             idCounter = idCounter + 1;
+    %             currentTimeStamp = matlab_posixtime; 
+    %             unique_id = sprintf('ID_%s_%06d', currentTimeStamp, idCounter);
+    %             track = struct( ...
+    %                 'roadID', road_idx, ...                 % 道路ID
+    %                 'trackID', current_traj.trackID, ...    % 轨迹 ID
+    %                 'wrl_pos', current_traj.wrl_pos, ...    % 位置数据
+    %                 'mean_hsv', current_traj.mean_hsv, ...  % 特征数据
+    %                 'timestamp', current_traj.timestamp, ... % 轨迹时间
+    %                 'category', current_traj.category ... % 轨迹类型
+    %             );
+    %             matched_trajectories(unique_id) = {track};
+    %         end
+    %     end
+    % end
+    for road_idx = 1:num_roads
+        for key1 = keys(road_trajectories{road_idx})
+            final_traj = road_trajectories{road_idx}(key1{1});
+            matched_trajectories(key1{1}) = final_traj;
         end
     end
     
