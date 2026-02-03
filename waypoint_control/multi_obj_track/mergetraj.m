@@ -6,4 +6,4 @@ data2 = load('Town10HD_Opt/vehicle_ground_truth.mat');
 truth_data = [data1.pedestrian_cells, data2.vehicle_cells];
 
 % 保存合并后的数据到新文件
-save('ground_truth.mat', 'truth_data');
+save('ground_truth.mat', 'truth_data'); 
