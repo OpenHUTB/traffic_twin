@@ -46,18 +46,51 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
             for key = keys(road_trajectories{road_idx})
                 road_data = road_trajectories{road_idx}(key{1});
                 data_struct = road_data{1};
+                data_distance = data_struct.wrl_pos;
+                data_time = data_struct.timestamp;
                 data_features = data_struct.mean_hsv; % 提取外观特征
+
+                % 计算 x 和 y 方向相邻差值的绝对值
+                dx = abs(diff(data_distance(:, 1)));  % 相邻 x 坐标差的绝对值
+                dy = abs(diff(data_distance(:, 2)));  % 相邻 y 坐标差的绝对值
+                % 总路程 = 所有 dx 与 dy 之和
+                total_distance = sum(dx + dy);
+                % 总用时
+                total_time = data_time(end) - data_time(2);
+                speed = total_distance / total_time;
+
+                % 记录第一帧与最后一帧的位置与时间
+                first_position = data_distance(1, 1:2);
+                first_time = data_time(1);
+                last_position = data_distance(end, 1:2);
+                last_time = data_time(end);
 
                 % 尝试在相邻路口中找到匹配项
                 is_matched = false;
                 for key2 = keys(road_trajectories{2})
                     matched_traj = road_trajectories{2}(key2{1});
                     traj_struct = matched_traj{1};
+                    % 记录第一帧与最后一帧的位置与时间
+                    f_position = traj_struct.wrl_pos(1, 1:2);  % 第一帧的位置
+                    f_time = traj_struct.timestamp(1); % 第一帧的时间
+                    l_position = traj_struct.wrl_pos(end, 1:2); % 最后一帧的位置
+                    l_time = traj_struct.timestamp(end); % 最后一帧的时间
+
+                    % 计算路口轨迹的速度
+                    if f_time - last_time > 0
+                        d_time = f_time - last_time;
+                        dis = sum(abs(last_position - f_position));
+                        d_speed = dis / d_time;
+                    else
+                        d_time = first_time - l_time;
+                        dis = sum(abs(first_position - l_position));
+                        d_speed = dis / d_time;
+                    end
                     % 这里需要一个函数来计算两个轨迹之间的相似度
                     % 基于外观特征的余弦相似度
                     similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
                      % 设定一个阈值来决定是否匹配
-                    if similarity_score > threshold 
+                    if similarity_score > threshold && d_speed > speed / 2 && d_speed < speed * 2
                         % 更新匹配轨迹
                         track = struct( ...
                             'roadID', road_idx, ...                 % 道路ID
@@ -76,11 +109,27 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
                 for key3 = keys(road_trajectories{3})
                     matched_traj = road_trajectories{3}(key3{1});
                     traj_struct = matched_traj{1};
+                    % 记录第一帧与最后一帧的位置与时间
+                    f_position = traj_struct.wrl_pos(1, 1:2);  % 第一帧的位置
+                    f_time = traj_struct.timestamp(1); % 第一帧的时间
+                    l_position = traj_struct.wrl_pos(end, 1:2); % 最后一帧的位置
+                    l_time = traj_struct.timestamp(end); % 最后一帧的时间
+
+                    % 计算路口轨迹的速度
+                    if f_time - last_time > 0
+                        d_time = f_time - last_time;
+                        dis = sum(abs(last_position - f_position));
+                        d_speed = dis / d_time;
+                    else
+                        d_time = first_time - l_time;
+                        dis = sum(abs(first_position - l_position));
+                        d_speed = dis / d_time;
+                    end
                     % 这里需要一个函数来计算两个轨迹之间的相似度
                     % 基于外观特征的余弦相似度
                     similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
                      % 设定一个阈值来决定是否匹配
-                    if similarity_score > threshold 
+                    if similarity_score > threshold && d_speed > speed / 2 && d_speed < speed * 2 
                         % 更新匹配轨迹
                         track = struct( ...
                             'roadID', road_idx, ...                 % 道路ID
@@ -99,11 +148,27 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
                 for key4 = keys(road_trajectories{4})
                     matched_traj = road_trajectories{4}(key4{1});
                     traj_struct = matched_traj{1};
+                    % 记录第一帧与最后一帧的位置与时间
+                    f_position = traj_struct.wrl_pos(1, 1:2);  % 第一帧的位置
+                    f_time = traj_struct.timestamp(1); % 第一帧的时间
+                    l_position = traj_struct.wrl_pos(end, 1:2); % 最后一帧的位置
+                    l_time = traj_struct.timestamp(end); % 最后一帧的时间
+
+                    % 计算路口轨迹的速度
+                    if f_time - last_time > 0
+                        d_time = f_time - last_time;
+                        dis = sum(abs(last_position - f_position));
+                        d_speed = dis / d_time;
+                    else
+                        d_time = first_time - l_time;
+                        dis = sum(abs(first_position - l_position));
+                        d_speed = dis / d_time;
+                    end
                     % 这里需要一个函数来计算两个轨迹之间的相似度
                     % 基于外观特征的余弦相似度
                     similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
                      % 设定一个阈值来决定是否匹配
-                    if similarity_score > threshold 
+                    if similarity_score > threshold && d_speed > speed / 2 && d_speed < speed * 2 
                         % 更新匹配轨迹
                         track = struct( ...
                             'roadID', road_idx, ...                 % 道路ID
@@ -122,11 +187,27 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
                 for key5 = keys(road_trajectories{5})
                     matched_traj = road_trajectories{5}(key5{1});
                     traj_struct = matched_traj{1};
+                    % 记录第一帧与最后一帧的位置与时间
+                    f_position = traj_struct.wrl_pos(1, 1:2);  % 第一帧的位置
+                    f_time = traj_struct.timestamp(1); % 第一帧的时间
+                    l_position = traj_struct.wrl_pos(end, 1:2); % 最后一帧的位置
+                    l_time = traj_struct.timestamp(end); % 最后一帧的时间
+
+                    % 计算路口轨迹的速度
+                    if f_time - last_time > 0
+                        d_time = f_time - last_time;
+                        dis = sum(abs(last_position - f_position));
+                        d_speed = dis / d_time;
+                    else
+                        d_time = first_time - l_time;
+                        dis = sum(abs(first_position - l_position));
+                        d_speed = dis / d_time;
+                    end
                     % 这里需要一个函数来计算两个轨迹之间的相似度
                     % 基于外观特征的余弦相似度
                     similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
                      % 设定一个阈值来决定是否匹配
-                    if similarity_score > threshold 
+                    if similarity_score > threshold && d_speed > speed / 2 && d_speed < speed * 2 
                         % 更新匹配轨迹
                         track = struct( ...
                             'roadID', road_idx, ...                 % 道路ID
@@ -153,18 +234,51 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
             for key = keys(road_trajectories{road_idx})
                 road_data = road_trajectories{road_idx}(key{1});
                 data_struct = road_data{1};
+                data_distance = data_struct.wrl_pos;
+                data_time = data_struct.timestamp;
                 data_features = data_struct.mean_hsv; % 提取外观特征
+
+                % 计算 x 和 y 方向相邻差值的绝对值
+                dx = abs(diff(data_distance(:, 1)));  % 相邻 x 坐标差的绝对值
+                dy = abs(diff(data_distance(:, 2)));  % 相邻 y 坐标差的绝对值
+                % 总路程 = 所有 dx 与 dy 之和
+                total_distance = sum(dx + dy);
+                % 总用时
+                total_time = data_time(end) - data_time(2);
+                speed = total_distance / total_time;
+
+                % 记录第一帧与最后一帧的位置与时间
+                first_position = data_distance(1, 1:2);
+                first_time = data_time(1);
+                last_position = data_distance(end, 1:2);
+                last_time = data_time(end);
 
                 % 尝试在相邻路口中找到匹配项
                 is_matched = false;
                 for key4 = keys(road_trajectories{4})
                     matched_traj = road_trajectories{4}(key4{1});
                     traj_struct = matched_traj{1};
+                    % 记录第一帧与最后一帧的位置与时间
+                    f_position = traj_struct.wrl_pos(1, 1:2);  % 第一帧的位置
+                    f_time = traj_struct.timestamp(1); % 第一帧的时间
+                    l_position = traj_struct.wrl_pos(end, 1:2); % 最后一帧的位置
+                    l_time = traj_struct.timestamp(end); % 最后一帧的时间
+
+                    % 计算路口轨迹的速度
+                    if f_time - last_time > 0
+                        d_time = f_time - last_time;
+                        dis = sum(abs(last_position - f_position));
+                        d_speed = dis / d_time;
+                    else
+                        d_time = first_time - l_time;
+                        dis = sum(abs(first_position - l_position));
+                        d_speed = dis / d_time;
+                    end
                     % 这里需要一个函数来计算两个轨迹之间的相似度
                     % 基于外观特征的余弦相似度
                     similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
                      % 设定一个阈值来决定是否匹配
-                    if similarity_score > threshold 
+                    if similarity_score > threshold && d_speed > speed / 2 && d_speed < speed * 2 
                         % 更新匹配轨迹
                         track = struct( ...
                             'roadID', road_idx, ...                 % 道路ID
@@ -183,11 +297,27 @@ function traj = linkIdentities(juncTrajCell, matchThreshold)  % 1x5 cell
                 for key5 = keys(road_trajectories{5})
                     matched_traj = road_trajectories{5}(key5{1});
                     traj_struct = matched_traj{1};
+                    % 记录第一帧与最后一帧的位置与时间
+                    f_position = traj_struct.wrl_pos(1, 1:2);  % 第一帧的位置
+                    f_time = traj_struct.timestamp(1); % 第一帧的时间
+                    l_position = traj_struct.wrl_pos(end, 1:2); % 最后一帧的位置
+                    l_time = traj_struct.timestamp(end); % 最后一帧的时间
+
+                    % 计算路口轨迹的速度
+                    if f_time - last_time > 0
+                        d_time = f_time - last_time;
+                        dis = sum(abs(last_position - f_position));
+                        d_speed = dis / d_time;
+                    else
+                        d_time = first_time - l_time;
+                        dis = sum(abs(first_position - l_position));
+                        d_speed = dis / d_time;
+                    end
                     % 这里需要一个函数来计算两个轨迹之间的相似度
                     % 基于外观特征的余弦相似度
                     similarity_score = 1 - pdist2(data_features,  traj_struct.mean_hsv, 'cosine');
                      % 设定一个阈值来决定是否匹配
-                    if similarity_score > threshold 
+                    if similarity_score > threshold && d_speed > speed / 2 && d_speed < speed * 2 
                         % 更新匹配轨迹
                         track = struct( ...
                             'roadID', road_idx, ...                 % 道路ID
