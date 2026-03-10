@@ -622,6 +622,55 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20):
     return pedestrian_list
 
 
+def spawn_v2x_sensors(world, lidar_transform, z_height=2.62):
+    sensors = {}  # 字典
+
+    # 用字典直接给坐标命名，明确区分
+    coordinates = {
+        "v2x_left": (3.0, 4.0),
+        "v2x_right": (3.0, -4.0),
+        "v2x_center": (1.0, 0.0)
+    }
+
+    # 获取传感器蓝图
+    bp = world.get_blueprint_library().find('sensor.other.v2x_custom')
+    # 定义通信频道
+    bp.set_attribute("channel_id", "5")
+
+    for name, (x, y)in coordinates.items():
+        # 直接使用原始坐标
+        location = carla.Location(x=x, y=y, z=z_height)
+        transform = carla.Transform(location)
+        # 生成V2X传感器
+        sensor = world.spawn_actor(bp, transform)
+        # 激活传感器
+        sensor.listen(lambda data: _on_v2x_received(data))
+        # 将生成的传感器以名字存入字典
+        sensors[name] = sensor
+
+    return sensors
+
+def spawn_v2x_receiver(world):
+    location = carla.Location(x=0, y=0, z=2.62)
+    transform = carla.Transform(location, carla.Rotation(yaw=0))
+
+    # 获取传感器蓝图
+    bp = world.get_blueprint_library().find('sensor.other.v2x_custom')
+    # 定义通信频道
+    bp.set_attribute("channel_id", "5")
+    # 生成传感器
+    receiver = world.spawn_actor(bp, transform)
+    receiver.listen(lambda data: _on_v2x_received(data))
+
+    return receiver
+
+def _on_v2x_received(sensor_data):
+    for data in sensor_data:
+        msg_dict = data.get()
+        raw_bytes = msg_dict["Message"]["Message"]["Bytes"]
+        content = raw_bytes.decode('utf-8', errors='ignore')
+        print(f"  [接收端] 收到消息 ")
+
 def destroy_actor(lidar, camera_dict, vehicles, sensor_queue, pedestrians):
     if lidar is not None:
         lidar.stop()  # 确保停止传感器线程
@@ -648,7 +697,7 @@ def destroy_actor(lidar, camera_dict, vehicles, sensor_queue, pedestrians):
 # python用法
 # 创建保存雷达数据的文件夹
 def create_radar_folder_py(town_folder, junc):
-    folder_name = os.path.join("train_data", town_folder, junc, "point")
+    folder_name = os.path.join("train_data", town_folder, junc, "points")
     # 检查文件夹是否已存在，若不存在则创建
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
@@ -664,7 +713,7 @@ def create_radar_folder_py(town_folder, junc):
 #     return folder_name
 # 创建保存标签数据的文件夹
 def create_label_folder(town_folder, junc):
-    folder_name = os.path.join("train_data", town_folder, junc, "label")
+    folder_name = os.path.join("train_data", town_folder, junc, "labels")
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
         print(f"Created folder: {folder_name}")
@@ -723,7 +772,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_1',  # 默认路口
+        default='road_intersection_5',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -805,6 +854,10 @@ def main():
         sensor_queue = Queue()
         # 启动相机、雷达传感器
         lidar, camera_dict = setup_sensors(world, addtion_param, sensor_queue, lidar_transform, camera_loc)
+        # 生成并启动V2X数据传输端
+        sensors = spawn_v2x_sensors(world, lidar_transform, z_height=2.62)
+        # 生成并启动V2X数据收集端
+        receiver = spawn_v2x_receiver(world)
         actual_vehicle_num = []
         actual_pedestrian_num = []
         all_vehicle_labels = []
