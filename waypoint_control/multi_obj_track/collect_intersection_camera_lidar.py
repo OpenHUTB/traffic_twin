@@ -637,9 +637,10 @@ def spawn_v2x_sensors(world, lidar_transform, z_height=2.62):
     # 定义通信频道
     bp.set_attribute("channel_id", "5")
 
-    for name, (x, y)in coordinates:
+    for name, (x, y)in coordinates.items():
         # 直接使用原始坐标
-        transform = lidar_transform(x=x, y=y, z=z_height)
+        location = carla.Location(x=x, y=y, z=z_height)
+        transform = carla.Transform(location)
         # 生成V2X传感器
         sensor = world.spawn_actor(bp, transform)
         # 激活传感器
@@ -650,7 +651,8 @@ def spawn_v2x_sensors(world, lidar_transform, z_height=2.62):
     return sensors
 
 def spawn_v2x_receiver(world):
-    transform = carla.Location(x=0, y=0, z=2.62)
+    location = carla.Location(x=0, y=0, z=2.62)
+    transform = carla.Transform(location, carla.Rotation(yaw=0))
 
     # 获取传感器蓝图
     bp = world.get_blueprint_library().find('sensor.other.v2x_custom')
