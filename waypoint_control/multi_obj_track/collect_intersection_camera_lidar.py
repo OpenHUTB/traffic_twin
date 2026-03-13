@@ -19,6 +19,8 @@ import cv2
 import random
 import scipy.io
 import argparse
+import json
+import subprocess
 from queue import Queue
 from queue import Empty
 from scipy.spatial.transform import Rotation as R
@@ -286,8 +288,43 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
     return all_labels
 
 
+def send_v2x_message_lidar(lidar_data, sensor):
+    """
+    不进行任何降采样，直接将完整激光雷达帧发送出去
+    """
+    # # 提取点云数据 (使用 Numpy 安全读取底层内存)
+    # points = np.frombuffer(lidar_data.raw_data, dtype=np.dtype('f4'))
+    #
+    # # 把点云字节流转换成十六进制字符串 (hex string)
+    # payload_hex_str = points.tobytes().hex()
+    #
+    # # 组装接收端期望的字典结构
+    # v2x_msg_dict = {
+    #     "Message": {
+    #         "Header": {
+    #             "Station ID": "5",
+    #             "Msg Type": "LiDAR_PointCloud"
+    #         },
+    #         "Message": {
+    #             "Bytes": payload_hex_str  # 这里存的是十六进制长字符串
+    #         }
+    #     }
+    # }
+    #
+    # # 将字典转换为 JSON 文本字符串 (这就对应你代码里的 text)
+    # text = json.dumps(v2x_msg_dict)
+
+    # 【测试代码】：只发送一个极短的文本
+    text = '{"Message": {"Header": {"Station ID": 1001}, "Message": {"Bytes": "Hello"}}}'
+
+    # 使用底层 API 进行打包和发送！
+    msg = carla.CustomV2XBytes()
+    msg.set_bytes(bytearray(text, 'utf-8'))
+    # 触发 V2X 发送
+    sensor.send(msg)
+
 # 定义函数来保存雷达点云数据
-def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, actual_pedestrian_num,lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num):
+def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, actual_pedestrian_num,lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors):
     global global_time
     # 获取当前帧编号
     current_frame = radar_data.frame
@@ -298,6 +335,8 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     location = ego_vehicle_transform.location
     all_labels = save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels, all_pedestrian_labels)
 
+    sensor = sensors["v2x_point"]
+    send_v2x_message_lidar(radar_data, sensor)
     # 获取雷达数据并将其转化为numpy数组
     points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
     points = np.reshape(points, (len(points) // 4, 4))
@@ -410,10 +449,13 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     # 1. 直接保存 datalogpy 为 .npy
     radar_folder = create_radar_folder_py(town_folder, junc)
     np.save(os.path.join(radar_folder, f"{file_num}.npy"), datalogpy)
+    # 保存备份用于目标检测
+    target_dir = "OpenPCDet/data/custom/points"
+    clear_folder_contents(target_dir)
+    np.save(os.path.join(target_dir, f"{file_num}.npy"), datalogpy)
     # 2. 保存 label 为 .txt
     label_folder = create_label_folder(town_folder, junc)
     with open(os.path.join(label_folder, f"{file_num}.txt"), 'w') as f:
-
         # 处理不同的数据结构
         if isinstance(all_labels, list):
             # 检查是否是嵌套列表（多个标签）
@@ -430,10 +472,61 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
             # 其他类型（字符串、数字等）
             f.write(str(all_labels))
 
+    # 保存备份用于目标检测
+    goal_dir = "OpenPCDet/data/custom/labels"
+    clear_folder_contents(goal_dir)
+    with open(os.path.join(goal_dir, f"{file_num}.txt"), 'w') as f:
+        # 处理不同的数据结构
+        if isinstance(all_labels, list):
+            # 检查是否是嵌套列表（多个标签）
+            if all_labels and isinstance(all_labels[0], list):
+                # 多个标签：每行一个标签
+                for label_item in all_labels:
+                    line = " ".join(str(item) for item in label_item)
+                    f.write(line + "\n")
+            else:
+                # 单个标签：一行
+                line = " ".join(str(item) for item in all_labels)
+                f.write(line + "\n")
+        else:
+            # 其他类型（字符串、数字等）
+            f.write(str(all_labels))
     # 3. 每次保存 file_num 到 num.txt，并换行
     with open("num.txt", 'a') as f:  # 'a' 表示追加模式
         f.write(str(file_num) + "\n")  # 添加换行符
+    # 保存备份用于目标检测
+    dir_train = "OpenPCDet/data/custom/ImageSets/train.txt"
+    dir_val = "OpenPCDet/data/custom/ImageSets/val.txt"
+    with open(dir_train, 'w') as f:
+        f.write(str(file_num) + "\n")  # 添加换行符
+    with open(dir_val, 'w') as f:
+        f.write(str(file_num) + "\n")  # 添加换行符
 
+    # 运行自动化目标检测脚本
+    run_shell_script()
+
+# 更新目标检测的文件夹
+def clear_folder_contents(folder_path):
+    # 如果文件夹本来就不存在，直接建一个就行了
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"文件夹不存在，已新建: {folder_path}")
+        return
+
+    # 如果存在，就遍历里面的所有内容
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        try:
+            # 如果是普通文件或软链接，直接删除
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)  # 等同于 os.remove
+            # 如果里面还有子文件夹，用 shutil.rmtree 删掉子文件夹
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f'删除 {file_path} 失败。原因: {e}')
+
+    print(f"文件夹内容已清空: {folder_path}")
 
 
 # 定义函数来保存相机图像数据
@@ -454,7 +547,6 @@ def save_camera_data(image_data, camera_id, junc, town_folder):
 
 def sensor_callback(sensor_data, sensor_queue, sensor_name):
     sensor_queue.put((sensor_data, sensor_name))
-
 
 # 记录雷达和相机数据
 def setup_sensors(world, addtion_param, sensor_queue, transform, camera_loc):
@@ -629,7 +721,8 @@ def spawn_v2x_sensors(world, lidar_transform, z_height=2.62):
     coordinates = {
         "v2x_left": (3.0, 4.0),
         "v2x_right": (3.0, -4.0),
-        "v2x_center": (1.0, 0.0)
+        "v2x_center": (1.0, 0.0),
+        "v2x_point": (0.5, 0.5)
     }
 
     # 获取传感器蓝图
@@ -637,9 +730,10 @@ def spawn_v2x_sensors(world, lidar_transform, z_height=2.62):
     # 定义通信频道
     bp.set_attribute("channel_id", "5")
 
-    for name, (x, y)in coordinates:
+    for name, (x, y)in coordinates.items():
         # 直接使用原始坐标
-        transform = lidar_transform(x=x, y=y, z=z_height)
+        location = carla.Location(x=x, y=y, z=z_height)
+        transform = carla.Transform(location)
         # 生成V2X传感器
         sensor = world.spawn_actor(bp, transform)
         # 激活传感器
@@ -650,7 +744,8 @@ def spawn_v2x_sensors(world, lidar_transform, z_height=2.62):
     return sensors
 
 def spawn_v2x_receiver(world):
-    transform = carla.Location(x=0, y=0, z=2.62)
+    location = carla.Location(x=0, y=0, z=2.62)
+    transform = carla.Transform(location, carla.Rotation(yaw=0))
 
     # 获取传感器蓝图
     bp = world.get_blueprint_library().find('sensor.other.v2x_custom')
@@ -663,6 +758,7 @@ def spawn_v2x_receiver(world):
     return receiver
 
 def _on_v2x_received(sensor_data):
+    print(f"收到消息")
     for data in sensor_data:
         msg_dict = data.get()
         raw_bytes = msg_dict["Message"]["Message"]["Bytes"]
@@ -733,6 +829,32 @@ def recognize_vehicle_class(vehicle):
     else:
         return "Car"
 
+
+def run_shell_script():
+    # 定义脚本的绝对路径
+    script_path = "/home/yons/object_detection.sh"
+
+    # 定义工作目录（脚本在哪里运行很重要！）
+    work_dir = "/mnt/mydrive/traffic_twin/waypoint_control/multi_obj_track"
+    print("开始执行 Shell 脚本...")
+    try:
+        # 使用 subprocess.run 执行脚本
+        # cwd=work_dir 确保脚本是在 OpenPCDet 根目录下运行的
+        # capture_output=True 可以截获脚本在终端打印的信息
+        result = subprocess.run(
+            ["bash", script_path],
+            cwd=work_dir,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        print("✅ 脚本执行成功！输出如下：")
+        print(result.stdout)
+
+    except subprocess.CalledProcessError as e:
+        print("❌ 脚本执行失败！")
+        print(f"错误信息：\n{e.stderr}")
 
 # 主函数
 def main():
@@ -895,7 +1017,7 @@ def main():
             for _ in range(1 + len(camera_dict)):
                 data, sensor_name = sensor_queue.get(True, 1.0)
                 if "lidar" in sensor_name:  # lidar数据
-                    save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num)
+                    save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors)
                 else:
                     save_camera_data(data, sensor_name, junc, town_folder)
             # time.sleep(0.05)
