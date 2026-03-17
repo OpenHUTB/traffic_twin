@@ -21,6 +21,9 @@ import scipy.io
 import argparse
 import json
 import subprocess
+import pickle
+import struct
+from ultralytics import YOLO
 from queue import Queue
 from queue import Empty
 from scipy.spatial.transform import Rotation as R
@@ -31,6 +34,7 @@ FUSION_DETECTION_ACTUAL_DIS = 25  # 多目标跟踪的实际检测距离
 WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
 # 定义全局变量
 global_time = 0.0
+base_frame = None
 
 relativePose_to_egoVehicle = {
        "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],    # 1
@@ -288,40 +292,39 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
     return all_labels
 
 
-def send_v2x_message_lidar(lidar_data, sensor):
-    """
-    不进行任何降采样，直接将完整激光雷达帧发送出去
-    """
-    # # 提取点云数据 (使用 Numpy 安全读取底层内存)
-    # points = np.frombuffer(lidar_data.raw_data, dtype=np.dtype('f4'))
-    #
-    # # 把点云字节流转换成十六进制字符串 (hex string)
-    # payload_hex_str = points.tobytes().hex()
-    #
-    # # 组装接收端期望的字典结构
-    # v2x_msg_dict = {
-    #     "Message": {
-    #         "Header": {
-    #             "Station ID": "5",
-    #             "Msg Type": "LiDAR_PointCloud"
-    #         },
-    #         "Message": {
-    #             "Bytes": payload_hex_str  # 这里存的是十六进制长字符串
-    #         }
-    #     }
-    # }
-    #
-    # # 将字典转换为 JSON 文本字符串 (这就对应你代码里的 text)
-    # text = json.dumps(v2x_msg_dict)
+def send_v2x_message_lidar(lidar_data, sensor, pkl_file_path, junc):
+    try:
+        # 1. 读取 pkl 文件获取帧 ID
+        with open(pkl_file_path, 'rb') as f:
+            data = pickle.load(f)
 
-    # 【测试代码】：只发送一个极短的文本
-    text = '{"Message": {"Header": {"Station ID": 1001}, "Message": {"Bytes": "Hello"}}}'
+        if isinstance(data, list):
+            data = data[0]
 
-    # 使用底层 API 进行打包和发送！
-    msg = carla.CustomV2XBytes()
-    msg.set_bytes(bytearray(text, 'utf-8'))
-    # 触发 V2X 发送
-    sensor.send(msg)
+        # 获取 frame_id 并转为字符串 (如果没有则默认为 "0")
+        frame_id = str(data.get('frame_id', '0'))
+
+        # 2. 获取当前时间戳 (保留4位小数即可)
+        current_time = f"{time.time():.4f}"
+
+        # 3. 拼接成最简单的纯文本字符串，用逗号隔开
+        # 结果类似: "000001,1710660000.1234"
+        text_payload = f"{frame_id},{current_time},{junc},点云数据"
+
+        # 4. 没有任何多余操作，直接按照您要求的 utf-8 格式转换并发送！
+        msg = carla.CustomV2XBytes()
+        msg.set_bytes(bytearray(text_payload, 'utf-8'))
+        sensor.send(msg)
+
+        print(f"[V2X] 极简发送成功！")
+        print(f"发送的内容: '{text_payload}'")
+        print(f"占用字节数: {len(text_payload.encode('utf-8'))} 字节")
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[发包报错]: {e}")
+
 
 # 定义函数来保存雷达点云数据
 def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, actual_pedestrian_num,lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors):
@@ -336,7 +339,8 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     all_labels = save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels, all_pedestrian_labels)
 
     sensor = sensors["v2x_point"]
-    send_v2x_message_lidar(radar_data, sensor)
+    pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
+    send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc)
     # 获取雷达数据并将其转化为numpy数组
     points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
     points = np.reshape(points, (len(points) // 4, 4))
@@ -450,7 +454,7 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     radar_folder = create_radar_folder_py(town_folder, junc)
     np.save(os.path.join(radar_folder, f"{file_num}.npy"), datalogpy)
     # 保存备份用于目标检测
-    target_dir = "OpenPCDet/data/custom/points"
+    target_dir = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/data/custom/points"
     clear_folder_contents(target_dir)
     np.save(os.path.join(target_dir, f"{file_num}.npy"), datalogpy)
     # 2. 保存 label 为 .txt
@@ -473,7 +477,7 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
             f.write(str(all_labels))
 
     # 保存备份用于目标检测
-    goal_dir = "OpenPCDet/data/custom/labels"
+    goal_dir = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/data/custom/labels"
     clear_folder_contents(goal_dir)
     with open(os.path.join(goal_dir, f"{file_num}.txt"), 'w') as f:
         # 处理不同的数据结构
@@ -495,8 +499,8 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     with open("num.txt", 'a') as f:  # 'a' 表示追加模式
         f.write(str(file_num) + "\n")  # 添加换行符
     # 保存备份用于目标检测
-    dir_train = "OpenPCDet/data/custom/ImageSets/train.txt"
-    dir_val = "OpenPCDet/data/custom/ImageSets/val.txt"
+    dir_train = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/data/custom/ImageSets/train.txt"
+    dir_val = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/data/custom/ImageSets/val.txt"
     with open(dir_train, 'w') as f:
         f.write(str(file_num) + "\n")  # 添加换行符
     with open(dir_val, 'w') as f:
@@ -528,13 +532,48 @@ def clear_folder_contents(folder_path):
 
     print(f"文件夹内容已清空: {folder_path}")
 
-
 # 定义函数来保存相机图像数据
-def save_camera_data(image_data, camera_id, junc, town_folder):
+def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors):
+    global base_frame
     current_frame = image_data.frame
+    # 如果是第一帧，就把它的 ID 存为基数
+    if base_frame is None:
+        base_frame = current_frame
+        print(f"收到第一帧数据！将原始帧 ID {base_frame} 设置为基数 0。")
+    # 计算重置后的当前帧
+    normalized_frame = current_frame - base_frame
+    frame_str = f"{normalized_frame:06d}"
+
     image = np.array(image_data.raw_data)
     image = image.reshape((image_data.height, image_data.width, 4))  # 4th channel is alpha
     image = image[:, :, :3]  # 去掉 alpha 通道，只保留 RGB
+    # 使用yolov8检测图片
+    results = model.predict(source=image, stream=True)
+    for r in results:
+        # 获取检测框、置信度和类别
+        boxes = r.boxes
+        for box in boxes:
+            # 获取坐标 (x1, y1, x2, y2)
+            b = box.xyxy[0].tolist()
+            cls = int(box.cls[0])
+            conf = float(box.conf[0])
+            print(f"检测到: {model.names[cls]}, 置信度: {conf:.2f}")
+
+    if camera_id == "back_camera":
+        sensor = sensors["v2x_back"]
+    elif camera_id == "front_camera":
+        sensor = sensors["v2x_front"]
+    elif camera_id == "right_camera":
+        sensor = sensors["v2x_front_left"]
+    elif camera_id == "front_right_camera":
+        sensor = sensors["v2x_front_right"]
+    elif camera_id == "left_camera":
+        sensor = sensors["v2x_left"]
+    elif camera_id == "front_left_camera":
+        sensor = sensors["v2x_right"]
+
+    send_v2x_message_camera(sensor, junc, frame_str)
+
     camera_folder = create_camera_folder(camera_id, junc, town_folder)
     file_name = os.path.join(camera_folder, f"{current_frame}.jpg")
     try:
@@ -544,6 +583,29 @@ def save_camera_data(image_data, camera_id, junc, town_folder):
         return None
     return image
 
+
+def send_v2x_message_camera(sensor, junc, frame_id):
+    try:
+        # 获取当前时间戳 (保留4位小数即可)
+        current_time = f"{time.time():.4f}"
+
+        # 拼接成最简单的纯文本字符串，用逗号隔开
+        # 结果类似: "000001,1710660000.1234"
+        text_payload = f"{frame_id},{current_time},{junc},图片数据"
+
+        # 4. 没有任何多余操作，直接按照您要求的 utf-8 格式转换并发送！
+        msg = carla.CustomV2XBytes()
+        msg.set_bytes(bytearray(text_payload, 'utf-8'))
+        sensor.send(msg)
+
+        print(f"[V2X] 极简发送成功！")
+        print(f"发送的内容: '{text_payload}'")
+        print(f"占用字节数: {len(text_payload.encode('utf-8'))} 字节")
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"❌ [发包报错]: {e}")
 
 def sensor_callback(sensor_data, sensor_queue, sensor_name):
     sensor_queue.put((sensor_data, sensor_name))
@@ -713,15 +775,17 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20):
 
     return pedestrian_list
 
-
-def spawn_v2x_sensors(world, lidar_transform, z_height=2.62):
+def spawn_v2x_sensors(world, lidar_transform, z_height=2.57):
     sensors = {}  # 字典
 
     # 用字典直接给坐标命名，明确区分
     coordinates = {
-        "v2x_left": (3.0, 4.0),
-        "v2x_right": (3.0, -4.0),
-        "v2x_center": (1.0, 0.0),
+        "v2x_back": (-7.0, 0.0),
+        "v2x_front": (7.0, 0.0),
+        "v2x_front_left": (7.0, 4.0),
+        "v2x_front_right": (7.0, -4.0),
+        "v2x_left": (0.0, 4.0),
+        "v2x_right": (0.0, -4.0),
         "v2x_point": (0.5, 0.5)
     }
 
@@ -737,11 +801,14 @@ def spawn_v2x_sensors(world, lidar_transform, z_height=2.62):
         # 生成V2X传感器
         sensor = world.spawn_actor(bp, transform)
         # 激活传感器
-        sensor.listen(lambda data: _on_v2x_received(data))
+        sensor.listen(lambda data: do_nothing(data))
         # 将生成的传感器以名字存入字典
         sensors[name] = sensor
 
     return sensors
+
+def do_nothing(data):
+    pass
 
 def spawn_v2x_receiver(world):
     location = carla.Location(x=0, y=0, z=2.62)
@@ -757,14 +824,66 @@ def spawn_v2x_receiver(world):
 
     return receiver
 
-def _on_v2x_received(sensor_data):
-    print(f"收到消息")
-    for data in sensor_data:
-        msg_dict = data.get()
-        raw_bytes = msg_dict["Message"]["Message"]["Bytes"]
-        content = raw_bytes.decode('utf-8', errors='ignore')
-        print(f"  [接收端] 收到消息 ")
+def _on_v2x_received(event):
+    """
+    接收端回调函数：将所有帧的数据保存在同一个文件夹下的独立 txt 中
+    """
+    if event.get_message_count() == 0:
+        return
 
+    for i, custom_data in enumerate(event):
+        try:
+            # 1. 获取底层数据
+            parsed_data = custom_data.get()
+            text_payload = ""
+
+            # 2. 智能提取文本内容
+            if isinstance(parsed_data, dict):
+                payload = parsed_data.get("Message", {}).get("Message", {}).get("Bytes", "")
+                if isinstance(payload, (bytes, bytearray)):
+                    text_payload = payload.decode('utf-8')
+                elif isinstance(payload, str):
+                    text_payload = payload
+            elif isinstance(parsed_data, (bytes, bytearray)):
+                text_payload = parsed_data.decode('utf-8')
+            elif isinstance(parsed_data, str):
+                text_payload = parsed_data
+            else:
+                continue
+
+            # 3. 解析逗号分隔的 "帧ID,发送时间"
+            if ',' not in text_payload:
+                continue
+
+            frame_id_str, send_time_str, JUNC_ID, data_type = text_payload.split(',')
+            frame_id = int(frame_id_str)
+            send_time = float(send_time_str)
+
+            # 4. 计算当前延迟
+            receive_time = time.time()
+            latency_ms = (receive_time - send_time) * 1000
+
+            print(f"✅ [V2X 接收] 帧 ID: {frame_id:06d} | 延迟: {latency_ms:.2f} ms")
+
+            # 核心保存逻辑：扁平化保存，按帧号命名 txt
+            # 直接在总文件夹下生成对应的 txt 文件路径
+            BASE_SAVE_DIR = "./v2x_latency_logs"
+            txt_file_path = os.path.join(BASE_SAVE_DIR, f"frame_{frame_id:06d}.txt")
+
+            # 追加写入模式 'a'：如果该帧的 txt 文件不存在，会自动创建；
+            # 如果已经存在（即收到了同一帧其他车辆发来的数据），则会在下一行继续写入。
+            with open(txt_file_path, "a", encoding="utf-8") as f:
+                log_line = (f"路口号: {JUNC_ID}, "
+                            f"发送时间: {send_time:.6f}, "
+                            f"接收时间: {receive_time:.6f}, "
+                            f"延迟(ms): {latency_ms:.2f}, "
+                            f"数据类型: {data_type}\n")
+                f.write(log_line)
+
+        except ValueError:
+            pass
+        except Exception as e:
+            print(f"❌ [解析与保存报错]: {e}")
 def destroy_actor(lidar, camera_dict, vehicles, sensor_queue, pedestrians):
     if lidar is not None:
         lidar.stop()  # 确保停止传感器线程
@@ -834,7 +953,7 @@ def run_shell_script():
     # 定义脚本的绝对路径
     script_path = "/home/yons/object_detection.sh"
 
-    # 定义工作目录（脚本在哪里运行很重要！）
+    # 定义工作目录
     work_dir = "/mnt/mydrive/traffic_twin/waypoint_control/multi_obj_track"
     print("开始执行 Shell 脚本...")
     try:
@@ -936,6 +1055,10 @@ def main():
         'points_per_second': '4000000',
         'rotation_frequency': '20'
     }
+
+    # 加载yolo模型
+    model = YOLO('yolov8n.pt')
+
     try:
         # 设置随机种子
         random_seed = 20
@@ -978,6 +1101,10 @@ def main():
         sensors = spawn_v2x_sensors(world, lidar_transform, z_height=2.62)
         # 生成并启动V2X数据收集端
         receiver = spawn_v2x_receiver(world)
+        # 定义保存数据的唯一总文件夹
+        BASE_SAVE_DIR = "./v2x_latency_logs"
+        # 在程序启动时，确保总文件夹存在（如果不存在则创建）
+        os.makedirs(BASE_SAVE_DIR, exist_ok=True)
         actual_vehicle_num = []
         actual_pedestrian_num = []
         all_vehicle_labels = []
@@ -1019,7 +1146,7 @@ def main():
                 if "lidar" in sensor_name:  # lidar数据
                     save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors)
                 else:
-                    save_camera_data(data, sensor_name, junc, town_folder)
+                    save_camera_data(data, sensor_name, junc, town_folder, model, sensors)
             # time.sleep(0.05)
             folder_index += 1
 
