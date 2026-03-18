@@ -35,6 +35,8 @@ WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷
 # 定义全局变量
 global_time = 0.0
 base_frame = None
+# openpcdet进行目标识别所用时间
+extra_time = 0
 
 relativePose_to_egoVehicle = {
        "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],    # 1
@@ -305,7 +307,8 @@ def send_v2x_message_lidar(lidar_data, sensor, pkl_file_path, junc):
         frame_id = str(data.get('frame_id', '0'))
 
         # 2. 获取当前时间戳 (保留4位小数即可)
-        current_time = f"{time.time():.4f}"
+
+        current_time = f"{time.time() - extra_time:.4f}"
 
         # 3. 拼接成最简单的纯文本字符串，用逗号隔开
         # 结果类似: "000001,1710660000.1234"
@@ -327,7 +330,7 @@ def send_v2x_message_lidar(lidar_data, sensor, pkl_file_path, junc):
 
 
 # 定义函数来保存雷达点云数据
-def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, actual_pedestrian_num,lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors):
+def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num, actual_pedestrian_num,lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors, num):
     global global_time
     # 获取当前帧编号
     current_frame = radar_data.frame
@@ -338,9 +341,9 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     location = ego_vehicle_transform.location
     all_labels = save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels, all_pedestrian_labels)
 
-    sensor = sensors["v2x_point"]
-    pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
-    send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc)
+    # sensor = sensors["v2x_point"]
+    # pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
+    # send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc)
     # 获取雷达数据并将其转化为numpy数组
     points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
     points = np.reshape(points, (len(points) // 4, 4))
@@ -506,8 +509,14 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     with open(dir_val, 'w') as f:
         f.write(str(file_num) + "\n")  # 添加换行符
 
-    # 运行自动化目标检测脚本
-    run_shell_script()
+    # # 运行自动化目标检测脚本
+    # duration = run_shell_script()
+    # global extra_time
+    # extra_time += duration
+
+    sensor = sensors["v2x_point"]
+    pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
+    send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc)
 
 # 更新目标检测的文件夹
 def clear_folder_contents(folder_path):
@@ -533,7 +542,7 @@ def clear_folder_contents(folder_path):
     print(f"文件夹内容已清空: {folder_path}")
 
 # 定义函数来保存相机图像数据
-def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors):
+def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, num):
     global base_frame
     current_frame = image_data.frame
     # 如果是第一帧，就把它的 ID 存为基数
@@ -587,7 +596,7 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors):
 def send_v2x_message_camera(sensor, junc, frame_id):
     try:
         # 获取当前时间戳 (保留4位小数即可)
-        current_time = f"{time.time():.4f}"
+        current_time = f"{time.time() - extra_time:.4f}"
 
         # 拼接成最简单的纯文本字符串，用逗号隔开
         # 结果类似: "000001,1710660000.1234"
@@ -860,7 +869,7 @@ def _on_v2x_received(event):
             send_time = float(send_time_str)
 
             # 4. 计算当前延迟
-            receive_time = time.time()
+            receive_time = time.time() - extra_time
             latency_ms = (receive_time - send_time) * 1000
 
             print(f"✅ [V2X 接收] 帧 ID: {frame_id:06d} | 延迟: {latency_ms:.2f} ms")
@@ -956,6 +965,8 @@ def run_shell_script():
     # 定义工作目录
     work_dir = "/mnt/mydrive/traffic_twin/waypoint_control/multi_obj_track"
     print("开始执行 Shell 脚本...")
+    # 记录开始时间 (高精度)
+    start_time = time.time()
     try:
         # 使用 subprocess.run 执行脚本
         # cwd=work_dir 确保脚本是在 OpenPCDet 根目录下运行的
@@ -970,6 +981,11 @@ def run_shell_script():
 
         print("✅ 脚本执行成功！输出如下：")
         print(result.stdout)
+        # 记录结束时间
+        end_time = time.time()
+        # 计算耗时
+        duration = end_time - start_time
+        return duration
 
     except subprocess.CalledProcessError as e:
         print("❌ 脚本执行失败！")
@@ -1011,7 +1027,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_5',  # 默认路口
+        default='road_intersection_2',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -1112,8 +1128,11 @@ def main():
         vehicles_traj = {}
         pedestrians_traj = {}
         folder_index = 0
+        # 设置变量
+        num = 0
         for _ in range(DATA_MUN):
             world.tick()
+            num += 1
             actor_list_vehicle = world.get_actors().filter('vehicle.*')
             for actor in actor_list_vehicle:
                 vehicle_id = actor.id
@@ -1141,12 +1160,16 @@ def main():
                     pedestrians_traj[pedestrian_id].append([x, y, z])
             # 同步保存多传感器数据
             file_num = f"{folder_index:06d}"
+            # 运行自动化目标检测脚本
+            duration = run_shell_script()
+            global extra_time
+            extra_time += duration
             for _ in range(1 + len(camera_dict)):
                 data, sensor_name = sensor_queue.get(True, 1.0)
                 if "lidar" in sensor_name:  # lidar数据
-                    save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors)
+                    save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors, num)
                 else:
-                    save_camera_data(data, sensor_name, junc, town_folder, model, sensors)
+                    save_camera_data(data, sensor_name, junc, town_folder, model, sensors, num)
             # time.sleep(0.05)
             folder_index += 1
 
