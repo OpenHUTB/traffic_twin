@@ -509,10 +509,10 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     with open(dir_val, 'w') as f:
         f.write(str(file_num) + "\n")  # 添加换行符
 
-    # # 运行自动化目标检测脚本
-    # duration = run_shell_script()
-    # global extra_time
-    # extra_time += duration
+    # 运行自动化目标检测脚本
+    duration = run_shell_script()
+    global extra_time
+    extra_time += duration
 
     sensor = sensors["v2x_point"]
     pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
@@ -1027,7 +1027,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_2',  # 默认路口
+        default='road_intersection_1',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -1160,10 +1160,10 @@ def main():
                     pedestrians_traj[pedestrian_id].append([x, y, z])
             # 同步保存多传感器数据
             file_num = f"{folder_index:06d}"
-            # 运行自动化目标检测脚本
-            duration = run_shell_script()
-            global extra_time
-            extra_time += duration
+            # # 运行自动化目标检测脚本
+            # duration = run_shell_script()
+            # global extra_time
+            # extra_time += duration
             for _ in range(1 + len(camera_dict)):
                 data, sensor_name = sensor_queue.get(True, 1.0)
                 if "lidar" in sensor_name:  # lidar数据
