@@ -1027,7 +1027,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_1',  # 默认路口
+        default='road_intersection_3',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
