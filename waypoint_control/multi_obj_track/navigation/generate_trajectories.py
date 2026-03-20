@@ -8,6 +8,7 @@ import numpy as np
 import os
 import random
 import time
+import re
 from fastdtw import fastdtw
 from config import IntersectionConfig, town_configurations
 from global_route_planner import GlobalRoutePlanner
@@ -251,6 +252,52 @@ def create_pedestrian_move(start_location, end_location, world, totaltime):
     return position_history
 
 
+def read_matlab_timeline(file_path):
+    """
+    读取 matlab_final.txt 文件，提取起始时间、终止时间和总耗时
+    """
+    # 初始化一个字典来存放提取到的数据
+    extracted_data = {
+        "start_time": None,
+        "end_time": None,
+        "total_cost": None
+    }
+
+    if not os.path.exists(file_path):
+        print(f"错误：找不到文件 {file_path}")
+        return extracted_data
+
+    # 定义正则表达式，兼容中文全角冒号 "：" 和英文半角冒号 ":"
+    # 匹配规则：找到指定文字和冒号，然后提取后面的所有数字和小数点
+    pattern_start = re.compile(r"起始时间[：:]\s*([0-9\.]+)")
+    pattern_end = re.compile(r"终止时间[：:]\s*([0-9\.]+)")
+    pattern_total = re.compile(r"总耗时[：:]\s*([0-9\.]+)")
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+
+            # 提取起始时间
+            match_start = pattern_start.search(content)
+            if match_start:
+                extracted_data["start_time"] = float(match_start.group(1))
+
+            # 提取终止时间
+            match_end = pattern_end.search(content)
+            if match_end:
+                extracted_data["end_time"] = float(match_end.group(1))
+
+            # 提取总耗时
+            match_total = pattern_total.search(content)
+            if match_total:
+                extracted_data["total_cost"] = float(match_total.group(1))
+
+        return extracted_data
+
+    except Exception as e:
+        print(f"读取文件出错: {e}")
+        return extracted_data
+
 def main():
     argparser = argparse.ArgumentParser(
         description=__doc__)
@@ -275,6 +322,10 @@ def main():
     args = argparser.parse_args()
     np.random.seed(42)
     random.seed(42)
+    # 读取起始时间
+    file_path = "../matlab_final.txt"
+    all_time = read_matlab_timeline(file_path)
+    str_time = time.time()
     # 连接到Carla服务器
     client = carla.Client(args.host, args.port)
     client.set_timeout(10.0)
@@ -716,6 +767,13 @@ def main():
     with open('vehicleWaypoints.txt', 'w') as file:
         for line in sorted_lines:
             file.write(line)
+
+    # 保存最终时间
+    end_time = time.time()
+    duration = end_time - str_time
+    final_time = all_time['end_time'] + duration
+    with open("final.txt", "w") as f:
+        f.write(f"{final_time:.2f}")
 
 
 if __name__ == '__main__':
