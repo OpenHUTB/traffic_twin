@@ -10,6 +10,7 @@ import random
 import time
 import re
 from fastdtw import fastdtw
+from scipy.spatial.distance import euclidean
 from config import IntersectionConfig, town_configurations
 from global_route_planner import GlobalRoutePlanner
 
@@ -297,6 +298,89 @@ def read_matlab_timeline(file_path):
     except Exception as e:
         print(f"读取文件出错: {e}")
         return extracted_data
+
+
+def evaluate_category(generated_trajs, ground_truths, category_name=""):
+    total_MPE = 0.0
+    total_MaxPE = 0.0
+    total_MFPE = 0.0
+    total_overlap = 0.0
+    valid_trajectories = 0
+
+    for ge_traj in generated_trajs:
+        max_overlap = -1
+        best_truth_traj = None
+
+        # 鲁棒提取预测轨迹
+        track_arr = np.array(ge_traj).squeeze()
+        if track_arr.ndim == 0 or track_arr.size == 0:  # 跳过空数据
+            continue
+        if track_arr.ndim == 1:
+            track_arr = track_arr.reshape(1, -1)
+        track_points = track_arr[:, :2]  # 只取 X 和 Y
+
+        for truth_traj in ground_truths:
+            # 鲁棒提取真实轨迹
+            truth_arr = np.array(truth_traj).squeeze()
+
+            # 如果 MATLAB 里的这条轨迹是空的 (0-d array)，直接跳过！
+            if truth_arr.ndim == 0 or truth_arr.size == 0:
+                continue
+
+            if truth_arr.ndim == 1:
+                truth_arr = truth_arr.reshape(1, -1)
+            truth_points = truth_arr[:, :2]  # 只取 X 和 Y
+
+            # 计算长度并对齐
+            min_length = min(len(track_points), len(truth_points))
+            if min_length == 0:
+                continue
+
+            aligned_truth = truth_points[:min_length]
+            aligned_track = track_points[:min_length]
+
+            # 计算 DTW 距离和重合度
+            distance, _ = fastdtw(aligned_truth, aligned_track, dist=euclidean)
+            max_distance = np.max(np.linalg.norm(aligned_truth - aligned_track, axis=1)) * min_length
+            overlap_ratio = 1 - (distance / max_distance) if max_distance > 0 else 0
+            overlap = max(0, min(1, overlap_ratio))
+
+            if overlap > max_overlap:
+                max_overlap = overlap
+                best_truth_traj = truth_points
+
+        # 计算误差
+        if best_truth_traj is not None:
+            min_len = min(len(track_points), len(best_truth_traj))
+            truth_pts = best_truth_traj[:min_len]
+            track_pts = track_points[:min_len]
+
+            errors = np.linalg.norm(truth_pts - track_pts, axis=1)
+
+            total_MPE += np.mean(errors)
+            total_MaxPE += np.max(errors)
+            total_MFPE += errors[-1] if len(errors) > 0 else 0
+            total_overlap += max_overlap
+            valid_trajectories += 1
+
+    # 打印结果
+    if valid_trajectories > 0:
+        avg_MPE = total_MPE / valid_trajectories
+        avg_MaxPE = total_MaxPE / valid_trajectories
+        avg_MFPE = total_MFPE / valid_trajectories
+        avg_overlap = total_overlap / valid_trajectories
+
+        print(f"\n==== {category_name} 评估结果 ({valid_trajectories} 条有效轨迹) ====")
+        print(f"平均MPE (ADE):  {avg_MPE:.4f} 米")
+        print(f"平均MaxPE:      {avg_MaxPE:.4f} 米")
+        print(f"平均MFPE (FDE): {avg_MFPE:.4f} 米")
+        print(f"平均重合度:     {avg_overlap:.2%}")
+    else:
+        print(f"\n==== {category_name} 评估结果 ====")
+        print("警告: 没有找到有效的轨迹匹配！")
+
+    return total_MPE, total_MaxPE, total_MFPE, total_overlap, valid_trajectories
+
 
 def main():
     argparser = argparse.ArgumentParser(
@@ -632,77 +716,118 @@ def main():
                         result.append(combine)
                 vehicle_traj.append(result)
 
-    # 读取groundtruth
-    data_truth = scipy.io.loadmat('pedestrian_ground_truth.mat')
-    traj_truth = data_truth['pedestrian_cells']
-    all_ground_truth = []  # 保存所有的车辆轨迹
-    for i in range(len(traj_truth[0])):
-        struct = traj_truth[0][i]    # 获取第 i 个 struct
+    # # 读取groundtruth
+    # data_truth = scipy.io.loadmat('../Town10HD_Opt/pedestrian_ground_truth.mat')
+    # traj_truth = data_truth['pedestrian_cells']
+    # all_ground_truth = []  # 保存所有的车辆轨迹
+    # for i in range(len(traj_truth[0])):
+    #     struct = traj_truth[0][i]    # 获取第 i 个 struct
+    #     positions = struct[0][0][1]     # 获取单个的轨迹
+    #     array_3d = np.array(positions)  # 形状为(N,3,1)
+    #     converted_data = array_3d.squeeze(axis=2).tolist()  # 移除最后一个维度
+    #     all_ground_truth.append(converted_data)
+    #     # all_ground_truth.append(array_3d)
+    # # 评估真实轨迹与跟踪轨迹
+    # # 保存对齐后的真实轨迹
+    # # 初始化累加器
+    # total_MPE = 0.0
+    # total_MaxPE = 0.0
+    # total_MFPE = 0.0
+    # total_overlap = 0.0
+    # valid_trajectories = 0  # 有效轨迹计数
+    #
+    # # for ge_traj in vehicle_traj:
+    # for ge_traj in person_traj:
+    #     max_overlap = -1
+    #     best_truth_traj = None
+    #     track_points = np.array([[point[0], point[1]] for point in ge_traj])
+    #
+    #     for truth_traj in all_ground_truth:
+    #         truth_points = np.array([[point[0], point[1]] for point in truth_traj])
+    #
+    #         min_length = min(len(track_points), len(truth_points))
+    #         aligned_truth = truth_points[:min_length]
+    #         aligned_track = track_points[:min_length]
+    #
+    #         distance, _ = fastdtw(aligned_truth, aligned_track)
+    #         max_distance = np.max(np.linalg.norm(aligned_truth - aligned_track, axis=1)) * min_length
+    #         overlap_ratio = 1 - (distance / max_distance) if max_distance > 0 else 0
+    #         overlap = max(0, min(1, overlap_ratio))
+    #
+    #         if overlap > max_overlap:
+    #             max_overlap = overlap
+    #             best_truth_traj = truth_points
+    #
+    #     if best_truth_traj is not None:
+    #         min_len = min(len(track_points), len(best_truth_traj))
+    #         truth_pts = best_truth_traj[:min_len]
+    #         track_pts = track_points[:min_len]
+    #
+    #         errors = np.linalg.norm(truth_pts - track_pts, axis=1)
+    #
+    #         # 累加各项指标
+    #         total_MPE += np.mean(errors)
+    #         total_MaxPE += np.max(errors)
+    #         total_MFPE += errors[-1] if len(errors) > 0 else 0
+    #         total_overlap += max_overlap
+    #         valid_trajectories += 1
+    #
+    # # 计算全局平均值
+    # if valid_trajectories > 0:
+    #     avg_MPE = total_MPE / valid_trajectories
+    #     avg_MaxPE = total_MaxPE / valid_trajectories
+    #     avg_MFPE = total_MFPE / valid_trajectories
+    #     avg_overlap = total_overlap / valid_trajectories
+    #
+    #     print("\n==== 全局平均指标 ====")
+    #     print(f"平均MPE: {avg_MPE:.4f} 米")
+    #     print(f"平均MaxPE: {avg_MaxPE:.4f} 米")
+    #     print(f"平均MFPE: {avg_MFPE:.4f} 米")
+    #     print(f"平均重合度: {avg_overlap:.2%}")
+    # else:
+    #     print("警告: 没有有效的轨迹匹配")
+
+    # 读取真实轨迹
+    person_data_truth = scipy.io.loadmat('../Town10HD_Opt/pedestrian_ground_truth.mat')
+    person_traj_truth = person_data_truth['pedestrian_cells']
+    person_ground_truth = []  # 保存所有的车辆轨迹
+    for i in range(len(person_traj_truth[0])):
+        struct = person_traj_truth[0][i]    # 获取第 i 个 struct
         positions = struct[0][0][1]     # 获取单个的轨迹
         array_3d = np.array(positions)  # 形状为(N,3,1)
         converted_data = array_3d.squeeze(axis=2).tolist()  # 移除最后一个维度
-        all_ground_truth.append(converted_data)
-        # all_ground_truth.append(array_3d)
-    # 评估真实轨迹与跟踪轨迹
-    # 保存对齐后的真实轨迹
-    # 初始化累加器
-    total_MPE = 0.0
-    total_MaxPE = 0.0
-    total_MFPE = 0.0
-    total_overlap = 0.0
-    valid_trajectories = 0  # 有效轨迹计数
+        person_ground_truth.append(converted_data)
 
-    # for ge_traj in vehicle_traj:
-    for ge_traj in person_traj:
-        max_overlap = -1
-        best_truth_traj = None
-        track_points = np.array([[point[0], point[1]] for point in ge_traj])
+    vehicle_data_truth = scipy.io.loadmat('../Town10HD_Opt/vehicle_ground_truth.mat')
+    vehicle_traj_truth = vehicle_data_truth['vehicle_cells']
+    # print(vehicle_traj_truth, len(vehicle_traj_truth))
+    vehicle_ground_truth = []  # 保存所有的车辆轨迹
+    for i in range(len(vehicle_traj_truth[0])):
+        struct = vehicle_traj_truth[0][i]  # 获取第 i 个 struct
+        positions = struct[0][0][1]  # 获取单个的轨迹
+        array_3d = np.array(positions)  # 形状为(N,3,1)
+        converted_data = array_3d.squeeze(axis=2).tolist()  # 移除最后一个维度
+        vehicle_ground_truth.append(converted_data)
 
-        for truth_traj in all_ground_truth:
-            truth_points = np.array([[point[0], point[1]] for point in truth_traj])
+    # 评估车辆
+    v_mpe, v_maxpe, v_mfpe, v_overlap, v_count = evaluate_category(vehicle_traj, vehicle_ground_truth, "车辆")
 
-            min_length = min(len(track_points), len(truth_points))
-            aligned_truth = truth_points[:min_length]
-            aligned_track = track_points[:min_length]
+    # 评估行人
+    p_mpe, p_maxpe, p_mfpe, p_overlap, p_count = evaluate_category(person_traj, person_ground_truth, "行人")
 
-            distance, _ = fastdtw(aligned_truth, aligned_track)
-            max_distance = np.max(np.linalg.norm(aligned_truth - aligned_track, axis=1)) * min_length
-            overlap_ratio = 1 - (distance / max_distance) if max_distance > 0 else 0
-            overlap = max(0, min(1, overlap_ratio))
+    # 计算全局整体指标
+    total_count = v_count + p_count
+    if total_count > 0:
+        overall_mpe = (v_mpe + p_mpe) / total_count
+        overall_maxpe = (v_maxpe + p_maxpe) / total_count
+        overall_mfpe = (v_mfpe + p_mfpe) / total_count
+        overall_overlap = (v_overlap + p_overlap) / total_count
 
-            if overlap > max_overlap:
-                max_overlap = overlap
-                best_truth_traj = truth_points
-
-        if best_truth_traj is not None:
-            min_len = min(len(track_points), len(best_truth_traj))
-            truth_pts = best_truth_traj[:min_len]
-            track_pts = track_points[:min_len]
-
-            errors = np.linalg.norm(truth_pts - track_pts, axis=1)
-
-            # 累加各项指标
-            total_MPE += np.mean(errors)
-            total_MaxPE += np.max(errors)
-            total_MFPE += errors[-1] if len(errors) > 0 else 0
-            total_overlap += max_overlap
-            valid_trajectories += 1
-
-    # 计算全局平均值
-    if valid_trajectories > 0:
-        avg_MPE = total_MPE / valid_trajectories
-        avg_MaxPE = total_MaxPE / valid_trajectories
-        avg_MFPE = total_MFPE / valid_trajectories
-        avg_overlap = total_overlap / valid_trajectories
-
-        print("\n==== 全局平均指标 ====")
-        print(f"平均MPE: {avg_MPE:.4f} 米")
-        print(f"平均MaxPE: {avg_MaxPE:.4f} 米")
-        print(f"平均MFPE: {avg_MFPE:.4f} 米")
-        print(f"平均重合度: {avg_overlap:.2%}")
-    else:
-        print("警告: 没有有效的轨迹匹配")
-
+        print(f"\n====  整体综合评估结果 (共 {total_count} 条轨迹) ====")
+        print(f"整体平均MPE (ADE):  {overall_mpe:.4f} 米")
+        print(f"整体平均MaxPE:      {overall_maxpe:.4f} 米")
+        print(f"整体平均MFPE (FDE): {overall_mfpe:.4f} 米")
+        print(f"整体平均重合度:     {overall_overlap:.2%}")
 
     # 保存全部行人轨迹到personwaypoint.txt
     with open('personWaypoints.txt', 'w') as file:
