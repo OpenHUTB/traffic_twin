@@ -34,6 +34,8 @@ DATA_MUN = 500
 DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
 FUSION_DETECTION_ACTUAL_DIS = 25  # 多目标跟踪的实际检测距离
 WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
+
+config_path = "sensor_config.json"
 # 定义全局变量
 global_time = 0.0
 base_frame = None
@@ -837,16 +839,21 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20):
 def spawn_v2x_sensors(world, lidar_transform, z_height=2.57):
     sensors = {}  # 字典
 
-    # 用字典直接给坐标命名，明确区分
-    coordinates = {
-        "v2x_back": (-7.0, 0.0),
-        "v2x_front": (7.0, 0.0),
-        "v2x_front_left": (7.0, 4.0),
-        "v2x_front_right": (7.0, -4.0),
-        "v2x_left": (0.0, 4.0),
-        "v2x_right": (0.0, -4.0),
-        "v2x_point": (0.5, 0.5)
-    }
+    # # 用字典直接给坐标命名，明确区分
+    # coordinates = {
+    #     "v2x_back": (-7.0, 0.0),
+    #     "v2x_front": (7.0, 0.0),
+    #     "v2x_front_left": (7.0, 4.0),
+    #     "v2x_front_right": (7.0, -4.0),
+    #     "v2x_left": (0.0, 4.0),
+    #     "v2x_right": (0.0, -4.0),
+    #     "v2x_point": (0.5, 0.5)
+    # }
+    with open(config_path, "r", encoding="utf-8") as f:
+        raw_coordinates = json.load(f)
+
+    # 将 JSON 里的列表 [-7.0, 0.0] 转换回 Python 的元组 (-7.0, 0.0)
+    coordinates = {key: tuple(value) for key, value in raw_coordinates.items()}
 
     # 获取传感器蓝图
     bp = world.get_blueprint_library().find('sensor.other.v2x_custom')
@@ -1111,7 +1118,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_2',  # 默认路口
+        default='road_intersection_1',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
