@@ -1,4 +1,4 @@
-%% 车辆轨迹 (无可视化纯跟踪版)
+%% 车辆轨迹
 function multiObjectTracking(junc, initTime, runFrameNum)
 
     % 数据路径
@@ -22,13 +22,11 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     % 根据排序索引重新排列 matFiles 结构体数组
     matFiles = matFiles(idx);
     
-    % 加载第一帧数据 (仅为了获取可能的初始信息，如果用不到可保留)
+    % 加载第一帧数据 
     fileName = fullfile(dataPath, matFiles(1).name);
     load(fileName, "datalog");
     
-    % ---------------------------------------------
-    % 初始化跟踪器 (核心逻辑保留)
-    % ---------------------------------------------
+
     tracker = trackerJPDA( ...
         TrackLogic="Integrated", ...
         FilterInitializationFcn=@helperInitLidarCameraFusionFilter, ...
@@ -44,8 +42,8 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                           
     % 定义轨迹点的数量
     numFrames = runFrameNum;
-    % 设置固定的初始位置 (假设车辆静止于 ENU 坐标系的某点)
-    initialPosition = [0, 0, 0.98]; % 假设车辆在 ENU 原点
+    % 设置固定的初始位置 
+    initialPosition = [0, 0, 0.98]; 
     
     % 重复初始位置构成轨迹点
     waypoints = repmat(initialPosition, numFrames, 1);
@@ -116,7 +114,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                 camBBox = zeros(0, 4);
             end
             thisCameraDetections = helperAssembleCameraDetections(camBBox, cameraPose, time, k + 1, egoPose);
-            cameraDetections = [cameraDetections; thisCameraDetections]; %#ok<AGROW> 
+            cameraDetections = [cameraDetections; thisCameraDetections]; 
         end
        
         % 合并检测结果
@@ -183,7 +181,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     save(allTracksPath, 'evaluationTracks');
     
     %% 保存部分较完整的轨迹，用作轨迹复现
-    % 过滤掉轨迹数量少于5的车辆 (加入安全性检查防止空数组报错)
+    % 过滤掉轨迹数量少于5的车辆
     if ~isempty(allTracks)
         allTracks = allTracks(cellfun(@(x) size(x, 1) >= 5, {allTracks.Positions}));
     end
@@ -196,6 +194,6 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     savePath = fullfile(tracksDirectory, 'trackedData.mat'); 
     % 保存 allTracks 变量到 .mat 文件
     save(savePath, 'allTracks');
-    disp(['✅ 轨迹提取完毕！数据已保存到 ', savePath]);
+    disp([' 轨迹提取完毕！数据已保存到 ', savePath]);
 
 end
