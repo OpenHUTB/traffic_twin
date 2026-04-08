@@ -23,6 +23,7 @@ import json
 import subprocess
 import pickle
 import struct
+import itertools
 
 from fontTools.merge.util import current_time
 from ultralytics import YOLO
@@ -324,6 +325,7 @@ def send_v2x_message_lidar(lidar_data, sensor, pkl_file_path, junc, world):
         print(f"[发包报错]: {e}")
 
 def send_lidar_message(data, sensor, world, junc):
+    print("123")
     # 将核心数据提取出来
     boxes_lidar = data['boxes_lidar']
     scores = data['score']
@@ -334,6 +336,7 @@ def send_lidar_message(data, sensor, world, junc):
         # 提取第 i 行的框和得分
         box = boxes_lidar[i]
         obj_score = scores[i]
+        print(obj_score)
         # 将框解包
         x, y, z, l, w, h, yaw = box
         x = format_8_chars(x)
@@ -344,7 +347,8 @@ def send_lidar_message(data, sensor, world, junc):
         h = format_8_chars(h)
         yaw = format_8_chars(yaw)
         # 当得分大于0.6时，视为有效数据并发送
-        if obj_score > 0.6:
+        if obj_score > 0.2:
+            print("you")
             # 获取当前时间戳 (保留4位小数即可)
             current_time = f"{time.time() - extra_time:.4f}"
             # 拼接成最简单的纯文本字符串，用逗号隔开
@@ -380,9 +384,6 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     location = ego_vehicle_transform.location
     all_labels = save_point_label(world, location, lidar_to_world_inv, timestamp, all_vehicle_labels, all_pedestrian_labels)
 
-    # sensor = sensors["v2x_point"]
-    # pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
-    # send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc)
     # 获取雷达数据并将其转化为numpy数组
     points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
     points = np.reshape(points, (len(points) // 4, 4))
@@ -483,14 +484,16 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     # 将 locationpy 转换为 float64（即 double 类型）
     locationpy = locationpy.astype(np.float32)
     # 如果 timestamp 是单个值，创建重复的数组
-    if np.isscalar(timestamp):
-        timestamp_array = np.full((locationpy.shape[0], 1), timestamp, dtype=np.float32)
-    else:
-        # 如果 timestamp 已经是数组，确保形状正确
-        timestamp_array = timestamp.reshape(-1, 1)
+    # if np.isscalar(timestamp):
+    #     timestamp_array = np.full((locationpy.shape[0], 1), timestamp, dtype=np.float32)
+    # else:
+    #     # 如果 timestamp 已经是数组，确保形状正确
+    #     timestamp_array = timestamp.reshape(-1, 1)
 
     # 水平拼接 location 前四列和 timestamp
-    datalogpy = np.column_stack([locationpy, timestamp_array])
+    # datalogpy = np.column_stack([locationpy, timestamp_array])
+
+    datalogpy = locationpy
 
     # 1. 直接保存 datalogpy 为 .npy
     radar_folder = create_radar_folder_py(town_folder, junc)
@@ -549,13 +552,13 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
         f.write(str(file_num) + "\n")  # 添加换行符
 
     # 运行自动化目标检测脚本
-    duration = run_shell_script()
-    global extra_time
-    extra_time += duration
+    # duration = run_shell_script()
+    # global extra_time
+    # extra_time += duration
 
     sensor = sensors["v2x_point"]
     pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
-    send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc, world)
+    # send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc, world)
 
 # 更新目标检测的文件夹
 def clear_folder_contents(folder_path):
@@ -596,8 +599,8 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
     image = image.reshape((image_data.height, image_data.width, 4))  # 4th channel is alpha
     image = image[:, :, :3]  # 去掉 alpha 通道，只保留 RGB
     # 使用yolov8检测图片
-    results = model.predict(source=image)
-    result = results[0]
+    # results = model.predict(source=image)
+    # result = results[0]
 
     if camera_id == "back_camera":
         sensor = sensors["v2x_back"]
@@ -612,7 +615,7 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
     elif camera_id == "front_left_camera":
         sensor = sensors["v2x_right"]
 
-    send_v2x_message_camera(sensor, junc, frame_str, result, camera_id)
+    # send_v2x_message_camera(sensor, junc, frame_str, result, camera_id)
 
     camera_folder = create_camera_folder(camera_id, junc, town_folder)
     file_name = os.path.join(camera_folder, f"{current_frame}.jpg")
@@ -773,6 +776,89 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
 
     return vehicle_list
 
+def create_pedestrian_generator(world, seed=42):
+    # 获取行人蓝图（排除小孩）
+    all_walkers = world.get_blueprint_library().filter('walker.pedestrian.*')
+    kid_ids = ['walker.pedestrian.0015', 'walker.pedestrian.0016', 'walker.pedestrian.0017']
+
+    adult_bps = [bp for bp in all_walkers if bp.id not in kid_ids]
+
+    # 排序
+    adult_bps.sort(key=lambda x: x.id)
+    local_rng = random.Random(seed)
+    local_rng.shuffle(adult_bps)
+
+    # 使用 yield 输出模型
+    for bp in itertools.cycle(adult_bps):
+        yield bp
+
+
+def get_or_create_pedestrian_script(world, num_pedestrians=100, filepath="pedestrians_generates_trajectory.json", seed=2024):
+    if os.path.exists(filepath):
+        print(f" 已找到轨迹 ")
+        with open(filepath, 'r') as f:
+            raw_script = json.load(f)
+
+        final_script = []
+        for item in raw_script:
+            spawn_loc = carla.Location(x=item["spawn_x"], y=item["spawn_y"], z=item["spawn_z"])
+            dest_loc = carla.Location(x=item["dest_x"], y=item["dest_y"], z=item["dest_z"])
+            final_script.append({
+                "spawn_point": carla.Transform(spawn_loc),
+                "destination": dest_loc,
+                "speed": item["speed"]
+            })
+        print(f" 成功加载 {len(final_script)} 名行人的运动轨迹！")
+        return final_script
+
+    # 设定最小距离
+    MIN_DISTANCE = 60
+
+    local_rng = random.Random(seed)
+    raw_script = []
+    final_script = []
+    generated_count = 0
+
+    # 每个目标最多允许尝试100次
+    max_attempts = num_pedestrians * 100
+
+    for attempt in range(max_attempts):
+        if generated_count >= num_pedestrians:
+            break
+
+        spawn_point = world.get_random_location_from_navigation()
+        destination = world.get_random_location_from_navigation()
+
+        if spawn_point is not None and destination is not None:
+            # 计算距离
+            distance = spawn_point.distance(destination)
+
+            # 只保留距离大于 MIN_DISTANCE 的路线
+            if distance >= MIN_DISTANCE:
+                speed = round(local_rng.uniform(1.1, 1.5), 2)
+
+                raw_script.append({
+                    "spawn_x": spawn_point.x, "spawn_y": spawn_point.y, "spawn_z": spawn_point.z,
+                    "dest_x": destination.x, "dest_y": destination.y, "dest_z": destination.z,
+                    "speed": speed
+                })
+
+                final_script.append({
+                    "spawn_point": carla.Transform(spawn_point),
+                    "destination": destination,
+                    "speed": speed
+                })
+                generated_count += 1
+
+    if generated_count < num_pedestrians:
+        print(
+            f"只找到了 {generated_count} 条大于 {MIN_DISTANCE} 米的路线。")
+
+    with open(filepath, 'w') as f:
+        json.dump(raw_script, f, indent=4)
+
+    print(f"轨迹生成完毕！已将 {generated_count} 名行人的轨迹保存在 {filepath}！")
+    return final_script
 
 # 生成随机运动行人
 def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20):
@@ -781,58 +867,73 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20):
     pedestrian_list = []
 
     # 获取普通行人蓝图（排除特殊类型）
-    walker_bps = [
-        bp for bp in world.get_blueprint_library().filter('walker.pedestrian*')
-        if not bp.id.split('.')[-1] in {'child', 'skeleton'}
-    ]
+    # walker_bps = [
+    #     bp for bp in world.get_blueprint_library().filter('walker.pedestrian*')
+    #     if not bp.id.split('.')[-1] in {'child', 'skeleton'}
+    # ]
 
+    auto_pedestrian_script = get_or_create_pedestrian_script(world, num_pedestrians)
+    pedestrian_gen = create_pedestrian_generator(world, seed=2024)
 
-    for _ in range(num_pedestrians):
-        # 获取安全生成位置
-        spawn_point = None
-        for _ in range(3):  # 最多尝试3次
-            location = world.get_random_location_from_navigation()
-            if location and 0 < location.z < 1.0:
-                spawn_point = carla.Transform(location)
-                break
-        if not spawn_point:
-            continue
+    controllers_list = []
+    walker_controller_bp = world.get_blueprint_library().find('controller.ai.walker')
 
-        # 生成行人
-        bp = random.choice(walker_bps)
-        pedestrian = world.try_spawn_actor(bp, spawn_point)
-        if not pedestrian:
-            continue
+    for script_data in auto_pedestrian_script:
 
+        # 用 next() 获取下一个模型
+        walker_bp = next(pedestrian_gen)
 
-        # 通过Actor接口启用物理
-        try:
-            pedestrian.set_simulate_physics(True)
-            world.tick()  # 同步模式下必须tick
-        except RuntimeError as e:
-            print(f"设置物理失败: {e}")
-            pedestrian.destroy()
-            continue
+        walker_actor = world.try_spawn_actor(walker_bp, script_data["spawn_point"])
+        if walker_actor:
+            pedestrian_list.append(walker_actor)
+            print(f"Spawned pedestrian: {walker_actor.id}")
+            controller_actor = world.try_spawn_actor(walker_controller_bp, carla.Transform(), walker_actor)
+            controllers_list.append(controller_actor)
 
-        # # 绑定控制器
-        # controller_bp = world.get_blueprint_library().find('controller.ai.walker')
-        # controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
-        # if controller:
-        #     controller.start()
-        #     controller.go_to_location(world.get_random_location_from_navigation())
-        #     pedestrian_list.append((pedestrian, controller))
-        # else:
-        #     pedestrian.destroy()
+    world.tick()
 
-        controller_bp = world.get_blueprint_library().find('controller.ai.walker')
-        controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
-        controller.start()  # 启用自动行走
-        controller.go_to_location(world.get_random_location_from_navigation())  # 设置目标点
+    for i, controller in enumerate(controllers_list):
+        script_data = auto_pedestrian_script[i]
+        controller.start()
+        controller.set_max_speed(script_data["speed"])
+        controller.go_to_location(script_data["destination"])
 
-        # 只将行人添加到列表，控制器不保存
-        pedestrian_list.append(pedestrian)
-
-        print(f"Spawned pedestrian: {pedestrian.id}")
+    # for _ in range(num_pedestrians):
+    #     # 获取安全生成位置
+    #     spawn_point = None
+    #     for _ in range(3):  # 最多尝试3次
+    #         location = world.get_random_location_from_navigation()
+    #         if location and 0 < location.z < 1.0:
+    #             spawn_point = carla.Transform(location)
+    #             break
+    #     if not spawn_point:
+    #         continue
+    #
+    #     # 生成行人
+    #     bp = random.choice(walker_bps)
+    #     pedestrian = world.try_spawn_actor(bp, spawn_point)
+    #     if not pedestrian:
+    #         continue
+    #
+    #
+    #     # 通过Actor接口启用物理
+    #     try:
+    #         pedestrian.set_simulate_physics(True)
+    #         world.tick()  # 同步模式下必须tick
+    #     except RuntimeError as e:
+    #         print(f"设置物理失败: {e}")
+    #         pedestrian.destroy()
+    #         continue
+    #
+    #     controller_bp = world.get_blueprint_library().find('controller.ai.walker')
+    #     controller = world.spawn_actor(controller_bp, carla.Transform(), pedestrian)
+    #     controller.start()  # 启用自动行走
+    #     controller.go_to_location(world.get_random_location_from_navigation())  # 设置目标点
+    #
+    #     # 只将行人添加到列表，控制器不保存
+    #     pedestrian_list.append(pedestrian)
+    #
+    #     print(f"Spawned pedestrian: {pedestrian.id}")
 
     return pedestrian_list
 
