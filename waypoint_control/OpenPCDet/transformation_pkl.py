@@ -59,6 +59,9 @@ def save_frames_to_mat(pkl_file, output_dir="mat_results", score_threshold=0.6):
                         current_score > score_threshold):
                     box = boxes_lidar[i]
                     # 转换为目标格式: [x, y, z, l, w, h, 0, 0, theta]
+                    theta = box[6]
+                    # 将弧度范围从[0,2π]调整到[-π,π]
+                    new_theta = (theta + np.pi) % (2 * np.pi) - np.pi
                     detection = [
                         float(box[0]),  # x
                         float(box[1]),  # y
@@ -68,7 +71,7 @@ def save_frames_to_mat(pkl_file, output_dir="mat_results", score_threshold=0.6):
                         float(box[5]),  # h (高度)
                         0.0,  # 占位符1
                         0.0,  # 占位符2
-                        float(box[6])  # yaw (旋转角)
+                        float(new_theta)  # yaw (旋转角)
                     ]
                     all_detections.append(detection)
 
@@ -157,7 +160,7 @@ def check_mat_files(output_dir="mat_results", max_files=5):
 
 # 主程序
 if __name__ == "__main__":
-    pkl_file_path = "result.pkl"  # 请替换为你的.pkl文件路径
+    pkl_file_path = "./output/cfgs/custom_models/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"  # 请替换为你的.pkl文件路径
     output_directory = "matdata"  # 输出目录
 
     try:

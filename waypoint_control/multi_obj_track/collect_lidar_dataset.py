@@ -17,13 +17,13 @@ from queue import Queue
 from queue import Empty
 from scipy.spatial.transform import Rotation as R
 relativePose_lidar_to_egoVehicle = [0, 0, 1.3, 0, 0, 0, 0, 0, 0]
-LIDAR_RANGE = 50   # 筛选可视距离雷达的车辆和行人
+LIDAR_RANGE = 51.2   # 筛选可视距离雷达的车辆和行人
 POINT_SAVE_TIME = 3000  # 保存数据数量
 
 
 # 创建保存雷达数据的文件夹
 def create_radar_folder():
-    folder_name = f"train_data"
+    folder_name = f"train_data/train_model/points"
     # 检查文件夹是否已存在，若不存在则创建
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
@@ -33,7 +33,7 @@ def create_radar_folder():
 
 # 创建保存标签数据的文件夹
 def create_label_folder():
-    folder_name = f"train_data/label"
+    folder_name = f"train_data/train_model/label"
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
         print(f"Created folder: {folder_name}")
@@ -123,7 +123,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
         # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
         rotation_matrix_lidar = lidar_to_world_inv[:3, :3] @ rotation_matrix_world
         rotation_lidar = R.from_matrix(rotation_matrix_lidar)
-        euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=True)
+        euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=False)
         # 输出转换后的 pitch, yaw, roll
         yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
         # 构造标签数据（Nx9 格式）
@@ -134,7 +134,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
         label = [
             bounding_box_location_lidar[0],  # x
             bounding_box_location_lidar[1],  # y
-            bounding_box_location_lidar[2] + 0.3,  # z ,需要把z替换成bounding_box.z
+            bounding_box_location_lidar[2],  # z ,需要把z替换成bounding_box.z
             length,
             width,
             height,
@@ -157,6 +157,34 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
     for pedestrian in pedestrian_list[1::step]:
     # for pedestrian in pedestrian_list:
         bounding_box = pedestrian.bounding_box
+        # # 1. 获取行人在世界中的绝对位置（脚底）
+        # actor_world_loc = pedestrian.get_transform().location
+        #
+        # # 2. 获取行人的旋转角度
+        # actor_rotation = pedestrian.get_transform().rotation
+        #
+        # # 3. 【关键修复】正确计算 BBox 中心点的世界坐标
+        # # 因为行人可能会旋转（Yaw），我们需要将局部偏移量也旋转，然后加上世界坐标
+        # # CARLA 提供了 transform 方法将局部坐标转为世界坐标：
+        # # 创建一个临时变量存 bbox 的相对位置
+        # bbox_local_location = bounding_box.location
+        #
+        # # 使用行人的 transform 将相对坐标转换为绝对世界坐标！
+        # # 这步之后，如果行人在山上，Z 也会自动加上山的高度
+        # bbox_world_location = pedestrian.get_transform().transform(bbox_local_location)
+        #
+        # # 4. 构造正确的齐次坐标阵
+        # bounding_box_location = np.array([
+        #     bbox_world_location.x,
+        #     bbox_world_location.y,
+        #     bbox_world_location.z,
+        #     1
+        # ])
+        #
+        # # 5. 转换到雷达坐标系
+        # bounding_box_location_lidar = lidar_to_world_inv @ bounding_box_location
+        # bounding_box_location_lidar = bounding_box_location_lidar[:3]
+
         bbox_z = bounding_box.location.z
         location = pedestrian.get_transform().location
         rotation = pedestrian.get_transform().rotation
@@ -164,6 +192,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
         # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
         bounding_box_location_lidar = lidar_to_world_inv @ bounding_box_location  # 矩阵乘法
         bounding_box_location_lidar = bounding_box_location_lidar[:3]  # 去掉齐次坐标部分，得到三维坐标
+
 
         # 获取边界框的宽长高
         bounding_box_extent = bounding_box.extent
@@ -177,7 +206,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
         # 使用逆变换矩阵将位置从世界坐标系转换到雷达坐标系
         rotation_matrix_lidar = lidar_to_world_inv[:3, :3] @ rotation_matrix_world
         rotation_lidar = R.from_matrix(rotation_matrix_lidar)
-        euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=True)
+        euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=False)
         # 输出转换后的 pitch, yaw, roll
         yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
 
@@ -280,42 +309,55 @@ def save_radar_data(radar_data, world, location, lidar_to_world_inv, lidar_yaw, 
     # 获取雷达数据并将其转化为numpy数组
     points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
     points = np.reshape(points, (len(points) // 4, 4))
-    location = points[:, :3]
+    # location = points[:, :3]
+    # 提取 points 的前四列
+    location = points[:, :4]
     # 将 location 转换为 float64（即 double 类型）
-    location = location.astype(np.float64)
-    intensity = points[:, 3].reshape(-1, 1).astype(np.float64)  # 获取强度数据（第四通道）
+    location = location.astype(np.float32)
+    # intensity = points[:, 3].reshape(-1, 1).astype(np.float64)  # 获取强度数据（第四通道）
     # intensity_scaled = np.round(intensity * 255).astype(np.uint8)
-    count = location.shape[0]
+    # count = location.shape[0]
     # 计算 x 的范围
-    x_limits = [np.min(location[:, 0]), np.max(location[:, 0])]  # x 轴的最小值和最大值
-    y_limits = [np.min(location[:, 1]), np.max(location[:, 1])]  # y 轴的最小值和最大值
-    z_limits = [np.min(location[:, 2]), np.max(location[:, 2])]  # z 轴的最小值和最大值
+    # x_limits = [np.min(location[:, 0]), np.max(location[:, 0])]  # x 轴的最小值和最大值
+    # y_limits = [np.min(location[:, 1]), np.max(location[:, 1])]  # y 轴的最小值和最大值
+    # z_limits = [np.min(location[:, 2]), np.max(location[:, 2])]  # z 轴的最小值和最大值
+
+    # 如果 timestamp 是单个值，创建重复的数组
+    # if np.isscalar(timestamp):
+    #     timestamp_array = np.full((location.shape[0], 1), timestamp, dtype=np.float32)
+    # else:
+    #     # 如果 timestamp 已经是数组，确保形状正确
+    #     timestamp_array = timestamp.reshape(-1, 1)
+
+    # 水平拼接 location 前四列和 timestamp
+    # datalog = np.column_stack([location, timestamp_array])
+    datalog = location
 
     # # 创建存储数据的文件夹（每个雷达一个文件夹）
     # radar_folder = create_radar_folder()
     # file_name = os.path.join(radar_folder, f"{current_frame}.mat")
-    LidarData = {
-        'PointCloud': {
-            'Location': location,
-            'Count': count,
-            'XLimits': x_limits,
-            'YLimits': y_limits,
-            'ZLimits': z_limits,
-            'Color': [],
-            'Normal': [],
-            'Intensity': intensity
-        },
-        'Timestamp': timestamp,
-        'Pose': {
-            'Position': relativePose_lidar_to_egoVehicle[:3],
-            'Velocity': [0, 0, 0],
-            'Orientation': [0, 0, 0]
-        },
-        'Detections': []
-    }
-    datalog = {
-        'LidarData': LidarData
-    }
+    # LidarData = {
+    #     'PointCloud': {
+    #         'Location': location,
+    #         'Count': count,
+    #         'XLimits': x_limits,
+    #         'YLimits': y_limits,
+    #         'ZLimits': z_limits,
+    #         'Color': [],
+    #         'Normal': [],
+    #         'Intensity': intensity
+    #     },
+    #     'Timestamp': timestamp,
+    #     'Pose': {
+    #         'Position': relativePose_lidar_to_egoVehicle[:3],
+    #         'Velocity': [0, 0, 0],
+    #         'Orientation': [0, 0, 0]
+    #     },
+    #     'Detections': []
+    # }
+    # datalog = {
+    #     'LidarData': LidarData
+    # }
     # 将点云数据保存为 .mat 文件
     # 使用 scipy.io.savemat 保存数据，MATLAB 可以读取的格式
     # scipy.io.savemat(file_name, {'datalog': datalog})
@@ -378,7 +420,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=42):
 
 
 # 生成随机运动行人
-def spawn_autonomous_pedestrians(world, num_pedestrians=150, random_seed=42):
+def spawn_autonomous_pedestrians(world, num_pedestrians=120, random_seed=42):
     random.seed(random_seed)
     np.random.seed(random_seed)
     pedestrian_list = []
@@ -464,7 +506,7 @@ def main():
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
         # 生成行人
-        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=150, random_seed=20)
+        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20)
         #启动行人碰撞
         for pedestrian in pedestrians:
             if "walker.pedestrian." in pedestrian.type_id:
@@ -508,7 +550,6 @@ def main():
             # 2. 保存 label 为 .txt
             label_folder = create_label_folder()
             with open(os.path.join(label_folder, f"{file_num}.txt"), 'w') as f:
-                f.write("# format: [x y z dx dy dz heading_angle category_name\n")
 
                 # 处理不同的数据结构
                 if isinstance(label, list):

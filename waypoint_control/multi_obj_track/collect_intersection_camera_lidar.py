@@ -33,7 +33,7 @@ from scipy.spatial.transform import Rotation as R
 from config import IntersectionConfig, town_configurations
 DATA_MUN = 500
 DROP_BUFFER_TIME = 50   # 车辆落地前的缓冲时间，防止车辆还没落地就开始保存图片
-FUSION_DETECTION_ACTUAL_DIS = 25  # 多目标跟踪的实际检测距离
+FUSION_DETECTION_ACTUAL_DIS = 51.2  # 多目标跟踪的实际检测距离
 WAITE_NEXT_INTERSECTION_TIME = 300  # 等待一定时间后第二路口相机雷达开始记录数据
 
 config_path = "sensor_config.json"
@@ -146,9 +146,15 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
         rotation_lidar = R.from_matrix(rotation_matrix_lidar)
         euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=True)
         # 输出转换后的 pitch, yaw, roll
-        yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
-        # 构造标签数据（Nx9 格式）
+        yaw_degrees, pitch_lidar, roll_lidar = euler_angles_lidar
 
+        # 将角度转换为弧度
+        # 此时范围会变成大约 [-3.14, 3.14]，即 [-π, π]
+        yaw_radians = yaw_degrees * (np.pi / 180.0)
+        # 将 [-π, π] 映射到 [0, 2π]
+        yaw_lidar = yaw_radians % (2 * np.pi)
+
+        # 构造标签数据（Nx9 格式）
         label = [
             bounding_box_location_lidar[0],  # x
             bounding_box_location_lidar[1],  # y
@@ -211,7 +217,12 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
         rotation_lidar = R.from_matrix(rotation_matrix_lidar)
         euler_angles_lidar = rotation_lidar.as_euler('zyx', degrees=True)
         # 输出转换后的 pitch, yaw, roll
-        yaw_lidar, pitch_lidar, roll_lidar = euler_angles_lidar
+        yaw_degrees, pitch_lidar, roll_lidar = euler_angles_lidar
+        # 将角度转换为弧度
+        # 此时范围会变成大约 [-3.14, 3.14]，即 [-π, π]
+        yaw_radians = yaw_degrees * (np.pi / 180.0)
+        # 将 [-π, π] 映射到 [0, 2π]
+        yaw_lidar = yaw_radians % (2 * np.pi)
 
         # 构造标签数据（Nx9 格式）
         label = [
@@ -325,7 +336,6 @@ def send_v2x_message_lidar(lidar_data, sensor, pkl_file_path, junc, world):
         print(f"[发包报错]: {e}")
 
 def send_lidar_message(data, sensor, world, junc):
-    print("123")
     # 将核心数据提取出来
     boxes_lidar = data['boxes_lidar']
     scores = data['score']
@@ -336,7 +346,6 @@ def send_lidar_message(data, sensor, world, junc):
         # 提取第 i 行的框和得分
         box = boxes_lidar[i]
         obj_score = scores[i]
-        print(obj_score)
         # 将框解包
         x, y, z, l, w, h, yaw = box
         x = format_8_chars(x)
@@ -348,7 +357,6 @@ def send_lidar_message(data, sensor, world, junc):
         yaw = format_8_chars(yaw)
         # 当得分大于0.6时，视为有效数据并发送
         if obj_score > 0.2:
-            print("you")
             # 获取当前时间戳 (保留4位小数即可)
             current_time = f"{time.time() - extra_time:.4f}"
             # 拼接成最简单的纯文本字符串，用逗号隔开
