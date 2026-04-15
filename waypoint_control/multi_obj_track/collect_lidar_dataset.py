@@ -157,33 +157,6 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, current_fr
     for pedestrian in pedestrian_list[1::step]:
     # for pedestrian in pedestrian_list:
         bounding_box = pedestrian.bounding_box
-        # # 1. 获取行人在世界中的绝对位置（脚底）
-        # actor_world_loc = pedestrian.get_transform().location
-        #
-        # # 2. 获取行人的旋转角度
-        # actor_rotation = pedestrian.get_transform().rotation
-        #
-        # # 3. 【关键修复】正确计算 BBox 中心点的世界坐标
-        # # 因为行人可能会旋转（Yaw），我们需要将局部偏移量也旋转，然后加上世界坐标
-        # # CARLA 提供了 transform 方法将局部坐标转为世界坐标：
-        # # 创建一个临时变量存 bbox 的相对位置
-        # bbox_local_location = bounding_box.location
-        #
-        # # 使用行人的 transform 将相对坐标转换为绝对世界坐标！
-        # # 这步之后，如果行人在山上，Z 也会自动加上山的高度
-        # bbox_world_location = pedestrian.get_transform().transform(bbox_local_location)
-        #
-        # # 4. 构造正确的齐次坐标阵
-        # bounding_box_location = np.array([
-        #     bbox_world_location.x,
-        #     bbox_world_location.y,
-        #     bbox_world_location.z,
-        #     1
-        # ])
-        #
-        # # 5. 转换到雷达坐标系
-        # bounding_box_location_lidar = lidar_to_world_inv @ bounding_box_location
-        # bounding_box_location_lidar = bounding_box_location_lidar[:3]
 
         bbox_z = bounding_box.location.z
         location = pedestrian.get_transform().location
