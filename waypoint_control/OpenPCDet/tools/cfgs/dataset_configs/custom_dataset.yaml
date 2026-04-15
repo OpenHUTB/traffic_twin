@@ -1,10 +1,10 @@
 DATASET: 'CustomDataset'
-DATA_PATH: '../data/custom'
+DATA_PATH: '../OpenPCDet/data/custom'
 
-POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
+POINT_CLOUD_RANGE: [-51.2, -51.2, -3.0, 51.2, 51.2, 3.0]
 
 MAP_CLASS_TO_KITTI: {
-    'Vehicle': 'Car',
+    'Car': 'Car',
     'Truck': 'Truck',
     'Pedestrian': 'Pedestrian',
 }
@@ -21,8 +21,8 @@ INFO_PATH: {
 
 POINT_FEATURE_ENCODING: {
     encoding_type: absolute_coordinates_encoding,
-    used_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp'],
-    src_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp'],
+    used_feature_list: ['x', 'y', 'z', 'intensity'],
+    src_feature_list: ['x', 'y', 'z', 'intensity'],
 }
 
 DATA_AUGMENTOR:
@@ -36,7 +36,7 @@ DATA_AUGMENTOR:
              filter_by_min_points: ['Car:5', 'Truck:5', 'Pedestrian:5'],
           }
 
-          SAMPLE_GROUPS: ['Car:10', 'Truck:10', 'Pedestrian:20']
+          SAMPLE_GROUPS: ['Car:10', 'Truck:10', 'Pedestrian:10']
           NUM_POINT_FEATURES: 4
           DATABASE_WITH_FAKELIDAR: False
           REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
@@ -62,7 +62,7 @@ DATA_PROCESSOR:
       }
 
     - NAME: transform_points_to_voxels
-      VOXEL_SIZE: [0.1, 0.1, 0.15]
+      VOXEL_SIZE: [0.05, 0.05, 0.1]
       MAX_POINTS_PER_VOXEL: 5
       MAX_NUMBER_OF_VOXELS: {
         'train': 150000,

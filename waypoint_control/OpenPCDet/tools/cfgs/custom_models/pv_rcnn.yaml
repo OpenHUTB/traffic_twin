@@ -1,7 +1,7 @@
 CLASS_NAMES: ['Car', 'Truck', 'Pedestrian']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: ../dataset_configs/custom_dataset.yaml
+    _BASE_CONFIG_: 'tools/cfgs/dataset_configs/custom_dataset.yaml'
 
 MODEL:
     NAME: PVRCNN
@@ -14,7 +14,7 @@ MODEL:
 
     MAP_TO_BEV:
         NAME: HeightCompression
-        NUM_BEV_FEATURES: 256
+        NUM_BEV_FEATURES: 384
 
     BACKBONE_2D:
         NAME: BaseBEVBackbone
@@ -37,19 +37,19 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Car',
-                'anchor_sizes': [[4.5, 1.9, 1.7]],
+                'anchor_sizes': [[4.53, 1.93, 1.63]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [0],
+                'anchor_bottom_heights': [-1.8],
                 'align_center': False,
                 'feature_map_stride': 8,
-                'matched_threshold': 0.55,
-                'unmatched_threshold': 0.4
+                'matched_threshold': 0.6,
+                'unmatched_threshold': 0.45
             },
             {
                 'class_name': 'Truck',
-                'anchor_sizes': [[5.3, 2.7, 2.5]],
+                'anchor_sizes': [[8.92, 3.34, 3.77]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [0],
+                'anchor_bottom_heights': [-1.8],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
@@ -57,9 +57,9 @@ MODEL:
             },
             {
                 'class_name': 'Pedestrian',
-                'anchor_sizes': [[0.5, 0.5, 1.91]],
+                'anchor_sizes': [[0.69, 0.69, 1.71]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [0],
+                'anchor_bottom_heights': [-1.8],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
@@ -89,6 +89,8 @@ MODEL:
         NUM_KEYPOINTS: 4096
         NUM_OUTPUT_FEATURES: 128
         SAMPLE_METHOD: FPS
+
+        NUM_BEV_FEATURES: 384
 
         FEATURES_SOURCE: ['bev', 'x_conv3', 'x_conv4', 'raw_points']
         SA_LAYER:
@@ -206,11 +208,11 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 2
+    BATCH_SIZE_PER_GPU: 8
     NUM_EPOCHS: 80
 
     OPTIMIZER: adam_onecycle
-    LR: 0.01
+    LR: 0.003
     WEIGHT_DECAY: 0.01
     MOMENTUM: 0.9
 
