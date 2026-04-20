@@ -37,7 +37,11 @@ def extract_target_data(data_dict):
             ], dtype=np.float32)
 
             cam_id = data_dict.get('相机编号', 'unknown')
-            return 'img', (cam_id, measurement)
+
+            # 提取类别
+            category = data_dict.get('类别', 'unknown')
+
+            return 'img', (cam_id, measurement, category)
 
     except (KeyError, ValueError):
         pass
@@ -47,8 +51,9 @@ def extract_target_data(data_dict):
 def process_single_file(txt_file_path, output_dir, current_time):
     # 雷达目标存储列表
     ptd_targets = []
-    # 为每个相机建立一个独立的列表
+    # 为每个相机建立一个独立的边框列表和类别列表
     camera_targets = {name: [] for name in camera_names}
+    camera_labels = {name: [] for name in camera_names}
 
     # 逐行读取与解析
     with open(txt_file_path, 'r', encoding='utf-8') as f:
@@ -68,9 +73,10 @@ def process_single_file(txt_file_path, output_dir, current_time):
             if dtype == 'ptd':
                 ptd_targets.append(target_data)
             elif dtype == 'img':
-                cam_id, measurement = target_data
+                cam_id, measurement, category = target_data
                 if cam_id in camera_targets:
                     camera_targets[cam_id].append(measurement)
+                    camera_labels[cam_id].append(category)
 
     # LidarData 结构
     LidarData = {
@@ -88,7 +94,8 @@ def process_single_file(txt_file_path, output_dir, current_time):
         ('ImagePath', 'O'),
         ('Pose', 'O'),
         ('Timestamp', 'float32'),
-        ('Detections', 'O')
+        ('Detections', 'O'),
+        ('Category', 'O')
     ])
 
     # 提取纯帧号
@@ -106,12 +113,14 @@ def process_single_file(txt_file_path, output_dir, current_time):
 
         # 该相机在此帧检测到的目标
         dets = camera_targets[cam_name]
+        labels = camera_labels[cam_name]
 
         CameraData[i] = (
             f"camera/{cam_name}",  # ImagePath
             cam_pose,  # Pose
             current_time,  # Timestamp
-            dets if dets else []  # Detections
+            dets if dets else [],  # Detections
+            labels if labels else []  # Category
         )
 
     # 封装成 datalog
