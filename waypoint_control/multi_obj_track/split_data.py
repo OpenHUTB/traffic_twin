@@ -11,12 +11,21 @@ def split_data_by_junction(input_file_path, base_output_dir):
     file_handles = {}
     junc_pattern = re.compile(r'路口号:\s*([^,]+)')
 
+    # 定义异常数据的关键字列表
+    abnormal_keywords = ['NULL', 'null', 'NaN', 'None']
+
     try:
         with open(input_file_path, 'r', encoding='utf-8') as f_in:
-            for line in f_in:
+            for line_num, line in enumerate(f_in, 1):
                 line_clean = line.strip()
                 if not line_clean:
                     continue
+
+                # 检查当前行是否包含任何异常关键字
+                for keyword in abnormal_keywords:
+                    if keyword in line_clean:
+                        # 抛出 ValueError，中断当前文件的处理
+                        raise ValueError(f"在第 {line_num} 行检测到异常数据 '{keyword}' -> 内容: {line_clean}")
 
                 match = junc_pattern.search(line_clean)
                 if match:

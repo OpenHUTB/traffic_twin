@@ -356,7 +356,7 @@ def send_lidar_message(data, sensor, world, junc):
         h = format_8_chars(h)
         yaw = format_8_chars(yaw)
         # 当得分大于0.6时，视为有效数据并发送
-        if obj_score > 0.2:
+        if obj_score > 0.6:
             # 获取当前时间戳 (保留4位小数即可)
             current_time = f"{time.time() - extra_time:.4f}"
             # 拼接成最简单的纯文本字符串，用逗号隔开
@@ -364,7 +364,6 @@ def send_lidar_message(data, sensor, world, junc):
             msg = carla.CustomV2XBytes()
             msg.set_bytes(bytearray(text_payload, 'utf-8'))
             sensor.send(msg)
-            world.tick()
 
 
 def format_8_chars(val):
@@ -560,13 +559,13 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
         f.write(str(file_num) + "\n")  # 添加换行符
 
     # 运行自动化目标检测脚本
-    # duration = run_shell_script()
-    # global extra_time
-    # extra_time += duration
+    duration = run_shell_script()
+    global extra_time
+    extra_time += duration
 
     sensor = sensors["v2x_point"]
     pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
-    # send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc, world)
+    send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc, world)
 
 # 更新目标检测的文件夹
 def clear_folder_contents(folder_path):
@@ -607,8 +606,8 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
     image = image.reshape((image_data.height, image_data.width, 4))  # 4th channel is alpha
     image = image[:, :, :3]  # 去掉 alpha 通道，只保留 RGB
     # 使用yolov8检测图片
-    # results = model.predict(source=image)
-    # result = results[0]
+    results = model.predict(source=image)
+    result = results[0]
 
     if camera_id == "back_camera":
         sensor = sensors["v2x_back"]
@@ -623,7 +622,7 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
     elif camera_id == "front_left_camera":
         sensor = sensors["v2x_right"]
 
-    # send_v2x_message_camera(sensor, junc, frame_str, result, camera_id)
+    send_v2x_message_camera(sensor, junc, frame_str, result, camera_id)
 
     camera_folder = create_camera_folder(camera_id, junc, town_folder)
     file_name = os.path.join(camera_folder, f"{current_frame}.jpg")
@@ -1158,38 +1157,68 @@ def recognize_vehicle_class(vehicle):
         return "Car"
 
 
+# def run_shell_script():
+#     # 定义脚本的绝对路径
+#     script_path = "/home/yons/object_detection.sh"
+#
+#     # 定义工作目录
+#     work_dir = "/mnt/mydrive/traffic_twin/waypoint_control/multi_obj_track"
+#     print("开始执行 Shell 脚本...")
+#     # 记录开始时间 (高精度)
+#     start_time = time.time()
+#     try:
+#         # 使用 subprocess.run 执行脚本
+#         # cwd=work_dir 确保脚本是在 OpenPCDet 根目录下运行的
+#         # capture_output=True 可以截获脚本在终端打印的信息
+#         result = subprocess.run(
+#             ["bash", script_path],
+#             cwd=work_dir,
+#             capture_output=True,
+#             text=True,
+#             check=True
+#         )
+#
+#         print(" 脚本执行成功！输出如下：")
+#         print(result.stdout)
+#         # 记录结束时间
+#         end_time = time.time()
+#         # 计算耗时
+#         duration = end_time - start_time
+#         return duration
+#
+#     except subprocess.CalledProcessError as e:
+#         print(" 脚本执行失败！")
+#         print(f"错误信息：\n{e.stderr}")
+
+
 def run_shell_script():
     # 定义脚本的绝对路径
     script_path = "/home/yons/object_detection.sh"
-
     # 定义工作目录
     work_dir = "/mnt/mydrive/traffic_twin/waypoint_control/multi_obj_track"
-    print("开始执行 Shell 脚本...")
+
+    print("开始执行检测流程...")
+
     # 记录开始时间 (高精度)
     start_time = time.time()
+
     try:
-        # 使用 subprocess.run 执行脚本
-        # cwd=work_dir 确保脚本是在 OpenPCDet 根目录下运行的
-        # capture_output=True 可以截获脚本在终端打印的信息
-        result = subprocess.run(
+        subprocess.run(
             ["bash", script_path],
             cwd=work_dir,
-            capture_output=True,
-            text=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             check=True
         )
 
-        print(" 脚本执行成功！输出如下：")
-        print(result.stdout)
-        # 记录结束时间
+        # 记录结束时间并计算耗时
         end_time = time.time()
-        # 计算耗时
         duration = end_time - start_time
         return duration
 
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         print(" 脚本执行失败！")
-        print(f"错误信息：\n{e.stderr}")
+        return -1
 
 # 主函数
 def main():

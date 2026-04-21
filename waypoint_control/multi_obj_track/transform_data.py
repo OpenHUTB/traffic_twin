@@ -39,7 +39,9 @@ def extract_target_data(data_dict):
             cam_id = data_dict.get('相机编号', 'unknown')
 
             # 提取类别
-            category = data_dict.get('类别', 'unknown')
+            category = np.array([
+                data_dict.get('类别', 'unknown')
+            ])
 
             return 'img', (cam_id, measurement, category)
 
@@ -154,10 +156,26 @@ def batch_extract_folder(input_folder, output_folder):
 
     print("完成转换")
 
-if __name__ == '__main__':
-    # 预处理路口数据路径
-    INPUT_DIR = './split_data/junc1'
-    # 结果保存路径
-    OUTPUT_DIR = './Town10HD_Opt/test_data_junc1'
 
-    batch_extract_folder(INPUT_DIR, OUTPUT_DIR)
+if __name__ == '__main__':
+    # 设定要处理的路口编号范围 (1 到 5)
+    junction_numbers = range(1, 6)
+
+    for i in junction_numbers:
+        junction_name = f'junc{i}'
+
+        # 动态生成输入和输出路径
+        INPUT_DIR = f'./split_data/{junction_name}'
+        OUTPUT_DIR = f'./Town10HD_Opt/test_data_{junction_name}'
+
+        print(f" 正在处理路口: {junction_name}")
+
+        # 检查输入文件夹是否存在
+        if not os.path.exists(INPUT_DIR):
+            print(f" 找不到输入文件夹 '{INPUT_DIR}'，跳过当前路口。")
+            continue
+
+        # 调用批处理函数
+        batch_extract_folder(INPUT_DIR, OUTPUT_DIR)
+
+    print("\n 所有指定路口数据提取任务已全部完成！")
