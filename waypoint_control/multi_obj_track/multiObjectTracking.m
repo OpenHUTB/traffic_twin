@@ -21,24 +21,26 @@ function multiObjectTracking(junc, initTime, runFrameNum)
  
     % 根据排序索引重新排列 matFiles 结构体数组
     matFiles = matFiles(idx);
-    
-    % 加载第一帧数据 
-    fileName = fullfile(dataPath, matFiles(1).name);
-    load(fileName, "datalog");
-    
 
+    % 拆分字符串提取地图和路口名
+    parts = strsplit(junc, '/');
+    mapName = parts{1};   
+    juncName = parts{2};  
+    % 获取当前路口的配置参数
+    params = getTrackerConfig(juncName);
+    
     tracker = trackerJPDA( ...
         TrackLogic="Integrated", ...
         FilterInitializationFcn=@helperInitLidarCameraFusionFilter, ...
-        AssignmentThreshold=[5 30], ...   % 关联阈值
+        AssignmentThreshold=params.AssignmentThreshold, ...   % 关联阈值
         MaxNumTracks=500, ...
-        DetectionProbability=0.7, ...      % 检测到目标的概率
+        DetectionProbability=params.DetectionProbability, ...      % 检测到目标的概率
         MaxNumEvents=50, ...
-        ClutterDensity=1e-7, ...
-        NewTargetDensity=1e-6, ...
-        ConfirmationThreshold=0.95, ...      % 确定为目标的概率
-        DeletionThreshold=0.45, ...           % 表示一个跟踪目标被删除所需的最大置信度
-        DeathRate=0.5);                     
+        ClutterDensity=params.ClutterDensity, ...
+        NewTargetDensity=params.NewTargetDensity, ...
+        ConfirmationThreshold=params.ConfirmationThreshold, ...      % 确定为目标的概率
+        DeletionThreshold=params.DeletionThreshold, ...           % 表示一个跟踪目标被删除所需的最大置信度
+        DeathRate=params.DeathRate);                     
                           
     % 定义轨迹点的数量
     numFrames = runFrameNum;
