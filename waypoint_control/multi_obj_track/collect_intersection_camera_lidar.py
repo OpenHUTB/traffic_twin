@@ -24,7 +24,11 @@ import subprocess
 import pickle
 import struct
 import itertools
+import torch
+import torchvision.models as models
+import torchvision.transforms as transforms
 
+from PIL import Image
 from fontTools.merge.util import current_time
 from ultralytics import YOLO
 from queue import Queue
@@ -591,7 +595,7 @@ def clear_folder_contents(folder_path):
     print(f"文件夹内容已清空: {folder_path}")
 
 # 定义函数来保存相机图像数据
-def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, num):
+def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, num, resnet_model, img_preprocess, compute_device):
     global base_frame
     current_frame = image_data.frame
     # 如果是第一帧，就把它的 ID 存为基数
@@ -622,7 +626,7 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
     elif camera_id == "front_left_camera":
         sensor = sensors["v2x_right"]
 
-    send_v2x_message_camera(sensor, junc, frame_str, result, camera_id)
+    send_v2x_message_camera(sensor, junc, frame_str, result, camera_id, image, resnet_model, img_preprocess, compute_device)
 
     camera_folder = create_camera_folder(camera_id, junc, town_folder)
     file_name = os.path.join(camera_folder, f"{current_frame}.jpg")
@@ -634,13 +638,16 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
     return image
 
 
-def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id):
+def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, image=None,
+                            model=None, preprocess=None, device=None):
     try:
         # 简化路口编号
         junc = junc.split('_')[-1]
         # 目标类别名称
         target_classes = ['person', 'car', 'truck', 'bus']
         boxes = result.boxes
+
+        orig_img = result.orig_img if hasattr(result, 'orig_img') else image
 
         # 遍历图片中的每一个检测框
         for i in range(len(boxes)):
@@ -659,6 +666,29 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id):
                     # 提取中心点和宽高
                     coords = boxes.xywh[i].tolist()
                     x, y, w, h =  coords
+                    if orig_img is not None and model is not None:
+                        xyxy = boxes.xyxy[i].tolist()
+                        x1, y1, x2, y2 = [int(val) for val in xyxy]
+
+                        # 边界保护
+                        img_h, img_w = orig_img.shape[:2]
+                        x1, y1 = max(0, x1), max(0, y1)
+                        x2, y2 = min(img_w, x2), min(img_h, y2)
+
+                        # 切片裁剪
+                        cropped_image = orig_img[y1:y2, x1:x2]
+
+                        # 检查裁剪后的图像是否有效
+                        if cropped_image.size > 0:
+                            # 调用独立的函数提取特征
+                            feature_vector = extract_feature(
+                                cropped_image,
+                                model,
+                                preprocess,
+                                device
+                            )
+                            # 这里的feature_vector是一个 shape 为 (2048,) 的 numpy 数组
+
                     x = format_8_chars(x)
                     y = format_8_chars(y)
                     w = format_8_chars(w)
@@ -676,6 +706,28 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id):
         import traceback
         traceback.print_exc()
         print(f" [发包报错]: {e}")
+
+
+def extract_feature(cropped_image_bgr, model, preprocess, device):
+    """
+    提取裁剪图像的特征向量
+    """
+    if cropped_image_bgr.size == 0:
+        return None
+
+    # BGR 转 RGB
+    img_rgb = cv2.cvtColor(cropped_image_bgr, cv2.COLOR_BGR2RGB)
+    img_pil = Image.fromarray(img_rgb)
+
+    # 预处理并增加 Batch 维度: (1, C, H, W)
+    input_tensor = preprocess(img_pil).unsqueeze(0).to(device)
+
+    # 提取特征
+    with torch.no_grad():
+        feature = model(input_tensor)
+
+    # 展平为 1D 数组 (长度为 2048)
+    return feature.squeeze().cpu().numpy()
 
 def sensor_callback(sensor_data, sensor_queue, sensor_name):
     sensor_queue.put((sensor_data, sensor_name))
@@ -1220,6 +1272,32 @@ def run_shell_script():
         print(" 脚本执行失败！")
         return -1
 
+
+def init_resnet50_extractor():
+    """
+    初始化并返回 ResNet50 模型、预处理流程和运行设备。
+    """
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    # 加载 ResNet50 预训练模型
+    resnet50 = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+
+    # 去掉全连接层，使其输出 2048 维的特征向量
+    resnet50.fc = torch.nn.Identity()
+
+    resnet50 = resnet50.to(device)
+    resnet50.eval()  # 切换到评估模式
+
+    # 定义预处理流程
+    preprocess = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    return resnet50, preprocess, device
+
+
 # 主函数
 def main():
     argparser = argparse.ArgumentParser(
@@ -1301,8 +1379,9 @@ def main():
         'rotation_frequency': '20'
     }
 
-    # 加载yolo模型
+    # 加载yolo,resnet50模型
     model = YOLO('yolov8n.pt')
+    resnet_model, img_preprocess, compute_device = init_resnet50_extractor()
 
     try:
         # 设置随机种子
@@ -1398,7 +1477,7 @@ def main():
                 if "lidar" in sensor_name:  # lidar数据
                     save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors, num)
                 else:
-                    save_camera_data(data, sensor_name, junc, town_folder, model, sensors, num)
+                    save_camera_data(data, sensor_name, junc, town_folder, model, sensors, num, resnet_model, img_preprocess, compute_device)
             # time.sleep(0.05)
             folder_index += 1
 
