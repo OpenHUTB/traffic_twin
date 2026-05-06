@@ -27,6 +27,7 @@ import itertools
 import torch
 import torchvision.models as models
 import torchvision.transforms as transforms
+import joblib
 
 from PIL import Image
 from fontTools.merge.util import current_time
@@ -595,7 +596,7 @@ def clear_folder_contents(folder_path):
     print(f"文件夹内容已清空: {folder_path}")
 
 # 定义函数来保存相机图像数据
-def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, num, resnet_model, img_preprocess, compute_device):
+def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, num, pca_model, quantize_scale, resnet_model, img_preprocess, compute_device):
     global base_frame
     current_frame = image_data.frame
     # 如果是第一帧，就把它的 ID 存为基数
@@ -626,7 +627,7 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
     elif camera_id == "front_left_camera":
         sensor = sensors["v2x_right"]
 
-    send_v2x_message_camera(sensor, junc, frame_str, result, camera_id, image, resnet_model, img_preprocess, compute_device)
+    send_v2x_message_camera(sensor, junc, frame_str, result, camera_id, pca_model, quantize_scale, image, resnet_model, img_preprocess, compute_device)
 
     camera_folder = create_camera_folder(camera_id, junc, town_folder)
     file_name = os.path.join(camera_folder, f"{current_frame}.jpg")
@@ -638,7 +639,7 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
     return image
 
 
-def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, image=None,
+def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model, quantize_scale, image=None,
                             model=None, preprocess=None, device=None):
     try:
         # 简化路口编号
@@ -687,7 +688,15 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, image=Non
                                 preprocess,
                                 device
                             )
-                            # 这里的feature_vector是一个 shape 为 (2048,) 的 numpy 数组
+                            # 压缩特征值
+                            feature_bytes = compress_feature_to_24bytes(feature_vector, pca_model, quantize_scale)
+                            frame_id = 1024
+                            obj_id = 5
+
+                            text_payload = struct.pack('<i d 24s', frame_id, obj_id, feature_bytes)
+                            msg = carla.CustomV2XBytes()
+                            msg.set_bytes(bytearray(text_payload))
+                            sensor.send(msg)
 
                     x = format_8_chars(x)
                     y = format_8_chars(y)
@@ -706,6 +715,18 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, image=Non
         import traceback
         traceback.print_exc()
         print(f" [发包报错]: {e}")
+
+
+def compress_feature_to_24bytes(feature_2048, pca, scale):
+    """
+    将 2048 维特征压缩为 24 字节的二进制流
+    """
+    # PCA 降维
+    feature_24d = pca.transform(feature_2048.reshape(1, -1))[0]
+    # INT8 量化
+    quantized_feature = np.clip(np.round(feature_24d * scale), -128, 127).astype(np.int8)
+    # 转为纯二进制字节流
+    return quantized_feature.tobytes()
 
 
 def extract_feature(cropped_image_bgr, model, preprocess, device):
@@ -1061,21 +1082,57 @@ def _on_v2x_received(event):
         try:
             # 获取底层数据
             parsed_data = custom_data.get()
+            raw_payload = None
             text_payload = ""
+            is_binary_feature = False
 
-            # 智能提取文本内容
+            # 智能提取数据载体
             if isinstance(parsed_data, dict):
-                payload = parsed_data.get("Message", {}).get("Message", {}).get("Bytes", "")
-                if isinstance(payload, (bytes, bytearray)):
-                    text_payload = payload.decode('utf-8')
-                elif isinstance(payload, str):
-                    text_payload = payload
-            elif isinstance(parsed_data, (bytes, bytearray)):
-                text_payload = parsed_data.decode('utf-8')
-            elif isinstance(parsed_data, str):
-                text_payload = parsed_data
+                raw_payload = parsed_data.get("Message", {}).get("Message", {}).get("Bytes", "")
+            else:
+                raw_payload = parsed_data
+
+            if isinstance(raw_payload, (bytes, bytearray)):
+                try:
+                    text_payload = raw_payload.decode('utf-8')
+                except UnicodeDecodeError:
+                    is_binary_feature = True
+            elif isinstance(raw_payload, str):
+                text_payload = raw_payload
             else:
                 continue
+
+            if is_binary_feature:
+                try:
+                    frame_id, send_time, feature_bytes = struct.unpack('<i d 24s',  raw_payload)
+
+                    # 反量化恢复 24 维浮点特征
+                    quantized_feature = np.frombuffer(feature_bytes, dtype=np.int8)
+                    feature_24d = quantized_feature.astype(np.float32) / 25.5
+
+                    # 计算当前延迟
+                    receive_time = time.time() - extra_time
+                    latency_ms = (receive_time - send_time) * 1000
+
+                    # 保存为.txt文件
+                    BASE_SAVE_DIR = "./v2x_logs"
+                    txt_file_path = os.path.join(BASE_SAVE_DIR, f"frame_{frame_id:06d}.txt")
+                    feat_str = ", ".join([f"{v:.3f}" for v in feature_24d])
+
+                    with open(txt_file_path, "a", encoding="utf-8") as f:
+                        log_line = (f"数据类型: 包含特征的二进制包, "
+                                    f"发送时间: {send_time}, "
+                                    f"接收时间: {receive_time}, "
+                                    f"延迟(ms): {latency_ms:.2f}, "
+                                    f"24维特征: [{feat_str}]\n")
+                        f.write(log_line)
+
+                except struct.error as e:
+                    print(f" [二进制解包失败] 长度不匹配: {e}")
+
+                # 二进制数据处理完毕，跳过下方的文本处理逻辑
+                continue
+
 
             # 解析逗号分隔的 "帧ID,发送时间"
             if ',' not in text_payload:
@@ -1140,10 +1197,12 @@ def _on_v2x_received(event):
                                 f"数据类型: {data_type}\n")
                     f.write(log_line)
 
-        except ValueError:
+        except ValueError as e:
             pass
         except Exception as e:
             print(f" [解析与保存报错]: {e}")
+
+
 def destroy_actor(lidar, camera_dict, vehicles, sensor_queue, pedestrians):
     if lidar is not None:
         lidar.stop()  # 确保停止传感器线程
@@ -1379,9 +1438,13 @@ def main():
         'rotation_frequency': '20'
     }
 
-    # 加载yolo,resnet50模型
+    # 加载所需的所有模型
     model = YOLO('yolov8n.pt')
     resnet_model, img_preprocess, compute_device = init_resnet50_extractor()
+    pca_data = joblib.load("v2x_pca_model.pkl")
+    pca_model = pca_data['pca_model']
+    quantize_scale = pca_data['quantize_scale']
+    print("模型加载完成！")
 
     try:
         # 设置随机种子
@@ -1477,7 +1540,7 @@ def main():
                 if "lidar" in sensor_name:  # lidar数据
                     save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors, num)
                 else:
-                    save_camera_data(data, sensor_name, junc, town_folder, model, sensors, num, resnet_model, img_preprocess, compute_device)
+                    save_camera_data(data, sensor_name, junc, town_folder, model, sensors, num, pca_model, quantize_scale, resnet_model, img_preprocess, compute_device)
             # time.sleep(0.05)
             folder_index += 1
 
