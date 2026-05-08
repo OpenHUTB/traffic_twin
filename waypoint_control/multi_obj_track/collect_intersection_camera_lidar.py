@@ -650,6 +650,8 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model
 
         orig_img = result.orig_img if hasattr(result, 'orig_img') else image
 
+        number = 0
+
         # 遍历图片中的每一个检测框
         for i in range(len(boxes)):
             # 提取置信度
@@ -663,6 +665,7 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model
 
                 # 只保留人和车
                 if class_name in target_classes:
+                    number = number + 1
                     current_time = f"{time.time() - extra_time:.4f}"
                     # 提取中心点和宽高
                     coords = boxes.xywh[i].tolist()
@@ -690,10 +693,10 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model
                             )
                             # 压缩特征值
                             feature_bytes = compress_feature_to_24bytes(feature_vector, pca_model, quantize_scale)
-                            frame_id = 1024
-                            obj_id = 5
+                            frameid = int(frame_id)
+                            junc_id = int(junc[4:])
 
-                            text_payload = struct.pack('<i d 24s', frame_id, obj_id, feature_bytes)
+                            text_payload = struct.pack('<i d 20s i 24s', frameid, junc_id, camera_id.encode('utf-8'), number, feature_bytes)
                             msg = carla.CustomV2XBytes()
                             msg.set_bytes(bytearray(text_payload))
                             sensor.send(msg)
@@ -706,7 +709,7 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model
                     # 统一把各种车叫做 "vehicle"，人叫 "person"
                     final_type = "person" if class_name == "person" else "vehicle"
 
-                    text_payload = f"{frame_id},{junc},{camera_id},{final_type},{current_time},{x},{y},{w},{h},img"
+                    text_payload = f"{frame_id},{junc},{camera_id},{final_type},{current_time},{x},{y},{w},{h},{number},img"
                     msg = carla.CustomV2XBytes()
                     msg.set_bytes(bytearray(text_payload, 'utf-8'))
                     sensor.send(msg)
@@ -1104,15 +1107,12 @@ def _on_v2x_received(event):
 
             if is_binary_feature:
                 try:
-                    frame_id, send_time, feature_bytes = struct.unpack('<i d 24s',  raw_payload)
+                    frame_id, junc_id, camera_id, number, feature_bytes = struct.unpack('<i d 20s i 24s',  raw_payload)
+                    camera_id = camera_id.decode('utf-8').strip('\x00')
 
                     # 反量化恢复 24 维浮点特征
                     quantized_feature = np.frombuffer(feature_bytes, dtype=np.int8)
                     feature_24d = quantized_feature.astype(np.float32) / 25.5
-
-                    # 计算当前延迟
-                    receive_time = time.time() - extra_time
-                    latency_ms = (receive_time - send_time) * 1000
 
                     # 保存为.txt文件
                     BASE_SAVE_DIR = "./v2x_logs"
@@ -1120,10 +1120,9 @@ def _on_v2x_received(event):
                     feat_str = ", ".join([f"{v:.3f}" for v in feature_24d])
 
                     with open(txt_file_path, "a", encoding="utf-8") as f:
-                        log_line = (f"数据类型: 包含特征的二进制包, "
-                                    f"发送时间: {send_time}, "
-                                    f"接收时间: {receive_time}, "
-                                    f"延迟(ms): {latency_ms:.2f}, "
+                        log_line = (f"路口号: {junc_id}, "
+                                    f"相机编号: {camera_id}, "
+                                    f"编号: {number}, "
                                     f"24维特征: [{feat_str}]\n")
                         f.write(log_line)
 
@@ -1139,9 +1138,10 @@ def _on_v2x_received(event):
                 continue
 
             data_list = text_payload.split(',')
-            data_length = len(data_list)
+            # data_length = len(data_list)
+            data_class = data_list[-1]
             # 点云数据
-            if data_length == 11:
+            if data_class == "ptd":
                 frame_id_str, junc, x, y, z, l, w, h, yaw, send_time_str, data_type = text_payload.split(',')
                 frame_id = int(frame_id_str)
                 send_time = float(send_time_str)
@@ -1170,8 +1170,8 @@ def _on_v2x_received(event):
                     f.write(log_line)
 
             # 图片数据
-            elif data_length == 10:
-                frame_id_str, junc, camera_id, final_type, send_time_str, x, y, w, h, data_type = text_payload.split(',')
+            elif data_class == "img":
+                frame_id_str, junc, camera_id, final_type, send_time_str, x, y, w, h, number, data_type = text_payload.split(',')
                 frame_id = int(frame_id_str)
                 send_time = float(send_time_str)
 
@@ -1186,6 +1186,7 @@ def _on_v2x_received(event):
                 with open(txt_file_path, "a", encoding="utf-8") as f:
                     log_line = (f"路口号: {junc}, "
                                 f"相机编号: {camera_id}, "
+                                f"编号: {number}, "
                                 f"类别: {final_type}, "
                                 f"x: {x}, "
                                 f"y: {y}, "
