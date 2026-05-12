@@ -694,9 +694,9 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model
                             # 压缩特征值
                             feature_bytes = compress_feature_to_24bytes(feature_vector, pca_model, quantize_scale)
                             frameid = int(frame_id)
-                            junc_id = int(junc[4:])
+                            # junc_id = int(junc[4:])
 
-                            text_payload = struct.pack('<i d 20s i 24s', frameid, junc_id, camera_id.encode('utf-8'), number, feature_bytes)
+                            text_payload = struct.pack('<i 5s 20s i 24s', frameid, junc.encode('utf-8'), camera_id.encode('utf-8'), number, feature_bytes)
                             msg = carla.CustomV2XBytes()
                             msg.set_bytes(bytearray(text_payload))
                             sensor.send(msg)
@@ -1107,8 +1107,9 @@ def _on_v2x_received(event):
 
             if is_binary_feature:
                 try:
-                    frame_id, junc_id, camera_id, number, feature_bytes = struct.unpack('<i d 20s i 24s',  raw_payload)
+                    frame_id, junc_id, camera_id, number, feature_bytes = struct.unpack('<i 5s 20s i 24s',  raw_payload)
                     camera_id = camera_id.decode('utf-8').strip('\x00')
+                    junc_id = junc_id.decode('utf-8').strip('\x00')
 
                     # 反量化恢复 24 维浮点特征
                     quantized_feature = np.frombuffer(feature_bytes, dtype=np.int8)
