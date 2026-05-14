@@ -1060,7 +1060,7 @@ def spawn_v2x_sensors(world, lidar_transform, z_height=2.57):
 def do_nothing(data):
     pass
 
-def spawn_v2x_receiver(world):
+def spawn_v2x_receiver(world, quantize_scale):
     location = carla.Location(x=0, y=0, z=2.62)
     transform = carla.Transform(location, carla.Rotation(yaw=0))
 
@@ -1070,11 +1070,11 @@ def spawn_v2x_receiver(world):
     bp.set_attribute("channel_id", "5")
     # 生成传感器
     receiver = world.spawn_actor(bp, transform)
-    receiver.listen(lambda data: _on_v2x_received(data))
+    receiver.listen(lambda data: _on_v2x_received(data, quantize_scale))
 
     return receiver
 
-def _on_v2x_received(event):
+def _on_v2x_received(event, quantize_scale):
     """
     接收端回调函数：将所有帧的数据保存在同一个文件夹下的独立 txt 中
     """
@@ -1113,7 +1113,7 @@ def _on_v2x_received(event):
 
                     # 反量化恢复 24 维浮点特征
                     quantized_feature = np.frombuffer(feature_bytes, dtype=np.int8)
-                    feature_24d = quantized_feature.astype(np.float32) / 15.5815
+                    feature_24d = quantized_feature.astype(np.float32) / quantize_scale
 
                     # 保存为.txt文件
                     BASE_SAVE_DIR = "./v2x_logs"
@@ -1489,7 +1489,7 @@ def main():
         # 生成并启动V2X数据传输端
         sensors = spawn_v2x_sensors(world, lidar_transform, z_height=2.62)
         # 生成并启动V2X数据收集端
-        receiver = spawn_v2x_receiver(world)
+        receiver = spawn_v2x_receiver(world, quantize_scale)
         # 定义保存数据的唯一总文件夹
         BASE_SAVE_DIR = "./v2x_latency_logs"
         # 在程序启动时，确保总文件夹存在（如果不存在则创建）

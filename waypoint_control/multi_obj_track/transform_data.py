@@ -265,6 +265,6 @@ if __name__ == '__main__':
 
         # 调用批处理函数
         batch_extract_folder(INPUT_DIR, OUTPUT_DIR, feat_lookup=feat_dict, junction_name=junction_name)
-        print(f"【DEBUG】路口 {junction_name} 成功加载了 {len(feat_dict)} 条特征！")
+        print(f"路口 {junction_name} 成功加载了 {len(feat_dict)} 条特征！")
 
     print("\n 所有指定路口数据提取任务已全部完成！")
