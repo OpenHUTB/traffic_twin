@@ -53,6 +53,7 @@ def extract_target_data(data_dict):
 
 
 def process_single_file(txt_file_path, output_dir, current_time, feat_lookup=None, junction_name=None):
+    frame_name = os.path.basename(txt_file_path).replace('.txt', '')
     # 雷达目标存储列表
     ptd_targets = []
     # 为每个相机建立一个独立的边框列表和类别列表
@@ -87,12 +88,12 @@ def process_single_file(txt_file_path, output_dir, current_time, feat_lookup=Non
                     camera_ids[cam_id].append(target_id)
 
                     if feat_lookup and junction_name:
-                        key = (junction_name, cam_id, target_id)
+                        key = (junction_name, frame_name, cam_id, target_id)
                         feat = feat_lookup.get(key, [0.0]*24)
                     else:
                         feat = [0.0]*24    # 无特征时填0
                     camera_features[cam_id].append(feat)
-                    # camera_features[cam_id].append(feat.tolist())
+
 
     # LidarData 结构
     LidarData = {
@@ -131,14 +132,15 @@ def process_single_file(txt_file_path, output_dir, current_time, feat_lookup=Non
         # 该相机在此帧检测到的目标
         dets = camera_targets[cam_name]
         labels = camera_labels[cam_name]
+        feats = camera_features[cam_name]
 
         CameraData[i] = (
             f"camera/{cam_name}",  # ImagePath
             cam_pose,  # Pose
             current_time,  # Timestamp
-            dets if dets else [],  # Detections
-            labels if labels else [],  # Category
-            feat if feat else[]   # Feat
+            np.vstack(dets) if dets else np.empty((0, 4)),  # Detections
+            np.vstack(labels) if labels else np.empty((0, 1)),  # Category
+            np.array(feats) if feats else np.empty((0, 24))   # Feat
         )
 
     # 封装成 datalog
@@ -165,6 +167,10 @@ def load_features_for_junction(feature_dir, junction_name):
 
     feat_files = sorted(glob.glob(os.path.join(junction_feat_dir, 'frame_*.txt')))
     for fpath in feat_files:
+
+        # 提取特征文件的帧号
+        frame_name = os.path.basename(fpath).replace('.txt', '')
+
         with open(fpath, 'r') as f:
             for line in f:
                 line = line.strip()
@@ -192,10 +198,11 @@ def load_features_for_junction(feature_dir, junction_name):
                         data[k.strip()] = v.strip()
 
                 try:
-                    junction_num = int(float(data.get('路口号', '0')))
+                    junc_name_key = data.get('路口号', '').strip()
                     cam_id = data.get('相机编号', '')
                     target_id = int(data.get('编号', -1))
-                except (ValueError, KeyError):
+                except (ValueError, KeyError) as e:
+                    print(f"【警告】解析特征属性失败: {data}, 报错: {e}")
                     continue
 
                 # 解析特征列表: 去除方括号，然后按逗号分割
@@ -207,13 +214,9 @@ def load_features_for_junction(feature_dir, junction_name):
                     print(f"警告：{fpath} 中特征维度不为24，跳过：{line}")
                     continue
 
-                # features = np.array(feat_values, dtype=np.float32)
                 features = np.array(feat_values, dtype=np.float32).tolist()
 
-                # 构建字典键，统一使用 "juncX" 格式
-                junc_name_key = f'junc{junction_num}'
-                # feat_dict[(junc_name_key, cam_id, target_id)] = features
-                feat_dict[(junc_name_key, cam_id, target_id)] = features
+                feat_dict[(junc_name_key, frame_name, cam_id, target_id)] = features
 
     return feat_dict
 
@@ -262,5 +265,6 @@ if __name__ == '__main__':
 
         # 调用批处理函数
         batch_extract_folder(INPUT_DIR, OUTPUT_DIR, feat_lookup=feat_dict, junction_name=junction_name)
+        print(f"【DEBUG】路口 {junction_name} 成功加载了 {len(feat_dict)} 条特征！")
 
     print("\n 所有指定路口数据提取任务已全部完成！")

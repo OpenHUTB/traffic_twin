@@ -1113,7 +1113,7 @@ def _on_v2x_received(event):
 
                     # 反量化恢复 24 维浮点特征
                     quantized_feature = np.frombuffer(feature_bytes, dtype=np.int8)
-                    feature_24d = quantized_feature.astype(np.float32) / 25.5
+                    feature_24d = quantized_feature.astype(np.float32) / 15.5815
 
                     # 保存为.txt文件
                     BASE_SAVE_DIR = "./v2x_logs"
