@@ -95,7 +95,7 @@ function allVehicles = matchRoadPairs(allVehicles, roadA, roadB, threshold)
         vA = allVehicles{idxA(i)};
         trackA = vA{end}; % 取出 A 的最后一段路口轨迹
         
-        % 完美保留原脚本逻辑：计算车辆在路口 A 内部的行驶速度
+        % 计算车辆在路口 A 内部的行驶速度
         dx = abs(diff(trackA.wrl_pos(:, 1)));
         dy = abs(diff(trackA.wrl_pos(:, 2)));
         total_distance = sum(dx + dy);
