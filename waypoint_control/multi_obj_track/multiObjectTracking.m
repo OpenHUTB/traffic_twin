@@ -67,7 +67,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     % 初始化上一帧的时间变量
     prevTime = -inf;
     % 初始化一个结构体数组来保存每个目标的轨迹
-    allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {});
+    allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {}, 'Features', {});
     evaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
     detectionsBool = false;
     
@@ -115,7 +115,12 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             if isempty(camBBox) || size(camBBox, 2) < 4
                 camBBox = zeros(0, 4);
             end
-            thisCameraDetections = helperAssembleCameraDetections(camBBox, cameraPose, time, k + 1, egoPose);
+            if isfield(datalog.CameraData(k), 'Features')
+                currentFeatures = double(datalog.CameraData(k).Features); 
+            else
+                currentFeatures = []; % 如果这帧没有特征，传空
+            end
+            thisCameraDetections = helperAssembleCameraDetections(camBBox, cameraPose, time, k + 1, egoPose, currentFeatures);
             cameraDetections = [cameraDetections; thisCameraDetections]; 
         end
        
@@ -142,6 +147,23 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             trackID = tracks(t).TrackID;
             position = tracks(t).State([1, 3, 6]);  % 轨迹的位置 (x, y, z)
             velocity = tracks(t).State([2, 4, 7]);  % 轨迹的速度 (vx, vy, vz)
+
+            % 提取目标特征
+            featureVec = []; % 默认设为空
+            
+            % 检查是否存在 ObjectAttributes 且不为空
+            if ~isempty(tracks(t).ObjectAttributes)
+                if iscell(tracks(t).ObjectAttributes) && isfield(tracks(t).ObjectAttributes{1}, 'Feature')
+                    featureVec = tracks(t).ObjectAttributes{1}.Feature;
+                elseif isstruct(tracks(t).ObjectAttributes) && isfield(tracks(t).ObjectAttributes, 'Feature')
+                    featureVec = tracks(t).ObjectAttributes(1).Feature;
+                end
+                
+                % 确保提取出来的特征是一个行向量
+                if ~isempty(featureVec) && size(featureVec, 1) > 1
+                    featureVec = featureVec'; 
+                end
+            end
             
             % 检查该 TrackID 是否已存在于 allTracks 中
             trackIdx = find([allTracks.TrackID] == trackID);
@@ -151,12 +173,18 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                 allTracks(end + 1) = struct('TrackID', trackID, ...
                                              'Positions', position', ...  % 转置为行向量，确保每列分别为 x, y, z
                                              'Velocities', velocity', ...  % 转置为行向量，确保每列分别为 vx, vy, vz
-                                             'Timestamps', time);
+                                             'Timestamps', time, ...
+                                             'Features', featureVec);
             else
                 % 如果该 TrackID 已存在，则更新该轨迹
                 allTracks(trackIdx).Positions = [allTracks(trackIdx).Positions; position'];
                 allTracks(trackIdx).Velocities = [allTracks(trackIdx).Velocities; velocity'];
                 allTracks(trackIdx).Timestamps = [allTracks(trackIdx).Timestamps; time];
+                % 拼接新一帧的特征值
+                % 如果该帧没有提取到特征则不拼接
+                if ~isempty(featureVec)
+                    allTracks(trackIdx).Features = [allTracks(trackIdx).Features; featureVec];
+                end
             end
         end
     
