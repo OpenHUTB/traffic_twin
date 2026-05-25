@@ -1,4 +1,4 @@
-function detections = helperAssembleCameraDetections(cameraBox, cameraPose, time, sensorIdx, egoPose)
+function detections = helperAssembleCameraDetections(cameraBox, cameraPose, time, sensorIdx, egoPose, features)
 % helperAssembleCameraDetections transform camera bounding box detections into
 % objectDetection format.
 
