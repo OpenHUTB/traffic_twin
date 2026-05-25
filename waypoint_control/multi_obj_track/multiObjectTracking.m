@@ -140,58 +140,113 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         end
 
         % 送入跟踪器目标
-        tracks = tracker(detections, time);
-        
-        % 更新所有目标的轨迹
+        [tracks] = tracker(detections, time);
+
+        camDetCell = cell(6, 1);  % 最多6个相机
+        for d = 1:numel(cameraDetections)
+            % 相机检测的 CameraIndex 是 (相机编号 + 1)
+            camIdx = cameraDetections{d}.MeasurementParameters.CameraIndex - 1;
+            if camIdx >= 1 && camIdx <= 6
+                camDetCell{camIdx}{end+1} = cameraDetections{d};
+            end
+        end
+
         for t = 1:length(tracks)
             trackID = tracks(t).TrackID;
-            position = tracks(t).State([1, 3, 6]);  % 轨迹的位置 (x, y, z)
-            velocity = tracks(t).State([2, 4, 7]);  % 轨迹的速度 (vx, vy, vz)
+            position = tracks(t).State([1, 3, 6]);   % x,y,z
+            velocity = tracks(t).State([2, 4, 7]);   % vx,vy,vz
+            dim_track = tracks(t).State([9,10,11]);   % length,width,height
+            yaw_track = tracks(t).State(8);           % yaw
 
-            % 提取目标特征
-            featureVec = []; % 默认设为空
-            
-            % 检查是否存在 ObjectAttributes 且不为空
-            if ~isempty(tracks(t).ObjectAttributes)
-                if iscell(tracks(t).ObjectAttributes) && isfield(tracks(t).ObjectAttributes{1}, 'Feature')
-                    featureVec = tracks(t).ObjectAttributes{1}.Feature;
-                elseif isstruct(tracks(t).ObjectAttributes) && isfield(tracks(t).ObjectAttributes, 'Feature')
-                    featureVec = tracks(t).ObjectAttributes(1).Feature;
+            featureVec = [];  % 本帧该轨迹的特征
+
+            % 尝试在每个相机中匹配投影框
+            for camIdx = 1:numel(datalog.CameraData)
+                % 获取相机姿态并构建相机对象
+                cameraPose = datalog.CameraData(camIdx).Pose;
+                camera = getMonoCamera(camIdx, cameraPose);
+
+                % 将轨迹的3D框投影到该相机图像平面
+                [projCuboid, isValid] = cuboidProjection(camera, position, dim_track, yaw_track);
+                if ~isValid
+                    continue;   % 目标不在这个相机的视野内
                 end
-                
-                % 确保提取出来的特征是一个行向量
-                if ~isempty(featureVec) && size(featureVec, 1) > 1
-                    featureVec = featureVec'; 
+
+                % 将该投影的8个顶点转为2D矩形框 [x, y, w, h]
+                u = projCuboid(:,1);
+                v = projCuboid(:,2);
+                if any(isnan(u)) || any(isnan(v))
+                    continue;
+                end
+                projBox = [min(u), min(v), max(u)-min(u), max(v)-min(v)];
+
+                % 取该相机这一帧的所有2D检测框
+                dets = camDetCell{camIdx};  % cell array
+                if isempty(dets)
+                    continue;
+                end
+
+                bestIoU = 0;
+                bestDetIdx = 0;
+                for d = 1:numel(dets)
+                    meas = dets{d}.Measurement;
+                    detBox = meas(1:4)';  % [u,v,w,h]
+                    % 计算2D IoU
+                    iou = bboxOverlapRatio(projBox, detBox, 'Min');  % 'Min' 对小目标更宽容
+                    if iou > bestIoU
+                        bestIoU = iou;
+                        bestDetIdx = d;
+                    end
+                end
+
+                % 若匹配程度足够高，则提取特征
+                if bestIoU > 0.3  
+                    matchedDet = dets{bestDetIdx};
+                    if isfield(matchedDet.ObjectAttributes, 'Feature') && ...
+                       ~isempty(matchedDet.ObjectAttributes.Feature)
+                        featureVec = matchedDet.ObjectAttributes.Feature;
+                        break;  % 找到特征，不再搜索其他相机
+                    end
                 end
             end
-            
-            % 检查该 TrackID 是否已存在于 allTracks 中
+
+            % 将特征转为行向量
+            if ~isempty(featureVec) && size(featureVec, 1) > 1
+                featureVec = featureVec';
+            end
+
             trackIdx = find([allTracks.TrackID] == trackID);
-            
             if isempty(trackIdx)
-                % 如果该 TrackID 尚未记录，则创建一个新的轨迹
-                allTracks(end + 1) = struct('TrackID', trackID, ...
-                                             'Positions', position', ...  % 转置为行向量，确保每列分别为 x, y, z
-                                             'Velocities', velocity', ...  % 转置为行向量，确保每列分别为 vx, vy, vz
-                                             'Timestamps', time, ...
-                                             'Features', featureVec);
+                % 新建轨迹
+                allTracks(end+1) = struct('TrackID', trackID, ...
+                                          'Positions', position', ...
+                                          'Velocities', velocity', ...
+                                          'Timestamps', time, ...
+                                          'Features', featureVec);
             else
-                % 如果该 TrackID 已存在，则更新该轨迹
+                % 追加数据
                 allTracks(trackIdx).Positions = [allTracks(trackIdx).Positions; position'];
                 allTracks(trackIdx).Velocities = [allTracks(trackIdx).Velocities; velocity'];
                 allTracks(trackIdx).Timestamps = [allTracks(trackIdx).Timestamps; time];
-                % 拼接新一帧的特征值
-                % 如果该帧没有提取到特征则不拼接
+
+                % 若无特征则用 NaN 占位，保持行数一致
                 if ~isempty(featureVec)
                     allTracks(trackIdx).Features = [allTracks(trackIdx).Features; featureVec];
+                    % 动态记录特征维度
+                    if ~exist('featureDim', 'var')
+                        featureDim = length(featureVec);
+                    end
+                else
+                    if exist('featureDim', 'var')
+                        allTracks(trackIdx).Features = [allTracks(trackIdx).Features; nan(1, featureDim)];
+                    end
                 end
             end
         end
-    
-        % 用于 evaluation 的结构体
+
         for t = 1:length(tracks)
             trackID = tracks(t).TrackID;
-            position = tracks(t).State([1, 3, 6]);  
+            position = tracks(t).State([1, 3, 6]);
             evaluationTracks(end+1).Time = time;
             evaluationTracks(end).TrackID = trackID;
             evaluationTracks(end).Position = position;
@@ -226,4 +281,50 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     save(savePath, 'allTracks');
     disp([' 轨迹提取完毕！数据已保存到 ', savePath]);
 
+end
+
+
+function [projectedCuboids, isValid] = cuboidProjection(camera, pos, dim, yaw)
+    projectedCuboids = zeros(8,2,size(pos,2));
+    isValid = true(1,size(pos,2));
+    for i = 1:size(pos,2)
+        projection = singleProjection(camera, pos(:,i), dim(:,i), yaw(i));
+        projectedCuboids(:,:,i) = projection;
+        if any(isnan(projection(:)))
+            isValid(i) = false;
+        end
+    end
+end
+
+function projectedCuboid = singleProjection(camera, pos, dim, yaw)
+    v = [0.5000   -0.5000    0.5000
+         0.5000    0.5000    0.5000
+        -0.5000    0.5000    0.5000
+        -0.5000   -0.5000    0.5000
+         0.5000   -0.5000   -0.5000
+         0.5000    0.5000   -0.5000
+        -0.5000    0.5000   -0.5000
+        -0.5000   -0.5000   -0.5000];
+    v = v([4 1 2 3 8 5 6 7], :);
+    v = v .* dim(:)';
+    orient = quaternion([yaw 0 0], 'eulerd', 'ZYX', 'frame');
+    v = rotatepoint(orient, v);
+    v = v + pos(:)';
+    R = rotmat(quaternion([camera.Yaw camera.Pitch camera.Roll], 'eulerd', 'ZYX', 'frame'), 'frame');
+    p = [camera.SensorLocation camera.Height];
+    tform = rigid3d(R', p);
+    vCamera = transformPointsForward(tform, v);
+    [az, el] = cart2sph(vCamera(:,1), vCamera(:,2), vCamera(:,3));
+    [azFov, elFov] = computeFieldOfView(camera.Intrinsics.FocalLength, camera.Intrinsics.ImageSize);
+    inside = abs(az) < azFov/2 & abs(el) < elFov/2;
+    if sum(inside) > 4
+        projectedCuboid = vehicleToImage(camera, v + [0 0 0.3158]);
+    else
+        projectedCuboid = nan(8, 2);
+    end
+end
+
+function [azFov, elFov] = computeFieldOfView(focalLength, imageSize)
+    azFov = 2 * atan(imageSize(2) / (2 * focalLength(1)));
+    elFov = 2 * atan(imageSize(1) / (2 * focalLength(2)));
 end
