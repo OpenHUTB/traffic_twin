@@ -142,97 +142,93 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         % 送入跟踪器目标
         [tracks] = tracker(detections, time);
 
-        camDetCell = cell(6, 1);  % 最多6个相机
+        % 将相机检测按相机索引分组
+        camDetCell = cell(6, 1);
         for d = 1:numel(cameraDetections)
-            % 相机检测的 CameraIndex 是 (相机编号 + 1)
-            camIdx = cameraDetections{d}.MeasurementParameters.CameraIndex - 1;
+            camIdx = cameraDetections{d}.MeasurementParameters.CameraIndex;
             if camIdx >= 1 && camIdx <= 6
                 camDetCell{camIdx}{end+1} = cameraDetections{d};
             end
         end
 
+        % 遍历每条轨迹，用中心距离最近匹配提取特征
         for t = 1:length(tracks)
             trackID = tracks(t).TrackID;
-            position = tracks(t).State([1, 3, 6]);   % x,y,z
-            velocity = tracks(t).State([2, 4, 7]);   % vx,vy,vz
-            dim_track = tracks(t).State([9,10,11]);   % length,width,height
-            yaw_track = tracks(t).State(8);           % yaw
+            position = tracks(t).State([1, 3, 6]);
+            velocity = tracks(t).State([2, 4, 7]);
+            dim_track = tracks(t).State([9,10,11]);
+            yaw_track = tracks(t).State(8);
 
-            featureVec = [];  % 本帧该轨迹的特征
+            [position, velocity, dim_track, yaw_track] = transformForward(position, velocity, dim_track, yaw_track, egoPose);
 
-            % 尝试在每个相机中匹配投影框
+            featureVec = [];       % 最终特征
+            globalMinDist = inf;   % 全局最小距离
+
+            % 遍历所有相机
             for camIdx = 1:numel(datalog.CameraData)
-                % 获取相机姿态并构建相机对象
                 cameraPose = datalog.CameraData(camIdx).Pose;
                 camera = getMonoCamera(camIdx, cameraPose);
 
-                % 将轨迹的3D框投影到该相机图像平面
+                % 投影3D框
                 [projCuboid, isValid] = cuboidProjection(camera, position, dim_track, yaw_track);
                 if ~isValid
-                    continue;   % 目标不在这个相机的视野内
+                    continue;
                 end
-
-                % 将该投影的8个顶点转为2D矩形框 [x, y, w, h]
-                u = projCuboid(:,1);
-                v = projCuboid(:,2);
+                u = projCuboid(:,1);  v = projCuboid(:,2);
                 if any(isnan(u)) || any(isnan(v))
                     continue;
                 end
                 projBox = [min(u), min(v), max(u)-min(u), max(v)-min(v)];
+                center_proj = [projBox(1)+projBox(3)/2, projBox(2)+projBox(4)/2];
 
-                % 取该相机这一帧的所有2D检测框
-                dets = camDetCell{camIdx};  % cell array
+                % 该相机下的检测
+                dets = camDetCell{camIdx};
                 if isempty(dets)
                     continue;
                 end
 
-                bestIoU = 0;
-                bestDetIdx = 0;
+                % 寻找该相机下距离最小的检测
                 for d = 1:numel(dets)
                     meas = dets{d}.Measurement;
-                    detBox = meas(1:4)';  % [u,v,w,h]
-                    % 计算2D IoU
-                    iou = bboxOverlapRatio(projBox, detBox, 'Min');  % 'Min' 对小目标更宽容
-                    if iou > bestIoU
-                        bestIoU = iou;
-                        bestDetIdx = d;
-                    end
-                end
-
-                % 若匹配程度足够高，则提取特征
-                if bestIoU > 0.3  
-                    matchedDet = dets{bestDetIdx};
-                    if isfield(matchedDet.ObjectAttributes, 'Feature') && ...
-                       ~isempty(matchedDet.ObjectAttributes.Feature)
-                        featureVec = matchedDet.ObjectAttributes.Feature;
-                        break;  % 找到特征，不再搜索其他相机
+                    detBox = meas(1:4)';
+                    center_det = [detBox(1)+detBox(3)/2, detBox(2)+detBox(4)/2];
+                    dist = norm(center_proj - center_det);
+                    if dist < globalMinDist
+                        globalMinDist = dist;
+                        % 记录这个检测
+                        bestDetection = dets{d};
                     end
                 end
             end
 
-            % 将特征转为行向量
+            % 使用全局距离最小的那个检测提取特征
+            if exist('bestDetection', 'var')
+                if isfield(bestDetection.ObjectAttributes, 'Feature') && ...
+                   ~isempty(bestDetection.ObjectAttributes.Feature)
+                    featureVec = bestDetection.ObjectAttributes.Feature;
+                end
+            end
+
+            % 转成行向量
             if ~isempty(featureVec) && size(featureVec, 1) > 1
                 featureVec = featureVec';
             end
 
+            % 更新allTracks
             trackIdx = find([allTracks.TrackID] == trackID);
             if isempty(trackIdx)
-                % 新建轨迹
                 allTracks(end+1) = struct('TrackID', trackID, ...
                                           'Positions', position', ...
                                           'Velocities', velocity', ...
                                           'Timestamps', time, ...
                                           'Features', featureVec);
             else
-                % 追加数据
                 allTracks(trackIdx).Positions = [allTracks(trackIdx).Positions; position'];
                 allTracks(trackIdx).Velocities = [allTracks(trackIdx).Velocities; velocity'];
                 allTracks(trackIdx).Timestamps = [allTracks(trackIdx).Timestamps; time];
 
-                % 若无特征则用 NaN 占位，保持行数一致
                 if ~isempty(featureVec)
                     allTracks(trackIdx).Features = [allTracks(trackIdx).Features; featureVec];
-                    % 动态记录特征维度
                     if ~exist('featureDim', 'var')
                         featureDim = length(featureVec);
                     end
@@ -252,6 +248,27 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             evaluationTracks(end).Position = position;
         end
     
+    end
+
+
+    %% 后处理：为每条轨迹生成单一的中位数特征向量
+    for t = 1:numel(allTracks)
+        featMat = allTracks(t).Features;          
+
+        % 剔除全是 NaN 的行
+        validRows = ~all(isnan(featMat), 2);
+        if sum(validRows) == 0
+            % 如果该轨迹没有任何有效特征，设为空
+            allTracks(t).RepresentativeFeature = [];
+            continue;
+        end
+
+        validFeats = featMat(validRows, :);       % 只保留有效帧的特征
+        % 计算每个维度的中位数
+        representativeFeat = median(validFeats, 1, 'omitnan');
+
+        % 保存为代表特征
+        allTracks(t).RepresentativeFeature = representativeFeat;
     end
     
     %% 保存全部轨迹，用做计算指标
