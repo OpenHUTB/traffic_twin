@@ -67,7 +67,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     % 初始化上一帧的时间变量
     prevTime = -inf;
     % 初始化一个结构体数组来保存每个目标的轨迹
-    allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {}, 'Features', {});
+    allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {}, 'Features', {}, 'Categories', {});
     evaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
     detectionsBool = false;
     
@@ -120,7 +120,8 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             else
                 currentFeatures = []; % 如果这帧没有特征，传空
             end
-            thisCameraDetections = helperAssembleCameraDetections(camBBox, cameraPose, time, k + 1, egoPose, currentFeatures);
+            currentCategory = datalog.CameraData(k).Category;
+            thisCameraDetections = helperAssembleCameraDetections(camBBox, cameraPose, time, k + 1, egoPose, currentFeatures, currentCategory);
             cameraDetections = [cameraDetections; thisCameraDetections]; 
         end
        
@@ -137,6 +138,18 @@ function multiObjectTracking(junc, initTime, runFrameNum)
 
         if ~detectionsBool
            continue;
+        end
+
+        % 确保ObjectAttributes都包含 Feature 和 Category 字段
+        for i = 1:numel(detections)
+            attr = detections{i}.ObjectAttributes;
+            if ~isfield(attr, 'Feature')
+                attr.Feature = [];
+            end
+            if ~isfield(attr, 'Category')
+                attr.Category = "unknown";
+            end
+            detections{i}.ObjectAttributes = attr;
         end
 
         % 送入跟踪器目标
@@ -203,9 +216,15 @@ function multiObjectTracking(junc, initTime, runFrameNum)
 
             % 使用全局距离最小的那个检测提取特征
             if exist('bestDetection', 'var')
+                %提取特征
                 if isfield(bestDetection.ObjectAttributes, 'Feature') && ...
                    ~isempty(bestDetection.ObjectAttributes.Feature)
                     featureVec = bestDetection.ObjectAttributes.Feature;
+                end
+                % 提取类别
+                if isfield(bestDetection.ObjectAttributes, 'Category') && ...
+                   ~isempty(bestDetection.ObjectAttributes.Category)
+                    categoryVal = bestDetection.ObjectAttributes.Category;
                 end
             end
 
@@ -221,7 +240,8 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                                           'Positions', position', ...
                                           'Velocities', velocity', ...
                                           'Timestamps', time, ...
-                                          'Features', featureVec);
+                                          'Features', featureVec, ...
+                                          'Categories', categoryVal);
             else
                 allTracks(trackIdx).Positions = [allTracks(trackIdx).Positions; position'];
                 allTracks(trackIdx).Velocities = [allTracks(trackIdx).Velocities; velocity'];
@@ -237,6 +257,8 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                         allTracks(trackIdx).Features = [allTracks(trackIdx).Features; nan(1, featureDim)];
                     end
                 end
+
+                allTracks(trackIdx).Categories = [allTracks(trackIdx).Categories; categoryVal];
             end
         end
 
@@ -254,7 +276,6 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     %% 后处理：为每条轨迹生成单一的中位数特征向量
     for t = 1:numel(allTracks)
         featMat = allTracks(t).Features;          
-
         % 剔除全是 NaN 的行
         validRows = ~all(isnan(featMat), 2);
         if sum(validRows) == 0
@@ -262,13 +283,20 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             allTracks(t).RepresentativeFeature = [];
             continue;
         end
-
         validFeats = featMat(validRows, :);       % 只保留有效帧的特征
         % 计算每个维度的中位数
         representativeFeat = median(validFeats, 1, 'omitnan');
-
         % 保存为代表特征
         allTracks(t).RepresentativeFeature = representativeFeat;
+
+        catVals = string(allTracks(t).Categories);
+        validCat = catVals(catVals ~= "unknown");       
+        if isempty(validCat)
+            representativeCat = "unknown";               
+        else
+            representativeCat = string(mode(categorical(validCat)));    
+        end
+        allTracks(t).Categories = representativeCat;   % 覆盖为标量
     end
     
     %% 保存全部轨迹，用做计算指标
