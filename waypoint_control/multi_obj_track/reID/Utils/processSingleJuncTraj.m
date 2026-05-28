@@ -2,7 +2,7 @@
 % 通过计算特征间的余弦相似度外还比较时间
 
 function juncVehicleTraj = processSingleJuncTraj(trajStruct)  % 1x1 struct 
-    threshold = 0.75;
+    threshold = 0.9;
     traj = trajStruct.traj;
     traj_f = trajStruct.traj_f;
     numTrajectories = length(traj);
@@ -15,9 +15,15 @@ function juncVehicleTraj = processSingleJuncTraj(trajStruct)  % 1x1 struct
         if isempty(traj{i})
             continue; 
         end
+        cat_i = traj{i}.category;   % 获取轨迹 i 的类别
         for j = i+1:numTrajectories
             if isempty(traj{j})
                continue; 
+            end
+            cat_j = traj{j}.category;
+            % 类别不同则不合并
+            if ~isequal(cat_i, cat_j)
+                continue;
             end
             % 获取轨迹 i 和 j 的位置数据
             pos_i = trajStruct.traj{i}.mean_hsv;

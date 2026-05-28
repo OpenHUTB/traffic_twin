@@ -1,81 +1,67 @@
 function loadAllTraj(junc, transMatrix)
     config;
     currentPath = fileparts(mfilename('fullpath'));
-    % 获取当前路径的上级目录
     parentPath = fileparts(currentPath);
-    % 再次获取上级目录，即上上级目录
     grandparentPath = fileparts(parentPath);
     addpath(grandparentPath)
-    dataPath = fullfile(grandparentPath, junc,'tracks' );
+    
+    dataPath = fullfile(grandparentPath, junc, 'tracks');
     trackedDataPath = fullfile(dataPath, 'trackedData.mat');
-    datasetFolder = "trainedCustomReidNetwork.mat";
-    netFolder = fullfile(grandparentPath, datasetFolder);
-    data = load(netFolder);
-    net = data.net;
-    % 加载 .mat 文件中的数据
+    
+    % 加载跟踪数据
     if exist(trackedDataPath, 'file')
-        loadedData = load(trackedDataPath);  % 加载文件内容
+        loadedData = load(trackedDataPath);
     else
         disp('tracks does not exist');
+        return;
     end
     
-    tracksVehiclePicturePath = fullfile(parentPath, 'trkIDImg', junc);
+    % 获取轨迹总数
+    numTraj = length(loadedData.allTracks);
+    if numTraj == 0
+        disp('No tracks found.');
+        return;
+    end
     
-    % 获取目录下所有文件
-    imageFiles = dir(fullfile(tracksVehiclePicturePath, '*.jpeg')); % 或者 '*.jpeg', '*.png' 根据你的图片格式调整
-    categoryFiles = dir(fullfile(tracksVehiclePicturePath, '*.mat')); 
-    numImages = numel(imageFiles);
+    traj_data = cell(1, numTraj);
+    traj_f_data = zeros(numTraj, 2);
     
-    traj_data = cell(1, numImages); 
-    traj_f_data = zeros(numImages, 2); 
-    
-    % 将数据保存到结构体中
     trackerOutput.traj = traj_data;
     trackerOutput.traj_f = traj_f_data;
-
-    % 遍历每张图片
-    for k = 1:length(imageFiles)
-        % 获取当前图片的完整路径
-        imageFilePath = fullfile(tracksVehiclePicturePath, imageFiles(k).name);
-         % 加载图片
-        img = imread(imageFilePath);
-        % 从文件名中提取轨迹ID
-        [~, imageName, ~] = fileparts(imageFiles(k).name);  % 提取文件名，不带扩展名
-        trackID = str2double(imageName);  % 将文件名转换为数字作为轨迹ID
-        % 在表格中找到对应的行
-        index = find([loadedData.allTracks.TrackID] == trackID);
-        if isempty(index)
-            continue;  % 跳过当前循环，继续下一个
-        end
-        positions = loadedData.allTracks(index).Positions;
-        % 将位置转换成Carla中的三维坐标
+    
+    % 遍历所有轨迹
+    for i = 1:numTraj
+        trackID = loadedData.allTracks(i).TrackID;
+        positions = loadedData.allTracks(i).Positions;
+        timestamps = loadedData.allTracks(i).Timestamps;
+        
+        % 提取特征和类别
+        features = loadedData.allTracks(i).RepresentativeFeature;      %转为行向量
+        features = features(:)';                          % 确保是 1xN 的行向量
+        category = loadedData.allTracks(i).Categories;
+        
+        % 将雷达坐标系位置转换为世界坐标系
         worldPositions = [];
-        for i = 1:size(positions, 1)  % 遍历所有位置点
-            radarPosition = [positions(i, :)'; 1];  % 将位置转换为齐次坐标 (x, y, z, 1)
-            % 使用转换矩阵将雷达坐标系中的位置转换为 CARLA 世界坐标系
-            worldPosition = transMatrix * radarPosition;
-            % 将转换后的世界坐标加入到 worldPositions 数组中
-            worldPositions = [worldPositions; worldPosition(1:3)'];  % 取 x, y, z
+        for p = 1:size(positions, 1)
+            radarPos = [positions(p, :)'; 1];
+            worldPos = transMatrix * radarPos;
+            worldPositions = [worldPositions; worldPos(1:3)'];
         end
-       
-        features = zeros(2048,1);
-        features(:,1) = extractReidentificationFeatures(net,img);
-        % 将特征重塑为 1x2048 的形式
-        features = reshape(features, 1, 2048);
-        timestamp = loadedData.allTracks(index).Timestamps;
-        matFilePath = fullfile(tracksVehiclePicturePath, sprintf('%d.mat', trackID));
-        load(matFilePath);
-        category = trajcategory.Category;
-        trackerOutput.traj{k} = struct( ...
-            'trackID', trackID, ...    % 轨迹 ID
-            'wrl_pos', worldPositions, ...  % 位置数据
-            'mean_hsv', features, ...  % 特征数据
-            'timestamp', timestamp, ... % 轨迹时间
-            'category', category ... % 轨迹类型
-        );
-       trackerOutput.traj_f(k,:) = [timestamp(1), timestamp(end)];
+        
+        % 存入结构体
+        trackerOutput.traj{i} = struct( ...
+            'trackID', trackID, ...
+            'wrl_pos', worldPositions, ...
+            'mean_hsv', features, ...    
+            'timestamp', timestamps, ...
+            'category', category);
+        
+        trackerOutput.traj_f(i, :) = [timestamps(1), timestamps(end)];
     end
+    
+    % 后处理与保存
     juncVehicleTraj = processSingleJuncTraj(trackerOutput);
+    
     baseName = 'traj';
     dirParts = strsplit(junc, filesep);
     fileName = [dirParts{2}, '_', baseName, '.mat'];
@@ -83,9 +69,10 @@ function loadAllTraj(junc, transMatrix)
     if ~exist(juncTracksFolderPath, 'dir')
         mkdir(juncTracksFolderPath);
     end
-    % 保存 trackerOutput 到 .mat 文件
-    outputFilePath = fullfile(juncTracksFolderPath, fileName);  % 定义保存路径
-    save(outputFilePath, 'juncVehicleTraj');  
-    successMessage = [num2str(junc), ': trackerOutput saved successfully' ];
+    
+    outputFilePath = fullfile(juncTracksFolderPath, fileName);
+    save(outputFilePath, 'juncVehicleTraj');
+    
+    successMessage = [num2str(junc), ': trackerOutput saved successfully'];
     disp(successMessage);
-end 
+end
