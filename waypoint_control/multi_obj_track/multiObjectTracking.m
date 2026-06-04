@@ -29,7 +29,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     % 获取当前路口的配置参数
     params = getTrackerConfig(juncName);
     
-    tracker = trackerJPDA( ...
+    vehicletracker = trackerJPDA( ...
         TrackLogic="Integrated", ...
         FilterInitializationFcn=@helperInitLidarCameraFusionFilter, ...
         AssignmentThreshold=params.AssignmentThreshold, ...   % 关联阈值
@@ -40,7 +40,20 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         NewTargetDensity=params.NewTargetDensity, ...
         ConfirmationThreshold=params.ConfirmationThreshold, ...      % 确定为目标的概率
         DeletionThreshold=params.DeletionThreshold, ...           % 表示一个跟踪目标被删除所需的最大置信度
-        DeathRate=params.DeathRate);                     
+        DeathRate=params.DeathRate);          
+
+    persontracker = trackerJPDA( ...
+        TrackLogic="Integrated", ...
+        FilterInitializationFcn=@helperInitLidarCameraFusionFilter, ...
+        AssignmentThreshold=params.AssignmentThreshold, ...   % 关联阈值
+        MaxNumTracks=500, ...
+        DetectionProbability=params.DetectionProbability, ...      % 检测到目标的概率
+        MaxNumEvents=50, ...
+        ClutterDensity=params.ClutterDensity, ...
+        NewTargetDensity=params.NewTargetDensity, ...
+        ConfirmationThreshold=params.ConfirmationThreshold, ...      % 确定为目标的概率
+        DeletionThreshold=params.DeletionThreshold, ...           % 表示一个跟踪目标被删除所需的最大置信度
+        DeathRate=params.DeathRate);
                           
     % 定义轨迹点的数量
     numFrames = runFrameNum;
@@ -70,7 +83,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {}, 'Features', {}, 'Categories', {});
     evaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
     detectionsBool = false;
-    
+
     % 开始逐帧处理
     for frame = 1:numFrames
         % 加载当前帧数据
@@ -106,6 +119,27 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             lidarBoxes = zeros(0, 9);
         end
         lidarDetections = helperAssembleLidarDetections(lidarBoxes, lidarPose, time, 1, egoPose);
+
+        vehiclelidarDetections = cell(0, 1);
+        personlidarDetections = cell(0, 1);
+        for i = 1:numel(lidarDetections)
+            % 保证基础属性不缺失
+            attr = lidarDetections{i}.ObjectAttributes;
+            if ~isfield(attr, 'Feature')
+                attr.Feature = [];
+            end
+            if ~isfield(attr, 'Category')
+                attr.Category = "unknown";
+            end
+            lidarDetections{i}.ObjectAttributes = attr;
+            
+            % 如果 Measurement 的第 1 列第 5 行（即第 5 个元素）值 > 1 为 vehicle，否则为 person
+            if lidarDetections{i}.Measurement(5) > 1
+                vehiclelidarDetections = [vehiclelidarDetections; lidarDetections(i)];
+            else
+                personlidarDetections = [personlidarDetections; lidarDetections(i)];
+            end
+        end
             
         % 提取相机检测数据
         cameraDetections = cell(0, 1);
@@ -124,36 +158,78 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             thisCameraDetections = helperAssembleCameraDetections(camBBox, cameraPose, time, k + 1, egoPose, currentFeatures, currentCategory);
             cameraDetections = [cameraDetections; thisCameraDetections]; 
         end
-       
-        % 合并检测结果
-        if frame == 1
-            detections = lidarDetections;
-        else
-            detections = [lidarDetections; cameraDetections];
-        end
 
-        if ~isempty(detections)
-           detectionsBool = true;
-        end 
+        vehiclecameraDetections = cell(0, 1);
+        personcameraDetections = cell(0, 1);
 
-        if ~detectionsBool
-           continue;
-        end
-
-        % 确保ObjectAttributes都包含 Feature 和 Category 字段
-        for i = 1:numel(detections)
-            attr = detections{i}.ObjectAttributes;
+        for i = 1:numel(cameraDetections)
+            % 保证基础属性不缺失
+            attr = cameraDetections{i}.ObjectAttributes;
             if ~isfield(attr, 'Feature')
                 attr.Feature = [];
             end
             if ~isfield(attr, 'Category')
                 attr.Category = "unknown";
             end
-            detections{i}.ObjectAttributes = attr;
+            cameraDetections{i}.ObjectAttributes = attr;
+            
+            % 按类别分流
+            if strcmp(attr.Category, 'vehicle')
+                vehiclecameraDetections = [vehiclecameraDetections; cameraDetections(i)];
+            elseif strcmp(attr.Category, 'person')
+                personcameraDetections = [personcameraDetections; cameraDetections(i)];
+            end
+        end
+       
+        % 合并检测结果
+        if frame == 1
+            vehicleDetections = vehiclelidarDetections;
+            pedestrianDetections = personlidarDetections;
+        else
+            vehicleDetections = [vehiclelidarDetections; vehiclecameraDetections];
+            pedestrianDetections = [personlidarDetections; personcameraDetections];
+        end
+        % if frame == 1
+        %     detections = lidarDetections;
+        % else
+        %     detections = [lidarDetections; cameraDetections];
+        % end
+        % 
+        % if ~isempty(detections)
+        %    detectionsBool = true;
+        % end 
+        % 
+        % if ~detectionsBool
+        %    continue;
+        % end
+
+        % 确保ObjectAttributes都包含 Feature 和 Category 字段
+        for i = 1:numel(vehicleDetections)
+            attr = vehicleDetections{i}.ObjectAttributes;
+            if ~isfield(attr, 'Feature')
+                attr.Feature = [];
+            end
+            if ~isfield(attr, 'Category')
+                attr.Category = "unknown";
+            end
+            vehicleDetections{i}.ObjectAttributes = attr;
+        end
+        for i = 1:numel(pedestrianDetections)
+            attr = pedestrianDetections{i}.ObjectAttributes;
+            if ~isfield(attr, 'Feature')
+                attr.Feature = [];
+            end
+            if ~isfield(attr, 'Category')
+                attr.Category = "unknown";
+            end
+            pedestrianDetections{i}.ObjectAttributes = attr;
         end
 
         % 送入跟踪器目标
-        [tracks] = tracker(detections, time);
+        % [tracks] = tracker(detections, time);
+        [vehicletracks] = vehicletracker(vehicleDetections, time);
+        [persontracks] = persontracker(pedestrianDetections, time);
+        tracks = [vehicletracks; persontracks];
 
         % 将相机检测按相机索引分组
         camDetCell = cell(6, 1);
@@ -175,6 +251,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             [position, velocity, dim_track, yaw_track] = transformForward(position, velocity, dim_track, yaw_track, egoPose);
 
             featureVec = [];       % 最终特征
+            categoryVal = 'Unknown';
             globalMinDist = inf;   % 全局最小距离
 
             % 遍历所有相机
@@ -313,7 +390,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     %% 保存部分较完整的轨迹，用作轨迹复现
     % 过滤掉轨迹数量少于5的车辆
     if ~isempty(allTracks)
-        allTracks = allTracks(cellfun(@(x) size(x, 1) >= 5, {allTracks.Positions}));
+        allTracks = allTracks(cellfun(@(x) size(x, 1) >= 15, {allTracks.Positions}));
     end
     
     % 轨迹目录

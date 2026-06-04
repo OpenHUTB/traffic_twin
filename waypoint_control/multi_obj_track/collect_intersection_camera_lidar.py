@@ -1395,7 +1395,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_1',  # 默认路口
+        default='road_intersection_5',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -1622,7 +1622,7 @@ def main():
             print(f"Created folder: {folder_name}")
         file_path = os.path.join(folder_name, "pedestrian_count.mat")
         # 将时间戳和行人数量追加保存到txt文件中
-        pedestrian_data = np.array(actual_vehicle_num)
+        pedestrian_data = np.array(actual_pedestrian_num)
         # 保存数据为 mat 文件
         scipy.io.savemat(file_path, {"pedestrian_data": pedestrian_data})
 
