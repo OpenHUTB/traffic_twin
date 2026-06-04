@@ -1,4 +1,4 @@
-function trackingError = evaluateTracker(params, junc, initTime, runFrameNum)
+function trackingError = personevaluateTracker(params, junc, initTime, runFrameNum)
     % 数据路径
     currentPath = fileparts(mfilename('fullpath'));
     parentPath = fileparts(currentPath);
@@ -59,7 +59,7 @@ function trackingError = evaluateTracker(params, junc, initTime, runFrameNum)
     % 初始化上一帧的时间变量
     prevTime = -inf;
     % 初始化一个结构体数组来保存每个目标的轨迹
-    allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {});
+    allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {}, 'Features', {}, 'Categories', {});
     evaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
     detectionsBool = false;
     for frame = 1:numFrames
@@ -67,7 +67,6 @@ function trackingError = evaluateTracker(params, junc, initTime, runFrameNum)
         fileName = fullfile(dataPath, matFiles(frame).name);
         load(fileName, 'datalog');
         % 确保 LidarData.Pose.Orientation 是 double 类型
-    
         datalog.LidarData.Pose.Orientation = double(datalog.LidarData.Pose.Orientation);
         datalog.LidarData.Pose.Velocity = double(datalog.LidarData.Pose.Velocity);
         datalog.LidarData.Pose.Position = double(datalog.LidarData.Pose.Position);
@@ -77,6 +76,7 @@ function trackingError = evaluateTracker(params, junc, initTime, runFrameNum)
             warning('时间戳未递增，跳过帧 %d: 当前时间戳 %f', frame, time);
             continue;
         end
+        time = double(time);
         % 更新上一帧时间
         prevTime = time;
         % 获取 ego 车辆的位置信息
@@ -86,23 +86,68 @@ function trackingError = evaluateTracker(params, junc, initTime, runFrameNum)
         egoPose.Velocity = vel;
     
         % 提取雷达检测数据
-        [~, lidarBoxes, lidarPose] = helperExtractLidarData(datalog);
+        [lidarBoxes, lidarPose] = helperExtractLidarData(datalog);
+        lidarBoxes = double(lidarBoxes);
         lidarDetections = helperAssembleLidarDetections(lidarBoxes, lidarPose, time, 1, egoPose);
+        personlidarDetections = cell(0, 1);
+        for i = 1:numel(lidarDetections)
+            % 保证基础属性不缺失
+            attr = lidarDetections{i}.ObjectAttributes;
+            if ~isfield(attr, 'Feature')
+                attr.Feature = [];
+            end
+            if ~isfield(attr, 'Category')
+                attr.Category = "unknown";
+            end
+            lidarDetections{i}.ObjectAttributes = attr;
+            
+            % 如果 Measurement 的第 1 列第 5 行（即第 5 个元素）值 > 1 为 vehicle，否则为 person
+            if lidarDetections{i}.Measurement(5) < 1
+                personlidarDetections = [personlidarDetections; lidarDetections(i)];
+            end
+        end
             
         % 提取相机检测数据
         cameraDetections = cell(0, 1);
         for k = 1:numel(datalog.CameraData)
             [camBBox, cameraPose] = helperExtractCameraData(datalog, dataPath, k);
-            cameraBoxes{k} = camBBox; %#ok<SAGROW>
-            thisCameraDetections = helperAssembleCameraDetections(cameraBoxes{k}, cameraPose, time, k + 1, egoPose);
+            camBBox = double(camBBox);
+            if isempty(camBBox) || size(camBBox, 2) < 4
+                camBBox = zeros(0, 4);
+            end
+            if isfield(datalog.CameraData(k), 'Features')
+                currentFeatures = double(datalog.CameraData(k).Features); 
+            else
+                currentFeatures = []; % 如果这帧没有特征，传空
+            end
+            currentCategory = datalog.CameraData(k).Category;
+            thisCameraDetections = helperAssembleCameraDetections(camBBox, cameraPose, time, k + 1, egoPose, currentFeatures, currentCategory);
             cameraDetections = [cameraDetections; thisCameraDetections]; %#ok<AGROW> 
+        end
+        personcameraDetections = cell(0, 1);
+
+        for i = 1:numel(cameraDetections)
+            % 保证基础属性不缺失
+            attr = cameraDetections{i}.ObjectAttributes;
+            if ~isfield(attr, 'Feature')
+                attr.Feature = [];
+            end
+            if ~isfield(attr, 'Category')
+                attr.Category = "unknown";
+            end
+            cameraDetections{i}.ObjectAttributes = attr;
+            
+            % 按类别分流
+            if strcmp(attr.Category, 'person')
+                personcameraDetections = [personcameraDetections; cameraDetections(i)];
+            end
         end
        
         % 合并检测结果
         if frame == 1
-            detections = lidarDetections;
+            detections = personlidarDetections;
         else
-            detections = [lidarDetections; cameraDetections];
+            detections = [personlidarDetections; personcameraDetections];
         end
 
         if ~isempty(detections)
@@ -156,21 +201,23 @@ function trackingError = evaluateTracker(params, junc, initTime, runFrameNum)
         return;
     end
 
-    truthsPath = fullfile(parentPath, junc, 'vehicle_data/truths.mat');
+    truthsPath = fullfile(parentPath, junc, 'pedestrian_data/truths.mat');
     truthsData = load(truthsPath); 
-    % 路口真实车辆轨迹
+    % 路口真实行人轨迹
     truthsStructured_data = struct('Time', [], 'TruthID', [], 'Position', []);  
     for i = 1:numel(truthsData .truths)
         truthsStructured_data(i).Time = double(truthsData.truths{i}.Time);      
         truthsStructured_data(i).TruthID = double(truthsData.truths{i}.TruthID); 
-        truthsStructured_data(i).Position = double(truthsData.truths{i}.Position); 
+        pos = double(truthsData.truths{i}.Position);
+        pos(3) = 0;
+        truthsStructured_data(i).Position = pos;
     end
-    % 跟踪到的路口车辆轨迹
+    % 跟踪到的路口行人轨迹
     for i = 1:numel(evaluationTracks)
-        evaluationTracks(i).Position(3) = -0.7;
+        evaluationTracks(i).Position(3) = 0;
     end   
     % 使用欧几里得距离评估 CLEAR MOT 指标
     metric = trackCLEARMetrics(SimilarityMethod="Euclidean", EuclideanScale=2);
     metricTable = evaluate(metric, evaluationTracks, truthsStructured_data);
-    trackingError = 1 - metricTable{:, 1}; % 最小化 MOTA 的补数
+    trackingError = 100 - metricTable{:, 1}; % 最小化 MOTA 的补数
 end

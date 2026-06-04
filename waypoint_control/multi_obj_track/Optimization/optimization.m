@@ -14,9 +14,9 @@ end
 townConfig = dataset.(townName);
 
 % 开启并行池
-if isempty(gcp('nocreate'))
-    parpool; 
-end
+% if isempty(gcp('nocreate'))
+%     parpool; 
+% end
 
 % 遍历要优化的所有路口
 for i = 1:length(juncList)
@@ -35,7 +35,7 @@ for i = 1:length(juncList)
         initTime = juncConfig.initialTime;             % 跟踪初始时间
         
         %% 定义优化变量
-        vars = [
+        vehiclevars = [
             optimizableVariable('DetectionProbability', [0.5, 0.9]), ...
             optimizableVariable('ClutterDensity', [1e-8, 1e-6], 'Transform', 'log'), ...
             optimizableVariable('NewTargetDensity', [1e-7, 1e-5], 'Transform', 'log'), ...
@@ -47,20 +47,48 @@ for i = 1:length(juncList)
         ];
         
         % 定义目标函数
-        objectiveFcn = @(params)evaluateTracker(params, junc, initTime, runFrameNum);
+        vehicleobjectiveFcn = @(params)vehicleevaluateTracker(params, junc, double(initTime), runFrameNum);
         
         % 调用 bayesopt 进行优化
-        results = bayesopt(objectiveFcn, vars, 'MaxObjectiveEvaluations', 100, ...
-            'Verbose', 1, 'UseParallel', true);
+        vehicleresults = bayesopt(vehicleobjectiveFcn, vehiclevars, 'MaxObjectiveEvaluations', 100, ...
+            'Verbose', 1, 'UseParallel', false);
         
         % 显示最优参数
-        bestParams = results.XAtMinObjective;
+        vehiclebestParams = vehicleresults.XAtMinObjective;
         fprintf('%d 号路口最优参数：\n', juncNum);
-        disp(bestParams);
+        disp(vehiclebestParams);
         
         % 保存最优参数
-        saveFileName = sprintf('OptResults_%s_Junc%d_%s.mat', townName, juncNum, datestr(now, 'yyyymmdd_HHMMSS'));
-        save(saveFileName, 'results', 'bestParams', 'townName', 'juncNum');
+        saveFileName = sprintf('vehicleOptResults_%s_Junc%d_%s.mat', townName, juncNum, datestr(now, 'yyyymmdd_HHMMSS'));
+        save(saveFileName, 'vehicleresults', 'vehiclebestParams', 'townName', 'juncNum');
+        fprintf(' %d 号路口优化结果已成功保存至: %s\n', juncNum, saveFileName);
+
+        personvars = [
+            optimizableVariable('DetectionProbability', [0.5, 0.95]), ...
+            optimizableVariable('ClutterDensity', [1e-6, 1e-3], 'Transform', 'log'), ...
+            optimizableVariable('NewTargetDensity', [1e-5, 1e-2], 'Transform', 'log'), ...
+            optimizableVariable('ConfirmationThreshold', [0.6, 0.95]), ...
+            optimizableVariable('DeletionThreshold', [0.2, 0.6]), ...
+            optimizableVariable('DeathRate', [0.3, 0.7]), ...
+            optimizableVariable('AssignThresh1', [1, 10]), ...  % 粗门控阈值
+            optimizableVariable('AssignThresh2', [2, 20])      % 精细门控阈值
+        ];
+
+        % 定义目标函数
+        personobjectiveFcn = @(params)personevaluateTracker(params, junc, double(initTime), runFrameNum);
+        
+        % 调用 bayesopt 进行优化
+        personresults = bayesopt(personobjectiveFcn, personvars, 'MaxObjectiveEvaluations', 100, ...
+            'Verbose', 1, 'UseParallel', false);
+        
+        % 显示最优参数
+        personbestParams = personresults.XAtMinObjective;
+        fprintf('%d 号路口最优参数：\n', juncNum);
+        disp(personbestParams);
+        
+        % 保存最优参数
+        saveFileName = sprintf('vehicleOptResults_%s_Junc%d_%s.mat', townName, juncNum, datestr(now, 'yyyymmdd_HHMMSS'));
+        save(saveFileName, 'vehicleresults', 'personbestParams', 'townName', 'juncNum');
         fprintf(' %d 号路口优化结果已成功保存至: %s\n', juncNum, saveFileName);
         
     else
