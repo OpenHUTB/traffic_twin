@@ -80,9 +80,11 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     % 初始化上一帧的时间变量
     prevTime = -inf;
     % 初始化一个结构体数组来保存每个目标的轨迹
-    allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {}, 'Features', {}, 'Categories', {});
-    evaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
-    detectionsBool = false;
+    vehicleTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {}, 'Features', {}, 'Categories', {});
+    personTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {}, 'Features', {}, 'Categories', {});
+    vehicleevaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
+    personevaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
+    % detectionsBool = false;
 
     % 开始逐帧处理
     for frame = 1:numFrames
@@ -229,7 +231,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         % [tracks] = tracker(detections, time);
         [vehicletracks] = vehicletracker(vehicleDetections, time);
         [persontracks] = persontracker(pedestrianDetections, time);
-        tracks = [vehicletracks; persontracks];
+        % tracks = [vehicletracks; persontracks];
 
         % 将相机检测按相机索引分组
         camDetCell = cell(6, 1);
@@ -241,12 +243,12 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         end
 
         % 遍历每条轨迹，用中心距离最近匹配提取特征
-        for t = 1:length(tracks)
-            trackID = tracks(t).TrackID;
-            position = tracks(t).State([1, 3, 6]);
-            velocity = tracks(t).State([2, 4, 7]);
-            dim_track = tracks(t).State([9,10,11]);
-            yaw_track = tracks(t).State(8);
+        for t = 1:length(vehicletracks)
+            trackID = vehicletracks(t).TrackID;
+            position = vehicletracks(t).State([1, 3, 6]);
+            velocity = vehicletracks(t).State([2, 4, 7]);
+            dim_track = vehicletracks(t).State([9,10,11]);
+            yaw_track = vehicletracks(t).State(8);
 
             [position, velocity, dim_track, yaw_track] = transformForward(position, velocity, dim_track, yaw_track, egoPose);
 
@@ -311,69 +313,199 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             end
 
             % 更新allTracks
-            trackIdx = find([allTracks.TrackID] == trackID);
+            trackIdx = find([vehicleTracks.TrackID] == trackID);
             if isempty(trackIdx)
-                allTracks(end+1) = struct('TrackID', trackID, ...
+                vehicleTracks(end+1) = struct('TrackID', trackID, ...
                                           'Positions', position', ...
                                           'Velocities', velocity', ...
                                           'Timestamps', time, ...
                                           'Features', featureVec, ...
                                           'Categories', categoryVal);
             else
-                allTracks(trackIdx).Positions = [allTracks(trackIdx).Positions; position'];
-                allTracks(trackIdx).Velocities = [allTracks(trackIdx).Velocities; velocity'];
-                allTracks(trackIdx).Timestamps = [allTracks(trackIdx).Timestamps; time];
+                vehicleTracks(trackIdx).Positions = [vehicleTracks(trackIdx).Positions; position'];
+                vehicleTracks(trackIdx).Velocities = [vehicleTracks(trackIdx).Velocities; velocity'];
+                vehicleTracks(trackIdx).Timestamps = [vehicleTracks(trackIdx).Timestamps; time];
 
                 if ~isempty(featureVec)
-                    allTracks(trackIdx).Features = [allTracks(trackIdx).Features; featureVec];
+                    vehicleTracks(trackIdx).Features = [vehicleTracks(trackIdx).Features; featureVec];
                     if ~exist('featureDim', 'var')
                         featureDim = length(featureVec);
                     end
                 else
                     if exist('featureDim', 'var')
-                        allTracks(trackIdx).Features = [allTracks(trackIdx).Features; nan(1, featureDim)];
+                        vehicleTracks(trackIdx).Features = [vehicleTracks(trackIdx).Features; nan(1, featureDim)];
                     end
                 end
 
-                allTracks(trackIdx).Categories = [allTracks(trackIdx).Categories; categoryVal];
+                vehicleTracks(trackIdx).Categories = [vehicleTracks(trackIdx).Categories; categoryVal];
             end
         end
 
-        for t = 1:length(tracks)
-            trackID = tracks(t).TrackID;
-            position = tracks(t).State([1, 3, 6]);
-            evaluationTracks(end+1).Time = time;
-            evaluationTracks(end).TrackID = trackID;
-            evaluationTracks(end).Position = position;
+        for t = 1:length(vehicletracks)
+            trackID = vehicletracks(t).TrackID;
+            position = vehicletracks(t).State([1, 3, 6]);
+            vehicleevaluationTracks(end+1).Time = time;
+            vehicleevaluationTracks(end).TrackID = trackID;
+            vehicleevaluationTracks(end).Position = position;
+        end
+
+        for t = 1:length(persontracks)
+            trackID = persontracks(t).TrackID;
+            position = persontracks(t).State([1, 3, 6]);
+            velocity = persontracks(t).State([2, 4, 7]);
+            dim_track = persontracks(t).State([9,10,11]);
+            yaw_track = persontracks(t).State(8);
+
+            [position, velocity, dim_track, yaw_track] = transformForward(position, velocity, dim_track, yaw_track, egoPose);
+
+            featureVec = [];       % 最终特征
+            categoryVal = 'Unknown';
+            globalMinDist = inf;   % 全局最小距离
+
+            % 遍历所有相机
+            for camIdx = 1:numel(datalog.CameraData)
+                cameraPose = datalog.CameraData(camIdx).Pose;
+                camera = getMonoCamera(camIdx, cameraPose);
+
+                % 投影3D框
+                [projCuboid, isValid] = cuboidProjection(camera, position, dim_track, yaw_track);
+                if ~isValid
+                    continue;
+                end
+                u = projCuboid(:,1);  v = projCuboid(:,2);
+                if any(isnan(u)) || any(isnan(v))
+                    continue;
+                end
+                projBox = [min(u), min(v), max(u)-min(u), max(v)-min(v)];
+                center_proj = [projBox(1)+projBox(3)/2, projBox(2)+projBox(4)/2];
+
+                % 该相机下的检测
+                dets = camDetCell{camIdx};
+                if isempty(dets)
+                    continue;
+                end
+
+                % 寻找该相机下距离最小的检测
+                for d = 1:numel(dets)
+                    meas = dets{d}.Measurement;
+                    detBox = meas(1:4)';
+                    center_det = [detBox(1)+detBox(3)/2, detBox(2)+detBox(4)/2];
+                    dist = norm(center_proj - center_det);
+                    if dist < globalMinDist
+                        globalMinDist = dist;
+                        % 记录这个检测
+                        bestDetection = dets{d};
+                    end
+                end
+            end
+
+            % 使用全局距离最小的那个检测提取特征
+            if exist('bestDetection', 'var')
+                %提取特征
+                if isfield(bestDetection.ObjectAttributes, 'Feature') && ...
+                   ~isempty(bestDetection.ObjectAttributes.Feature)
+                    featureVec = bestDetection.ObjectAttributes.Feature;
+                end
+                % 提取类别
+                if isfield(bestDetection.ObjectAttributes, 'Category') && ...
+                   ~isempty(bestDetection.ObjectAttributes.Category)
+                    categoryVal = bestDetection.ObjectAttributes.Category;
+                end
+            end
+
+            % 转成行向量
+            if ~isempty(featureVec) && size(featureVec, 1) > 1
+                featureVec = featureVec';
+            end
+
+            % 更新allTracks
+            trackIdx = find([personTracks.TrackID] == trackID);
+            if isempty(trackIdx)
+                personTracks(end+1) = struct('TrackID', trackID, ...
+                                          'Positions', position', ...
+                                          'Velocities', velocity', ...
+                                          'Timestamps', time, ...
+                                          'Features', featureVec, ...
+                                          'Categories', categoryVal);
+            else
+                personTracks(trackIdx).Positions = [personTracks(trackIdx).Positions; position'];
+                personTracks(trackIdx).Velocities = [personTracks(trackIdx).Velocities; velocity'];
+                personTracks(trackIdx).Timestamps = [personTracks(trackIdx).Timestamps; time];
+
+                if ~isempty(featureVec)
+                    personTracks(trackIdx).Features = [personTracks(trackIdx).Features; featureVec];
+                    if ~exist('featureDim', 'var')
+                        featureDim = length(featureVec);
+                    end
+                else
+                    if exist('featureDim', 'var')
+                        personTracks(trackIdx).Features = [personTracks(trackIdx).Features; nan(1, featureDim)];
+                    end
+                end
+
+                personTracks(trackIdx).Categories = [personTracks(trackIdx).Categories; categoryVal];
+            end
+        end
+
+        for t = 1:length(persontracks)
+            trackID = persontracks(t).TrackID;
+            position = persontracks(t).State([1, 3, 6]);
+            personevaluationTracks(end+1).Time = time;
+            personevaluationTracks(end).TrackID = trackID;
+            personevaluationTracks(end).Position = position;
         end
     
     end
 
 
     %% 后处理：为每条轨迹生成单一的中位数特征向量
-    for t = 1:numel(allTracks)
-        featMat = allTracks(t).Features;          
+    for t = 1:numel(vehicleTracks)
+        featMat = vehicleTracks(t).Features;          
         % 剔除全是 NaN 的行
         validRows = ~all(isnan(featMat), 2);
         if sum(validRows) == 0
             % 如果该轨迹没有任何有效特征，设为空
-            allTracks(t).RepresentativeFeature = [];
+            vehicleTracks(t).RepresentativeFeature = [];
             continue;
         end
         validFeats = featMat(validRows, :);       % 只保留有效帧的特征
         % 计算每个维度的中位数
         representativeFeat = median(validFeats, 1, 'omitnan');
         % 保存为代表特征
-        allTracks(t).RepresentativeFeature = representativeFeat;
+        vehicleTracks(t).RepresentativeFeature = representativeFeat;
 
-        catVals = string(allTracks(t).Categories);
+        catVals = string(vehicleTracks(t).Categories);
         validCat = catVals(catVals ~= "unknown");       
         if isempty(validCat)
             representativeCat = "unknown";               
         else
             representativeCat = string(mode(categorical(validCat)));    
         end
-        allTracks(t).Categories = representativeCat;   % 覆盖为标量
+        vehicleTracks(t).Categories = representativeCat;   % 覆盖为标量
+    end
+    for t = 1:numel(personTracks)
+        featMat = personTracks(t).Features;          
+        % 剔除全是 NaN 的行
+        validRows = ~all(isnan(featMat), 2);
+        if sum(validRows) == 0
+            % 如果该轨迹没有任何有效特征，设为空
+            personTracks(t).RepresentativeFeature = [];
+            continue;
+        end
+        validFeats = featMat(validRows, :);       % 只保留有效帧的特征
+        % 计算每个维度的中位数
+        representativeFeat = median(validFeats, 1, 'omitnan');
+        % 保存为代表特征
+        personTracks(t).RepresentativeFeature = representativeFeat;
+
+        catVals = string(personTracks(t).Categories);
+        validCat = catVals(catVals ~= "unknown");       
+        if isempty(validCat)
+            representativeCat = "unknown";               
+        else
+            representativeCat = string(mode(categorical(validCat)));    
+        end
+        personTracks(t).Categories = representativeCat;   % 覆盖为标量
     end
     
     %% 保存全部轨迹，用做计算指标
@@ -383,14 +515,24 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     if ~exist(allTracksFolderPath, 'dir')
         mkdir(allTracksFolderPath);
     end
-    fileName = [dirParts{2}, '_trackedTracks.mat'];
-    allTracksPath = fullfile(allTracksFolderPath, fileName);
-    save(allTracksPath, 'evaluationTracks');
+
+    % 保存车辆 evaluation 轨迹
+    vehicleEvalFile = [dirParts{2}, '_vehicle_trackedTracks.mat'];
+    vehicleEvalPath = fullfile(allTracksFolderPath, vehicleEvalFile);
+    save(vehicleEvalPath, 'vehicleevaluationTracks');
+
+    % 保存行人 evaluation 轨迹
+    personEvalFile = [dirParts{2}, '_person_trackedTracks.mat'];
+    personEvalPath = fullfile(allTracksFolderPath, personEvalFile);
+    save(personEvalPath, 'personevaluationTracks');
     
     %% 保存部分较完整的轨迹，用作轨迹复现
-    % 过滤掉轨迹数量少于5的车辆
-    if ~isempty(allTracks)
-        allTracks = allTracks(cellfun(@(x) size(x, 1) >= 15, {allTracks.Positions}));
+    % 过滤掉数量少于15的轨迹
+    if ~isempty(vehicleTracks)
+        vehicleTracks = vehicleTracks(cellfun(@(x) size(x, 1) >= 15, {vehicleTracks.Positions}));
+    end
+    if ~isempty(personTracks)
+        personTracks = personTracks(cellfun(@(x) size(x, 1) >= 15, {personTracks.Positions}));
     end
     
     % 轨迹目录
@@ -398,10 +540,13 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     if ~exist(tracksDirectory, 'dir')
         mkdir(tracksDirectory);
     end
-    savePath = fullfile(tracksDirectory, 'trackedData.mat'); 
-    % 保存 allTracks 变量到 .mat 文件
-    save(savePath, 'allTracks');
-    disp([' 轨迹提取完毕！数据已保存到 ', savePath]);
+    % 保存过滤后的车辆轨迹
+    vehicleTrackPath = fullfile(tracksDirectory, 'trackedVehicleData.mat');
+    save(vehicleTrackPath, 'vehicleTracks');
+    % 保存过滤后的行人轨迹
+    personTrackPath = fullfile(tracksDirectory, 'trackedPersonData.mat');
+    save(personTrackPath, 'personTracks');
+    disp([' 轨迹提取完毕！数据已保存到 ', tracksDirectory]);
 
 end
 
