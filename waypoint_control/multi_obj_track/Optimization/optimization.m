@@ -71,7 +71,7 @@ for i = 1:length(juncList)
             optimizableVariable('DeletionThreshold', [0.2, 0.6]), ...
             optimizableVariable('DeathRate', [0.3, 0.7]), ...
             optimizableVariable('AssignThresh1', [1, 10]), ...  % 粗门控阈值
-            optimizableVariable('AssignThresh2', [2, 20])      % 精细门控阈值
+            optimizableVariable('AssignThresh2', [10, 20])      % 精细门控阈值
         ];
 
         % 定义目标函数
