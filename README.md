@@ -106,9 +106,9 @@ pip install mysql-connector-python
   journal={IEEE Transactions on Intelligent Transportation Systems}, 
   title={UTDT: A Baseline Benchmark for Urban Traffic Flow Digital Twins via Roadside LiDAR–Camera Fusion}, 
   year={2026},
-  volume={},
-  number={},
-  pages={1-12},
+  volume={27},
+  number={5},
+  pages={5930-5941},
   keywords={Trajectory;Digital twins;Autonomous vehicles;Cameras;Accuracy;Laser radar;Spatiotemporal phenomena;Planning;Data models;Synchronization;Digital twins;autonomous driving;vehicle detection;multi-object tracking;trajectory restoration},
   doi={10.1109/TITS.2026.3651290}}
 ```
