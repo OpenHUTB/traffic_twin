@@ -59,7 +59,7 @@ function trackingError = vehicleevaluateTracker(params, junc, initTime, runFrame
     % 初始化上一帧的时间变量
     prevTime = -inf;
     % 初始化一个结构体数组来保存每个目标的轨迹
-    allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {}, 'Features', {}, 'Categories', {});
+    allTracks = struct('TrackID', {}, 'Positions', {}, 'Velocities', {}, 'Timestamps', {});
     evaluationTracks =  struct('Time', {}, 'TrackID', {}, 'Position', {});
     detectionsBool = false;
     for frame = 1:numFrames

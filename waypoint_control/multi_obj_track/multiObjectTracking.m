@@ -234,11 +234,19 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         % tracks = [vehicletracks; persontracks];
 
         % 将相机检测按相机索引分组
-        camDetCell = cell(6, 1);
-        for d = 1:numel(cameraDetections)
-            camIdx = cameraDetections{d}.MeasurementParameters.CameraIndex;
+        vehiclecamDetCell = cell(6, 1);
+        for d = 1:numel(vehiclecameraDetections)
+            camIdx = vehiclecameraDetections{d}.MeasurementParameters.CameraIndex;
             if camIdx >= 1 && camIdx <= 6
-                camDetCell{camIdx}{end+1} = cameraDetections{d};
+                vehiclecamDetCell{camIdx}{end+1} = vehiclecameraDetections{d};
+            end
+        end
+
+        personcamDetCell = cell(6, 1);
+        for d = 1:numel(personcameraDetections)
+            camIdx = personcameraDetections{d}.MeasurementParameters.CameraIndex;
+            if camIdx >= 1 && camIdx <= 6
+                personcamDetCell{camIdx}{end+1} = personcameraDetections{d};
             end
         end
 
@@ -274,7 +282,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                 center_proj = [projBox(1)+projBox(3)/2, projBox(2)+projBox(4)/2];
 
                 % 该相机下的检测
-                dets = camDetCell{camIdx};
+                dets = vehiclecamDetCell{camIdx};
                 if isempty(dets)
                     continue;
                 end
@@ -380,7 +388,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                 center_proj = [projBox(1)+projBox(3)/2, projBox(2)+projBox(4)/2];
 
                 % 该相机下的检测
-                dets = camDetCell{camIdx};
+                dets = personcamDetCell{camIdx};
                 if isempty(dets)
                     continue;
                 end
@@ -474,14 +482,14 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         % 保存为代表特征
         vehicleTracks(t).RepresentativeFeature = representativeFeat;
 
-        catVals = string(vehicleTracks(t).Categories);
-        validCat = catVals(catVals ~= "unknown");       
-        if isempty(validCat)
-            representativeCat = "unknown";               
-        else
-            representativeCat = string(mode(categorical(validCat)));    
-        end
-        vehicleTracks(t).Categories = representativeCat;   % 覆盖为标量
+        % catVals = string(vehicleTracks(t).Categories);
+        % validCat = catVals(catVals ~= "unknown");       
+        % if isempty(validCat)
+        %     representativeCat = "unknown";               
+        % else
+        %     representativeCat = string(mode(categorical(validCat)));    
+        % end
+        % vehicleTracks(t).Categories = representativeCat;   % 覆盖为标量
     end
     for t = 1:numel(personTracks)
         featMat = personTracks(t).Features;          
@@ -498,14 +506,14 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         % 保存为代表特征
         personTracks(t).RepresentativeFeature = representativeFeat;
 
-        catVals = string(personTracks(t).Categories);
-        validCat = catVals(catVals ~= "unknown");       
-        if isempty(validCat)
-            representativeCat = "unknown";               
-        else
-            representativeCat = string(mode(categorical(validCat)));    
-        end
-        personTracks(t).Categories = representativeCat;   % 覆盖为标量
+        % catVals = string(personTracks(t).Categories);
+        % validCat = catVals(catVals ~= "unknown");       
+        % if isempty(validCat)
+        %     representativeCat = "unknown";               
+        % else
+        %     representativeCat = string(mode(categorical(validCat)));    
+        % end
+        % personTracks(t).Categories = representativeCat;   % 覆盖为标量
     end
     
     %% 保存全部轨迹，用做计算指标

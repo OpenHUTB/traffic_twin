@@ -87,8 +87,8 @@ for i = 1:length(juncList)
         disp(personbestParams);
         
         % 保存最优参数
-        saveFileName = sprintf('vehicleOptResults_%s_Junc%d_%s.mat', townName, juncNum, datestr(now, 'yyyymmdd_HHMMSS'));
-        save(saveFileName, 'vehicleresults', 'personbestParams', 'townName', 'juncNum');
+        saveFileName = sprintf('personOptResults_%s_Junc%d_%s.mat', townName, juncNum, datestr(now, 'yyyymmdd_HHMMSS'));
+        save(saveFileName, 'personresults', 'personbestParams', 'townName', 'juncNum');
         fprintf(' %d 号路口优化结果已成功保存至: %s\n', juncNum, saveFileName);
         
     else
