@@ -261,8 +261,10 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             [position, velocity, dim_track, yaw_track] = transformForward(position, velocity, dim_track, yaw_track, egoPose);
 
             featureVec = [];       % 最终特征
-            categoryVal = 'Unknown';
+            categoryVal = "Unknown";
             globalMinDist = inf;   % 全局最小距离
+            % vehiclebestDetection = [];
+            clear vehiclebestDetection;
 
             % 遍历所有相机
             for camIdx = 1:numel(datalog.CameraData)
@@ -296,22 +298,34 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                     if dist < globalMinDist
                         globalMinDist = dist;
                         % 记录这个检测
-                        bestDetection = dets{d};
+                        vehiclebestDetection = dets{d};
                     end
                 end
             end
 
             % 使用全局距离最小的那个检测提取特征
-            if exist('bestDetection', 'var')
+            if exist('vehiclebestDetection', 'var')
                 %提取特征
-                if isfield(bestDetection.ObjectAttributes, 'Feature') && ...
-                   ~isempty(bestDetection.ObjectAttributes.Feature)
-                    featureVec = bestDetection.ObjectAttributes.Feature;
+                if isfield(vehiclebestDetection.ObjectAttributes, 'Feature') && ...
+                   ~isempty(vehiclebestDetection.ObjectAttributes.Feature)
+                    featureVec = vehiclebestDetection.ObjectAttributes.Feature;
                 end
                 % 提取类别
-                if isfield(bestDetection.ObjectAttributes, 'Category') && ...
-                   ~isempty(bestDetection.ObjectAttributes.Category)
-                    categoryVal = bestDetection.ObjectAttributes.Category;
+                if isfield(vehiclebestDetection.ObjectAttributes, 'Category') && ...
+                   ~isempty(vehiclebestDetection.ObjectAttributes.Category)
+                    categoryVal = vehiclebestDetection.ObjectAttributes.Category;
+                end
+            else
+                trackIdx = find([vehicleTracks.TrackID] == trackID);
+                if ~isempty(trackIdx)
+                    prevFeatures = vehicleTracks(trackIdx).Features;
+                    if ~isempty(prevFeatures)
+                        featureVec = prevFeatures(end, :);
+                    end
+                    prevCats = vehicleTracks(trackIdx).Categories;
+                    if ~isempty(prevCats)
+                        categoryVal = prevCats(end, :);
+                    end
                 end
             end
 
@@ -367,8 +381,10 @@ function multiObjectTracking(junc, initTime, runFrameNum)
             [position, velocity, dim_track, yaw_track] = transformForward(position, velocity, dim_track, yaw_track, egoPose);
 
             featureVec = [];       % 最终特征
-            categoryVal = 'Unknown';
+            categoryVal = "Unknown";
             globalMinDist = inf;   % 全局最小距离
+            % personbestDetection = [];
+            clear personbestDetection;
 
             % 遍历所有相机
             for camIdx = 1:numel(datalog.CameraData)
@@ -402,22 +418,34 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                     if dist < globalMinDist
                         globalMinDist = dist;
                         % 记录这个检测
-                        bestDetection = dets{d};
+                        personbestDetection = dets{d};
                     end
                 end
             end
 
             % 使用全局距离最小的那个检测提取特征
-            if exist('bestDetection', 'var')
+            if exist('personbestDetection', 'var')
                 %提取特征
-                if isfield(bestDetection.ObjectAttributes, 'Feature') && ...
-                   ~isempty(bestDetection.ObjectAttributes.Feature)
-                    featureVec = bestDetection.ObjectAttributes.Feature;
+                if isfield(personbestDetection.ObjectAttributes, 'Feature') && ...
+                   ~isempty(personbestDetection.ObjectAttributes.Feature)
+                    featureVec = personbestDetection.ObjectAttributes.Feature;
                 end
                 % 提取类别
-                if isfield(bestDetection.ObjectAttributes, 'Category') && ...
-                   ~isempty(bestDetection.ObjectAttributes.Category)
-                    categoryVal = bestDetection.ObjectAttributes.Category;
+                if isfield(personbestDetection.ObjectAttributes, 'Category') && ...
+                   ~isempty(personbestDetection.ObjectAttributes.Category)
+                    categoryVal = personbestDetection.ObjectAttributes.Category;
+                end
+            else
+                trackIdx = find([personTracks.TrackID] == trackID);
+                if ~isempty(trackIdx)
+                    prevFeatures = personTracks(trackIdx).Features;
+                    if ~isempty(prevFeatures)
+                        featureVec = prevFeatures(end, :);
+                    end
+                    prevCats = personTracks(trackIdx).Categories;
+                    if ~isempty(prevCats)
+                        categoryVal = string(prevCats(end, :));
+                    end
                 end
             end
 
@@ -482,14 +510,14 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         % 保存为代表特征
         vehicleTracks(t).RepresentativeFeature = representativeFeat;
 
-        % catVals = string(vehicleTracks(t).Categories);
-        % validCat = catVals(catVals ~= "unknown");       
-        % if isempty(validCat)
-        %     representativeCat = "unknown";               
-        % else
-        %     representativeCat = string(mode(categorical(validCat)));    
-        % end
-        % vehicleTracks(t).Categories = representativeCat;   % 覆盖为标量
+        catVals = string(vehicleTracks(t).Categories);
+        validCat = catVals(catVals ~= "unknown");       
+        if isempty(validCat)
+            representativeCat = "unknown";               
+        else
+            representativeCat = string(mode(categorical(validCat)));    
+        end
+        vehicleTracks(t).Categories = representativeCat;   % 覆盖为标量
     end
     for t = 1:numel(personTracks)
         featMat = personTracks(t).Features;          
@@ -506,14 +534,14 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         % 保存为代表特征
         personTracks(t).RepresentativeFeature = representativeFeat;
 
-        % catVals = string(personTracks(t).Categories);
-        % validCat = catVals(catVals ~= "unknown");       
-        % if isempty(validCat)
-        %     representativeCat = "unknown";               
-        % else
-        %     representativeCat = string(mode(categorical(validCat)));    
-        % end
-        % personTracks(t).Categories = representativeCat;   % 覆盖为标量
+        catVals = string(personTracks(t).Categories);
+        validCat = catVals(catVals ~= "unknown");       
+        if isempty(validCat)
+            representativeCat = "unknown";               
+        else
+            representativeCat = string(mode(categorical(validCat)));    
+        end
+        personTracks(t).Categories = representativeCat;   % 覆盖为标量
     end
     
     %% 保存全部轨迹，用做计算指标
@@ -560,10 +588,20 @@ end
 
 
 function [projectedCuboids, isValid] = cuboidProjection(camera, pos, dim, yaw)
-    projectedCuboids = zeros(8,2,size(pos,2));
-    isValid = true(1,size(pos,2));
-    for i = 1:size(pos,2)
-        projection = singleProjection(camera, pos(:,i), dim(:,i), yaw(i));
+    numCuboids = size(pos, 2);
+    projectedCuboids = zeros(8, 2, numCuboids);
+    isValid = true(1, numCuboids);
+    
+    % 计算相机的FOV
+    [azFov, elFov] = computeFieldOfView(camera.Intrinsics.FocalLength, camera.Intrinsics.ImageSize);
+    
+    % 预计算相机位姿
+    R = rotmat(quaternion([camera.Yaw camera.Pitch camera.Roll], 'eulerd', 'ZYX', 'frame'), 'frame');
+    p = [camera.SensorLocation camera.Height];
+    tform = rigid3d(R', p);
+    
+    for i = 1:numCuboids
+        projection = singleProjection(camera, pos(:,i), dim(:,i), yaw(i), tform, azFov, elFov);
         projectedCuboids(:,:,i) = projection;
         if any(isnan(projection(:)))
             isValid(i) = false;
@@ -571,29 +609,39 @@ function [projectedCuboids, isValid] = cuboidProjection(camera, pos, dim, yaw)
     end
 end
 
-function projectedCuboid = singleProjection(camera, pos, dim, yaw)
-    v = [0.5000   -0.5000    0.5000
-         0.5000    0.5000    0.5000
-        -0.5000    0.5000    0.5000
-        -0.5000   -0.5000    0.5000
-         0.5000   -0.5000   -0.5000
-         0.5000    0.5000   -0.5000
-        -0.5000    0.5000   -0.5000
-        -0.5000   -0.5000   -0.5000];
+function projectedCuboid = singleProjection(camera, pos, dim, yaw, tform, azFov, elFov)
+    % 定义标准顶点
+    v = [ 0.5   -0.5    0.5;
+          0.5    0.5    0.5;
+         -0.5    0.5    0.5;
+         -0.5   -0.5    0.5;
+          0.5   -0.5   -0.5;
+          0.5    0.5   -0.5;
+         -0.5    0.5   -0.5;
+         -0.5   -0.5   -0.5];
     v = v([4 1 2 3 8 5 6 7], :);
+    
+    % 缩放
     v = v .* dim(:)';
+    
+    % 旋转
     orient = quaternion([yaw 0 0], 'eulerd', 'ZYX', 'frame');
     v = rotatepoint(orient, v);
-    v = v + pos(:)';
-    R = rotmat(quaternion([camera.Yaw camera.Pitch camera.Roll], 'eulerd', 'ZYX', 'frame'), 'frame');
-    p = [camera.SensorLocation camera.Height];
-    tform = rigid3d(R', p);
-    vCamera = transformPointsForward(tform, v);
+    
+    % 平移
+    vWorld = v + pos(:)';
+    
+    % 坐标系转换,从车辆坐标系转换到相机坐标系
+    vCamera = transformPointsInverse(tform, vWorld);
+    
+    % 计算视角并判断是否在视野内
     [az, el] = cart2sph(vCamera(:,1), vCamera(:,2), vCamera(:,3));
-    [azFov, elFov] = computeFieldOfView(camera.Intrinsics.FocalLength, camera.Intrinsics.ImageSize);
     inside = abs(az) < azFov/2 & abs(el) < elFov/2;
-    if sum(inside) > 4
-        projectedCuboid = vehicleToImage(camera, v + [0 0 0.3158]);
+    
+    % 只要有 >=1 个点在视野内，且物体在相机前方
+    % 避免边缘截断时整个框消失
+    if sum(inside) >= 1 && any(vCamera(:,1) > 0)
+        projectedCuboid = vehicleToImage(camera, vWorld + [0 0 0.3158]); 
     else
         projectedCuboid = nan(8, 2);
     end
