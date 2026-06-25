@@ -27,33 +27,34 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     mapName = parts{1};   
     juncName = parts{2};  
     % 获取当前路口的配置参数
-    params = getTrackerConfig(juncName);
+    vehicleparams = getvehicleTrackerConfig(juncName);
+    personparams = getpersonTrackerConfig(juncName);
     
     vehicletracker = trackerJPDA( ...
         TrackLogic="Integrated", ...
         FilterInitializationFcn=@helperInitLidarCameraFusionFilter, ...
-        AssignmentThreshold=params.AssignmentThreshold, ...   % 关联阈值
+        AssignmentThreshold=vehicleparams.AssignmentThreshold, ...   % 关联阈值
         MaxNumTracks=500, ...
-        DetectionProbability=params.DetectionProbability, ...      % 检测到目标的概率
+        DetectionProbability=vehicleparams.DetectionProbability, ...      % 检测到目标的概率
         MaxNumEvents=50, ...
-        ClutterDensity=params.ClutterDensity, ...
-        NewTargetDensity=params.NewTargetDensity, ...
-        ConfirmationThreshold=params.ConfirmationThreshold, ...      % 确定为目标的概率
-        DeletionThreshold=params.DeletionThreshold, ...           % 表示一个跟踪目标被删除所需的最大置信度
-        DeathRate=params.DeathRate);          
+        ClutterDensity=vehicleparams.ClutterDensity, ...
+        NewTargetDensity=vehicleparams.NewTargetDensity, ...
+        ConfirmationThreshold=vehicleparams.ConfirmationThreshold, ...      % 确定为目标的概率
+        DeletionThreshold=vehicleparams.DeletionThreshold, ...           % 表示一个跟踪目标被删除所需的最大置信度
+        DeathRate=vehicleparams.DeathRate);          
 
     persontracker = trackerJPDA( ...
         TrackLogic="Integrated", ...
         FilterInitializationFcn=@helperInitLidarCameraFusionFilter, ...
-        AssignmentThreshold=params.AssignmentThreshold, ...   % 关联阈值
+        AssignmentThreshold=personparams.AssignmentThreshold, ...   % 关联阈值
         MaxNumTracks=500, ...
-        DetectionProbability=params.DetectionProbability, ...      % 检测到目标的概率
+        DetectionProbability=personparams.DetectionProbability, ...      % 检测到目标的概率
         MaxNumEvents=50, ...
-        ClutterDensity=params.ClutterDensity, ...
-        NewTargetDensity=params.NewTargetDensity, ...
-        ConfirmationThreshold=params.ConfirmationThreshold, ...      % 确定为目标的概率
-        DeletionThreshold=params.DeletionThreshold, ...           % 表示一个跟踪目标被删除所需的最大置信度
-        DeathRate=params.DeathRate);
+        ClutterDensity=personparams.ClutterDensity, ...
+        NewTargetDensity=personparams.NewTargetDensity, ...
+        ConfirmationThreshold=personparams.ConfirmationThreshold, ...      % 确定为目标的概率
+        DeletionThreshold=personparams.DeletionThreshold, ...           % 表示一个跟踪目标被删除所需的最大置信度
+        DeathRate=personparams.DeathRate);
                           
     % 定义轨迹点的数量
     numFrames = runFrameNum;
@@ -131,7 +132,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                 attr.Feature = [];
             end
             if ~isfield(attr, 'Category')
-                attr.Category = "unknown";
+                attr.Category = "Unknown";
             end
             lidarDetections{i}.ObjectAttributes = attr;
             
@@ -171,7 +172,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                 attr.Feature = [];
             end
             if ~isfield(attr, 'Category')
-                attr.Category = "unknown";
+                attr.Category = "Unknown";
             end
             cameraDetections{i}.ObjectAttributes = attr;
             
@@ -206,26 +207,26 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         % end
 
         % 确保ObjectAttributes都包含 Feature 和 Category 字段
-        for i = 1:numel(vehicleDetections)
-            attr = vehicleDetections{i}.ObjectAttributes;
-            if ~isfield(attr, 'Feature')
-                attr.Feature = [];
-            end
-            if ~isfield(attr, 'Category')
-                attr.Category = "unknown";
-            end
-            vehicleDetections{i}.ObjectAttributes = attr;
-        end
-        for i = 1:numel(pedestrianDetections)
-            attr = pedestrianDetections{i}.ObjectAttributes;
-            if ~isfield(attr, 'Feature')
-                attr.Feature = [];
-            end
-            if ~isfield(attr, 'Category')
-                attr.Category = "unknown";
-            end
-            pedestrianDetections{i}.ObjectAttributes = attr;
-        end
+        % for i = 1:numel(vehicleDetections)
+        %     attr = vehicleDetections{i}.ObjectAttributes;
+        %     if ~isfield(attr, 'Feature')
+        %         attr.Feature = [];
+        %     end
+        %     if ~isfield(attr, 'Category')
+        %         attr.Category = "Unknown";
+        %     end
+        %     vehicleDetections{i}.ObjectAttributes = attr;
+        % end
+        % for i = 1:numel(pedestrianDetections)
+        %     attr = pedestrianDetections{i}.ObjectAttributes;
+        %     if ~isfield(attr, 'Feature')
+        %         attr.Feature = [];
+        %     end
+        %     if ~isfield(attr, 'Category')
+        %         attr.Category = "Unknown";
+        %     end
+        %     pedestrianDetections{i}.ObjectAttributes = attr;
+        % end
 
         % 送入跟踪器目标
         % [tracks] = tracker(detections, time);
@@ -313,7 +314,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                 % 提取类别
                 if isfield(vehiclebestDetection.ObjectAttributes, 'Category') && ...
                    ~isempty(vehiclebestDetection.ObjectAttributes.Category)
-                    categoryVal = vehiclebestDetection.ObjectAttributes.Category;
+                    categoryVal = string(vehiclebestDetection.ObjectAttributes.Category);
                 end
             else
                 trackIdx = find([vehicleTracks.TrackID] == trackID);
@@ -324,7 +325,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                     end
                     prevCats = vehicleTracks(trackIdx).Categories;
                     if ~isempty(prevCats)
-                        categoryVal = prevCats(end, :);
+                        categoryVal = string(prevCats(end));
                     end
                 end
             end
@@ -433,7 +434,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                 % 提取类别
                 if isfield(personbestDetection.ObjectAttributes, 'Category') && ...
                    ~isempty(personbestDetection.ObjectAttributes.Category)
-                    categoryVal = personbestDetection.ObjectAttributes.Category;
+                    categoryVal = string(personbestDetection.ObjectAttributes.Category);
                 end
             else
                 trackIdx = find([personTracks.TrackID] == trackID);
@@ -444,7 +445,7 @@ function multiObjectTracking(junc, initTime, runFrameNum)
                     end
                     prevCats = personTracks(trackIdx).Categories;
                     if ~isempty(prevCats)
-                        categoryVal = string(prevCats(end, :));
+                        categoryVal = string(prevCats(end));
                     end
                 end
             end
@@ -496,6 +497,15 @@ function multiObjectTracking(junc, initTime, runFrameNum)
 
     %% 后处理：为每条轨迹生成单一的中位数特征向量
     for t = 1:numel(vehicleTracks)
+        catVals = string(vehicleTracks(t).Categories);
+        validCat = catVals(catVals ~= "Unknown");       
+        if isempty(validCat)
+            representativeCat = "vehicle";               
+        else
+            representativeCat = string(mode(categorical(validCat)));    
+        end
+        vehicleTracks(t).Categories = representativeCat;   % 覆盖为标量
+
         featMat = vehicleTracks(t).Features;          
         % 剔除全是 NaN 的行
         validRows = ~all(isnan(featMat), 2);
@@ -509,17 +519,17 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         representativeFeat = median(validFeats, 1, 'omitnan');
         % 保存为代表特征
         vehicleTracks(t).RepresentativeFeature = representativeFeat;
-
-        catVals = string(vehicleTracks(t).Categories);
-        validCat = catVals(catVals ~= "unknown");       
+    end
+    for t = 1:numel(personTracks)
+        catVals = string(personTracks(t).Categories);
+        validCat = catVals(catVals ~= "Unknown");       
         if isempty(validCat)
-            representativeCat = "unknown";               
+            representativeCat = "person";               
         else
             representativeCat = string(mode(categorical(validCat)));    
         end
-        vehicleTracks(t).Categories = representativeCat;   % 覆盖为标量
-    end
-    for t = 1:numel(personTracks)
+        personTracks(t).Categories = representativeCat;   % 覆盖为标量
+
         featMat = personTracks(t).Features;          
         % 剔除全是 NaN 的行
         validRows = ~all(isnan(featMat), 2);
@@ -533,15 +543,6 @@ function multiObjectTracking(junc, initTime, runFrameNum)
         representativeFeat = median(validFeats, 1, 'omitnan');
         % 保存为代表特征
         personTracks(t).RepresentativeFeature = representativeFeat;
-
-        catVals = string(personTracks(t).Categories);
-        validCat = catVals(catVals ~= "unknown");       
-        if isempty(validCat)
-            representativeCat = "unknown";               
-        else
-            representativeCat = string(mode(categorical(validCat)));    
-        end
-        personTracks(t).Categories = representativeCat;   % 覆盖为标量
     end
     
     %% 保存全部轨迹，用做计算指标
