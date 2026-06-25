@@ -2,7 +2,7 @@
 % 通过计算特征间的余弦相似度外还比较时间
 
 function juncVehicleTraj = processSingleJuncTraj(trajStruct)  % 1x1 struct 
-    threshold = 0.9;
+    threshold = 0.8;
     traj = trajStruct.traj;
     traj_f = trajStruct.traj_f;
     numTrajectories = length(traj);
@@ -25,9 +25,15 @@ function juncVehicleTraj = processSingleJuncTraj(trajStruct)  % 1x1 struct
             if ~isequal(cat_i, cat_j)
                 continue;
             end
-            % 获取轨迹 i 和 j 的位置数据
+            % 获取轨迹 i 和 j 的位置数据（即特征向量 mean_hsv）
             pos_i = trajStruct.traj{i}.mean_hsv;
             pos_j = trajStruct.traj{j}.mean_hsv; 
+            
+            % 遇到空特征值，无法计算相似度，直接跳过本次匹配
+            if isempty(pos_i) || isempty(pos_j)
+                continue;
+            end
+            
             % 计算余弦相似度
             cosineSim = 1 - pdist2(pos_i, pos_j, 'cosine'); 
             if cosineSim > threshold
@@ -46,7 +52,6 @@ function juncVehicleTraj = processSingleJuncTraj(trajStruct)  % 1x1 struct
     finalTrajFiltered = filterFinalTraj(finalTraj, traj);
     % 保存最后包含时间的轨迹
     juncVehicleTraj = saveTraj(trajStruct, finalTrajFiltered);
-
 end
 
 function juncVehicleTraj = saveTraj(trajStruct, finalTrajFiltered)
@@ -75,14 +80,13 @@ function juncVehicleTraj = saveTraj(trajStruct, finalTrajFiltered)
         );
         juncVehicleTraj.traj_f(i,:) = [timeStamp(1), timeStamp(end)];
     end 
-  
 end
 
 function groupedIndices = SingleJuncTraj(qualifiedMatrix)
     % 将 qualifiedMatrix 转换为图的邻接矩阵
     adjMatrix = qualifiedMatrix;
     
-    % 确保邻接矩阵是对称的（因为 qualifiedMatrix 应该是无向图）
+    % 确保邻接矩阵是对称的
     adjMatrix = adjMatrix | adjMatrix';
     
     % 初始化并查集
@@ -97,7 +101,6 @@ function groupedIndices = SingleJuncTraj(qualifiedMatrix)
         end
         root = u;
     end
-
     % 并查集的合并函数
     function union(u, v)
         rootU = find(u);
@@ -106,7 +109,6 @@ function groupedIndices = SingleJuncTraj(qualifiedMatrix)
             parent(rootV) = rootU; % 将 rootV 的父节点设为 rootU
         end
     end
-
     % 遍历邻接矩阵，合并同一辆车的轨迹
     for i = 1:n
         for j = i+1:n
@@ -115,14 +117,12 @@ function groupedIndices = SingleJuncTraj(qualifiedMatrix)
             end
         end
     end
-
     % 将同一辆车的轨迹索引分组
     groupedIndices = cell(n, 1); % 预分配空间
     for i = 1:n
         root = find(i);
         groupedIndices{root} = [groupedIndices{root}, i];
     end
-
     % 去除空单元格
     groupedIndices = groupedIndices(~cellfun(@isempty, groupedIndices));
 end
@@ -141,7 +141,6 @@ function fianalTraj = clearNoneTraj(groupedIndices, traj)
         end
     end
 end 
-
 
 function finalTrajFiltered = filterFinalTraj(finalTraj, traj)
     % finalTraj: Nx1 cell，每个 cell 存放同一车辆的多个轨迹的索引
