@@ -54,31 +54,23 @@ function juncVehicleTraj = processSingleJuncTraj(trajStruct)  % 1x1 struct
     juncVehicleTraj = saveTraj(trajStruct, finalTrajFiltered);
 end
 
-function juncVehicleTraj = saveTraj(trajStruct, finalTrajFiltered)
-    tra = trajStruct.traj;
-    N = length(finalTrajFiltered);
-    traj_data = cell(1, N); 
-    traj_f_data = zeros(N, 2); 
-    % 将数据保存到结构体中
-    juncVehicleTraj.traj = traj_data;
-    juncVehicleTraj.traj_f = traj_f_data;
+function juncVehicleTraj = saveTraj(trajStruct, finalTrajMerged)
+    % 保存最终数据，现在 finalTrajMerged 传进来的已经是拼接好的结构体了
+    N = length(finalTrajMerged);
+    
+    % 预分配空间
+    juncVehicleTraj.traj = cell(1, N);
+    juncVehicleTraj.traj_f = zeros(N, 2); 
     
     for i = 1:N
-    % 访问第 i 个元素
-        cellElement = finalTrajFiltered{i};
-        trackID = tra{cellElement}.trackID;
-        positions = tra{cellElement}.wrl_pos;
-        features = tra{cellElement}.mean_hsv;
-        timeStamp = tra{cellElement}.timestamp;
-        Category = tra{cellElement}.category;
-        juncVehicleTraj.traj{i} = struct( ...
-            'trackID', trackID, ...    % 轨迹 ID
-            'wrl_pos', positions, ...  % 位置数据
-            'mean_hsv', features, ...  % 特征数据
-            'timestamp', timeStamp, ... % 轨迹时间
-            'category', Category ... % 轨迹类别
-        );
-        juncVehicleTraj.traj_f(i,:) = [timeStamp(1), timeStamp(end)];
+        % 提取已经拼接好的数据
+        mergedData = finalTrajMerged{i};
+        
+        % 直接赋值给最终的 cell
+        juncVehicleTraj.traj{i} = mergedData;
+        
+        % 记录这条完整轨迹进入和离开路口的时间
+        juncVehicleTraj.traj_f(i,:) = [mergedData.timestamp(1), mergedData.timestamp(end)];
     end 
 end
 
@@ -142,35 +134,56 @@ function fianalTraj = clearNoneTraj(groupedIndices, traj)
     end
 end 
 
-function finalTrajFiltered = filterFinalTraj(finalTraj, traj)
-    % finalTraj: Nx1 cell，每个 cell 存放同一车辆的多个轨迹的索引
-    % traj: 1xN cell，每个 cell 是一个 struct，struct 包含字段 wrl_pos（Mx3 double）
+function finalTrajMerged = filterFinalTraj(finalTraj, traj)
+    % 现在的逻辑：将同一组的碎片轨迹按时间顺序首尾拼接
     
-    % 初始化结果
-    finalTrajFiltered = cell(size(finalTraj));
+    % 初始化结果，存放拼接后的新结构体
+    finalTrajMerged = cell(1, length(finalTraj));
     
-    % 遍历 finalTraj 中的每一组轨迹
+    % 遍历每一组需要合并的轨迹
     for i = 1:length(finalTraj)
-        % 获取当前组的轨迹索引
         trajIndices = finalTraj{i};
         
-        % 找到 wrl_pos 点数最多的轨迹
-        maxPoints = -1; % 初始化最大点数
-        bestIndex = -1; % 初始化最佳轨迹索引
-        
+        % 提取每段碎片的起始时间，用来排序（保证拼接顺序是从早到晚）
+        startTimes = zeros(1, length(trajIndices));
         for j = 1:length(trajIndices)
-            % 获取当前轨迹的 wrl_pos
-            currentTraj = traj{trajIndices(j)};
-            currentPoints = size(currentTraj.wrl_pos, 1); % wrl_pos 的行数
+            startTimes(j) = traj{trajIndices(j)}.timestamp(1);
+        end
+        [~, sortOrder] = sort(startTimes);
+        sortedIndices = trajIndices(sortOrder); % 排序后的索引
+        
+        % 准备拼接容器
+        merged_wrl_pos = [];
+        merged_timestamp = [];
+        
+        % 为了保留最具代表性的特征，我们找到点数最多的一段，继承它的 trackID 和 mean_hsv
+        maxPoints = -1;
+        best_mean_hsv = [];
+        best_trackID = [];
+        
+        for j = 1:length(sortedIndices)
+            idx = sortedIndices(j);
+            currentTraj = traj{idx};
             
-            % 如果当前轨迹的点数更多，则更新最佳轨迹
-            if currentPoints > maxPoints
-                maxPoints = currentPoints;
-                bestIndex = trajIndices(j);
+            % 首尾纵向拼接位置和时间数据
+            merged_wrl_pos = [merged_wrl_pos; currentTraj.wrl_pos];
+            merged_timestamp = [merged_timestamp; currentTraj.timestamp];
+            
+            % 记录最长段的特征作为该车的代表特征
+            if size(currentTraj.wrl_pos, 1) > maxPoints
+                maxPoints = size(currentTraj.wrl_pos, 1);
+                best_mean_hsv = currentTraj.mean_hsv;
+                best_trackID = currentTraj.trackID;
             end
         end
         
-        % 将最佳轨迹索引存入结果
-        finalTrajFiltered{i} = bestIndex;
+        % 打包成新的完整结构体
+        mergedStruct.trackID = best_trackID;
+        mergedStruct.wrl_pos = merged_wrl_pos;
+        mergedStruct.mean_hsv = best_mean_hsv;
+        mergedStruct.timestamp = merged_timestamp;
+        mergedStruct.category = traj{sortedIndices(1)}.category; % 类别取任意一个即可
+        
+        finalTrajMerged{i} = mergedStruct;
     end
 end

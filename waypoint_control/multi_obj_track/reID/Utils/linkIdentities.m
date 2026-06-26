@@ -118,10 +118,10 @@ function allVehicles = matchRoadPairs(allVehicles, roadA, roadB, threshold)
             f_time = trackB.timestamp(1);
             
             % 时间因果约束：路口 B 的出现时间必须在路口 A 结束之后
-            d_time = f_time - last_time;
-            if d_time <= 0
-                continue;
-            end
+            d_time = abs(f_time - last_time);
+            % if d_time <= 0
+            %     continue;
+            % end
             
             % 计算路口间的转移速度
             dis = sum(abs(last_position - f_position));
@@ -130,7 +130,13 @@ function allVehicles = matchRoadPairs(allVehicles, roadA, roadB, threshold)
             % 路口间的速度与时空物理约束判定
             if d_speed > speed / 2 && d_speed < speed * 2
                 % 使用 24 维特征计算余弦距离
-                dist_feat = pdist2(trackA.mean_hsv, trackB.mean_hsv, 'cosine');
+                % dist_feat = pdist2(trackA.mean_hsv, trackB.mean_hsv, 'cosine');
+                %  安全过滤空特征
+                if isempty(trackA.mean_hsv) || isempty(trackB.mean_hsv) || (size(trackA.mean_hsv, 2) ~= size(trackB.mean_hsv, 2))
+                    dist_feat = 1;  % ⚠️ 注意：pdist2 计算的是“距离”，1 表示距离最大（完全不相似）
+                else
+                    dist_feat = pdist2(trackA.mean_hsv, trackB.mean_hsv, 'cosine');
+                end
                 costMatrix(i, j) = dist_feat;
             end
         end
@@ -150,7 +156,12 @@ function allVehicles = matchRoadPairs(allVehicles, roadA, roadB, threshold)
             globalIdxB = idxB(matches(m, 2));
             
             % 将路口 B 的轨迹链顺次拼接到路口 A 后面，形成更长的跨路口链
-            allVehicles{globalIdxA} = [allVehicles{globalIdxA}, allVehicles{globalIdxB}];
+            % allVehicles{globalIdxA} = [allVehicles{globalIdxA}, allVehicles{globalIdxB}];
+            % allVehicles{globalIdxA} = {allVehicles{globalIdxA}, allVehicles{globalIdxB}};
+            % 提取内层 cell 里的结构体，再组合成 1×2 cell
+            structA = allVehicles{globalIdxA}{end};   
+            structB = allVehicles{globalIdxB}{end};
+            allVehicles{globalIdxA} = {structA, structB};   % 1×2 cell，里面是两个结构体
             % 标记原路口 B 的独立链为待删除
             vehiclesToRemove(globalIdxB) = true;
         end
