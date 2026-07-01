@@ -657,8 +657,8 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model
             # 提取置信度
             conf = float(boxes.conf[i].item())
 
-            # 置信度大于 0.6
-            if conf > 0.6:
+            # 置信度大于 0.25
+            if conf > 0.25:
                 # 提取类别 ID 并翻译成名称
                 cls_id = int(boxes.cls[i].item())
                 class_name = result.names[cls_id]
@@ -876,7 +876,7 @@ def create_pedestrian_generator(world, seed=42):
         yield bp
 
 
-def get_or_create_pedestrian_script(world, num_pedestrians=100, filepath="pedestrians_generates_trajectory.json", seed=2024):
+def get_or_create_pedestrian_script(world, num_pedestrians=100, filepath="Town01_pedestrians_generates_trajectory.json", seed=2024):
     if os.path.exists(filepath):
         print(f" 已找到轨迹 ")
         with open(filepath, 'r') as f:
@@ -1060,7 +1060,7 @@ def spawn_v2x_sensors(world, lidar_transform, z_height=2.57):
 def do_nothing(data):
     pass
 
-def spawn_v2x_receiver(world, quantize_scale):
+def spawn_v2x_receiver(world, quantize_scale, town_folder):
     location = carla.Location(x=0, y=0, z=2.62)
     transform = carla.Transform(location, carla.Rotation(yaw=0))
 
@@ -1070,11 +1070,11 @@ def spawn_v2x_receiver(world, quantize_scale):
     bp.set_attribute("channel_id", "5")
     # 生成传感器
     receiver = world.spawn_actor(bp, transform)
-    receiver.listen(lambda data: _on_v2x_received(data, quantize_scale))
+    receiver.listen(lambda data: _on_v2x_received(data, quantize_scale, town_folder))
 
     return receiver
 
-def _on_v2x_received(event, quantize_scale):
+def _on_v2x_received(event, quantize_scale, town_folder):
     """
     接收端回调函数：将所有帧的数据保存在同一个文件夹下的独立 txt 中
     """
@@ -1116,7 +1116,8 @@ def _on_v2x_received(event, quantize_scale):
                     feature_24d = quantized_feature.astype(np.float32) / quantize_scale
 
                     # 保存为.txt文件
-                    BASE_SAVE_DIR = "./v2x_logs"
+                    BASE_SAVE_DIR = f"{town_folder}/v2x_logs"
+                    os.makedirs(BASE_SAVE_DIR, exist_ok=True)
                     txt_file_path = os.path.join(BASE_SAVE_DIR, f"frame_{frame_id:06d}.txt")
                     feat_str = ", ".join([f"{v:.3f}" for v in feature_24d])
 
@@ -1152,7 +1153,7 @@ def _on_v2x_received(event, quantize_scale):
                 latency_ms = (receive_time - send_time) * 1000
 
                 # 直接在总文件夹下生成对应的 txt 文件路径
-                BASE_SAVE_DIR = "./v2x_latency_logs"
+                BASE_SAVE_DIR = f"{town_folder}/v2x_latency_logs"
                 txt_file_path = os.path.join(BASE_SAVE_DIR, f"frame_{frame_id:06d}.txt")
 
                 with open(txt_file_path, "a", encoding="utf-8") as f:
@@ -1181,7 +1182,7 @@ def _on_v2x_received(event, quantize_scale):
                 latency_ms = (receive_time - send_time) * 1000
 
                 # 直接在总文件夹下生成对应的 txt 文件路径
-                BASE_SAVE_DIR = "./v2x_latency_logs"
+                BASE_SAVE_DIR = f"{town_folder}/v2x_latency_logs"
                 txt_file_path = os.path.join(BASE_SAVE_DIR, f"frame_{frame_id:06d}.txt")
 
                 with open(txt_file_path, "a", encoding="utf-8") as f:
@@ -1388,14 +1389,14 @@ def main():
     argparser.add_argument(
         '-t', '--town',
         metavar='TOWN',
-        default='Town10HD_Opt',
+        default='Town01',
         choices=town_configurations.keys(),  # 限制用户只能输入已定义的城镇名
         help='Name of the town to use (e.g., Town01, Town10HD_Opt)'
     )
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_5',  # 默认路口
+        default='road_intersection_1',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -1489,9 +1490,9 @@ def main():
         # 生成并启动V2X数据传输端
         sensors = spawn_v2x_sensors(world, lidar_transform, z_height=2.62)
         # 生成并启动V2X数据收集端
-        receiver = spawn_v2x_receiver(world, quantize_scale)
+        receiver = spawn_v2x_receiver(world, quantize_scale, town_folder)
         # 定义保存数据的唯一总文件夹
-        BASE_SAVE_DIR = "./v2x_latency_logs"
+        BASE_SAVE_DIR = f"{town_folder}/v2x_latency_logs"
         # 在程序启动时，确保总文件夹存在（如果不存在则创建）
         os.makedirs(BASE_SAVE_DIR, exist_ok=True)
         actual_vehicle_num = []
