@@ -193,7 +193,10 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
 
         vehicle_id = vehicle.id
         vehicle_labels.append((time_stamp, vehicle_id, label))
+    if not vehicle_list:
+        raise RuntimeError(f"时间戳 {time_stamp} 处未检测到任何车辆，数据可能不完整。")
     all_vehicle_labels.append(vehicle_labels)
+
 
     # 获取行人标签
     step = 2  # 每隔1个元素遍历（步长为2）
@@ -257,6 +260,8 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
 
         pedestrian_id = pedestrian.id
         pedestrian_labels.append((time_stamp, pedestrian_id, label))
+    if not pedestrian_list:
+        raise RuntimeError(f"时间戳 {time_stamp} 处未检测到任何行人，数据可能不完整。")
     all_pedestrian_labels.append(pedestrian_labels)
 
     # 将所有类别的标签合并到一个列表中
@@ -829,6 +834,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
     num_colors = 12
     available_colors = ["255,0,0", "0,255,0", "0,0,255", "255,255,0", "0,255,255", "255,0,255", "128,128,0",
                         "128,0,128", "0,128,128", "255,165,0", "0,255,255", "255,192,203"]
+
     # 生成车辆
     vehicle_index = 0
     for _ in range(num_vehicles):
@@ -836,15 +842,40 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
         transform = spawn_points[np.random.randint(len(spawn_points))]
         # vehicle_bp = random.choice(filter_vehicle_blueprints)
         # 选择蓝图，确保每个蓝图的车辆唯一
+        # if vehicle_index < num_blueprints:
+        #     vehicle_bp = filter_vehicle_blueprints[vehicle_index]
+        #     vehicle_index += 1
+        # else:
+        #     # 蓝图用完后，开始使用颜色来区分
+        #     vehicle_bp = filter_vehicle_blueprints[vehicle_index % num_blueprints]
+        #     color = available_colors[vehicle_index % num_colors]
+        #     vehicle_bp.set_attribute('color', color)
+        #     vehicle_index += 1
+
         if vehicle_index < num_blueprints:
             vehicle_bp = filter_vehicle_blueprints[vehicle_index]
             vehicle_index += 1
         else:
-            # 蓝图用完后，开始使用颜色来区分
-            vehicle_bp = filter_vehicle_blueprints[vehicle_index % num_blueprints]
-            color = available_colors[vehicle_index % num_colors]
-            vehicle_bp.set_attribute('color', color)
-            vehicle_index += 1
+            found = False
+            attempts = 0
+            while attempts < num_blueprints:
+                candidate_idx = vehicle_index % num_blueprints
+                candidate_bp = filter_vehicle_blueprints[candidate_idx]
+                if candidate_bp.has_attribute('color'): 
+                    vehicle_bp = candidate_bp
+                    color = available_colors[vehicle_index % num_colors]
+                    vehicle_bp.set_attribute('color', color)  # 设置颜色
+                    vehicle_index += 1
+                    found = True
+                    break
+                else:
+                    vehicle_index += 1
+                    attempts += 1
+            if not found:
+                # 实在找不到支持颜色的蓝图，使用当前蓝图且不设颜色
+                print("警告：无支持颜色的蓝图可用，使用默认外观")
+                vehicle_bp = filter_vehicle_blueprints[vehicle_index % num_blueprints]
+                vehicle_index += 1
 
         vehicle = world.try_spawn_actor(vehicle_bp, transform)
         if vehicle is None:
@@ -944,7 +975,7 @@ def get_or_create_pedestrian_script(world, num_pedestrians=100, filepath="Town01
     return final_script
 
 # 生成随机运动行人
-def spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20):
+def spawn_autonomous_pedestrians(world, num_pedestrians=120, random_seed=20):
     random.seed(random_seed)
     np.random.seed(random_seed)
     pedestrian_list = []
@@ -1378,7 +1409,7 @@ def main():
     argparser.add_argument(
         '-n', '--number-of-vehicles',
         metavar='N0',
-        default=50,
+        default=75,
         type=int,
         help='Number of vehicles (default: 30)')
     argparser.add_argument(
@@ -1458,7 +1489,7 @@ def main():
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=args.number_of_vehicles, random_seed=random_seed)
         # 生成随机运动行人
-        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20)
+        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=120, random_seed=20)
         # 启动行人碰撞
         for pedestrian in pedestrians:
             if "walker.pedestrian." in pedestrian.type_id:
