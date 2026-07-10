@@ -7,8 +7,24 @@ t_start = data.t_end;
 % 获取程序开始时间
 sys_time_before = posixtime(datetime('now'));
 
-townName = 'Town10';   % 可以修改城镇和路口
-dataSets = {'Town10HD_Opt/test_data_junc1', 'Town10HD_Opt/test_data_junc2', 'Town10HD_Opt/test_data_junc3', 'Town10HD_Opt/test_data_junc4', 'Town10HD_Opt/test_data_junc5'};
+townName = 'Town01';   % 可以修改城镇和路口
+% dataSets = {'Town10HD_Opt/test_data_junc1', 'Town10HD_Opt/test_data_junc2', 'Town10HD_Opt/test_data_junc3', 'Town10HD_Opt/test_data_junc4', 'Town10HD_Opt/test_data_junc5'};
+% 定义各城镇对应的数据集
+if strcmp(townName, 'Town10')
+    dataSets = {'Town10HD_Opt/test_data_junc1', ...
+                'Town10HD_Opt/test_data_junc2', ...
+                'Town10HD_Opt/test_data_junc3', ...
+                'Town10HD_Opt/test_data_junc4', ...
+                'Town10HD_Opt/test_data_junc5'};
+elseif strcmp(townName, 'Town01')
+    dataSets = {'Town01/test_data_junc1', ...
+                'Town01/test_data_junc2', ...
+                'Town01/test_data_junc3', ...
+                'Town01/test_data_junc4', ...
+                'Town01/test_data_junc5'};
+else
+    error('未知城镇: %s', townName);
+end
 
 dirParts = strsplit(dataSets{1}, filesep);
 townConfig = dataset.(townName);
@@ -66,8 +82,9 @@ persontraj = linkIdentities(personjuncTrajCell, personmatchThreshold);
 % fclose(fileID);
 % 
 % 获取当前目录
-currentFileDir = fileparts(mfilename('fullpath')); 
+currentFileDir = fileparts(mfilename('fullpath'));
+savepath = fullfile(currentFileDir, townName);
 
 % 分别保存轨迹文件
-save(fullfile(currentFileDir, 'vehicletraj.mat'), 'vehicletraj');
-save(fullfile(currentFileDir, 'persontraj.mat'), 'persontraj');
+save(fullfile(savepath, 'vehicletraj.mat'), 'vehicletraj');
+save(fullfile(savepath, 'persontraj.mat'), 'persontraj');

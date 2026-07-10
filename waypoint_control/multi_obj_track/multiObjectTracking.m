@@ -27,9 +27,9 @@ function multiObjectTracking(junc, initTime, runFrameNum)
     mapName = parts{1};   
     juncName = parts{2};  
     % 获取当前路口的配置参数
-    vehicleparams = getvehicleTrackerConfig(juncName);
-    personparams = getpersonTrackerConfig(juncName);
-    
+    vehicleparams = getvehicleTrackerConfig(mapName, juncName);
+    personparams = getpersonTrackerConfig(mapName, juncName);
+     
     vehicletracker = trackerJPDA( ...
         TrackLogic="Integrated", ...
         FilterInitializationFcn=@helperInitLidarCameraFusionFilter, ...
