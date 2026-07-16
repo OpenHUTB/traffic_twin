@@ -152,6 +152,25 @@ Springer Nature does not impose a strict layout as standard however authors are 
 \subsection{Twin system architecture}
 % 介绍我们这个孪生系统的组成结构，系统运行流程，侧重点在于系统的整体布局，突出整体性
 % 介绍系统的运行流程
+Our system is an online digital twin system for urban transportation scenarios, primarily consisting of multimodal data collection endpoints and a centralized server system.
+
+On the multimodal data collection side, LiDAR and multi-angle camera arrays have been deployed at every major intersection to capture comprehensive data.
+The raw point cloud and image data collected are massive in size and contain a large amount of redundant information; transmitting them directly to the central server would place a significant burden on the network.
+To alleviate this pressure, we adopted an edge computing approach to perform preliminary data processing at the collection end.
+We perform object detection and feature extraction on the raw data to obtain 3D point cloud bounding boxes, 2D image bounding boxes, and feature values, and then transmit this information to the central server via V2X.
+
+The central server is deployed at the location with the lowest network latency.
+After receiving the data, the central server first performs multi-object tracking at a single intersection to obtain the trajectories of people and vehicles at that intersection.
+Then, using a cross-intersection feature-based matching algorithm, the trajectories of the same object at adjacent intersections are correlated to obtain cross-intersection correlated vehicle and pedestrian trajectories.
+Trajectories that span intersections are tracked within known areas, but there are still unknown areas between adjacent intersections across the entire city.
+Therefore, we conducted trajectory prediction for its unknown area based on its driving pattern within the intersection, and obtained its predicted trajectory between intersections.
+We then used the vehicle’s driving patterns within the intersection to predict its trajectory in the unknown areas, thereby obtaining its predicted trajectory between intersections.
+Insert the predicted trajectory into the cross-intersection correlated trajectory to obtain the complete twin trajectory.
+Finally, the twin trajectories are recreated in the corresponding virtual world to achieve a digital twin.
+When reproducing a trajectory, we only need to ensure that the target appears at the correct position at the correct time, so we used the simplest control method.
+The target starts at the current frame and ends at the next frame; the system calculates its speed and direction, and then moves the target to the position in the next frame using that speed and direction.
+
+% fig 系统整体构架图
 
 
 \subsection{End-to-end data transmission}
@@ -161,7 +180,7 @@ Springer Nature does not impose a strict layout as standard however authors are 
 
 \subsection{Generation of twin trajectories}
 % 介绍我们系统是如何生成孪生轨迹的，轨迹的生成方法
-% 分单路口轨迹与多路口轨迹
+% 分单路口轨迹与多路口轨迹，未知区域轨迹预测
 % 说明用到的公式，模型，以及其在孪生系统中的作用，突出系统的创新性
 
 
