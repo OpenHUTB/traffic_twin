@@ -9,7 +9,12 @@ function demoMultiSensorEvaluation(townPath)
     
     categories = {'person', 'vehicle'};
     % 指定的路口对
-    junctionPairs = [1,2; 1,3; 1,4; 1,5; 2,4; 2,5; 3,4; 3,5];
+    if strcmp(town, 'Town10HD_Opt')
+        junctionPairs = [1,2; 1,3; 1,4; 1,5; 2,4; 2,5; 3,4; 3,5];
+    elseif strcmp(town, 'Town01')
+        junctionPairs = [1,4; 1,5; 2,3; 2,4; 2,5; 3,5];
+    end
+    % junctionPairs = [1,2; 1,3; 1,4; 1,5; 2,4; 2,5; 3,4; 3,5];
     
     for c = 1:length(categories)
         category = categories{c};

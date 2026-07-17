@@ -574,7 +574,7 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     extra_time += duration
 
     sensor = sensors["v2x_point"]
-    pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
+    pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
     send_v2x_message_lidar(radar_data, sensor, pkl_file_path, junc, world)
 
 # 更新目标检测的文件夹
@@ -834,7 +834,6 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
     num_colors = 12
     available_colors = ["255,0,0", "0,255,0", "0,0,255", "255,255,0", "0,255,255", "255,0,255", "128,128,0",
                         "128,0,128", "0,128,128", "255,165,0", "0,255,255", "255,192,203"]
-
     # 生成车辆
     vehicle_index = 0
     for _ in range(num_vehicles):
@@ -861,7 +860,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
             while attempts < num_blueprints:
                 candidate_idx = vehicle_index % num_blueprints
                 candidate_bp = filter_vehicle_blueprints[candidate_idx]
-                if candidate_bp.has_attribute('color'): 
+                if candidate_bp.has_attribute('color'):
                     vehicle_bp = candidate_bp
                     color = available_colors[vehicle_index % num_colors]
                     vehicle_bp.set_attribute('color', color)  # 设置颜色
@@ -1427,7 +1426,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_1',  # 默认路口
+        default='road_intersection_5',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
