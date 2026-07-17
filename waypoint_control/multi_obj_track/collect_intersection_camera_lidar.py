@@ -834,25 +834,6 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
     num_colors = 12
     available_colors = ["255,0,0", "0,255,0", "0,0,255", "255,255,0", "0,255,255", "255,0,255", "128,128,0",
                         "128,0,128", "0,128,128", "255,165,0", "0,255,255", "255,192,203"]
-    # available_colors = [
-    #     "255,0,0",  # 红
-    #     "0,255,0",  # 绿
-    #     "0,0,255",  # 蓝
-    #     "255,255,0",  # 黄
-    #     "0,255,255",  # 青
-    #     "255,0,255",  # 品红
-    #     "128,128,0",  # 橄榄
-    #     "128,0,128",  # 紫
-    #     "0,128,128",  # 墨绿
-    #     "255,165,0",  # 橙
-    #     "255,192,203",  # 粉红
-    #     "140,86,75",  # 棕
-    #     "127,127,127",  # 灰
-    #     "148,103,189",  # 淡紫
-    #     "23,190,207",  # 亮青
-    #     "255,215,0"  # 金
-    # ]
-
     # 生成车辆
     vehicle_index = 0
     for _ in range(num_vehicles):
@@ -879,7 +860,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
             while attempts < num_blueprints:
                 candidate_idx = vehicle_index % num_blueprints
                 candidate_bp = filter_vehicle_blueprints[candidate_idx]
-                if candidate_bp.has_attribute('color'):  # 关键修正点
+                if candidate_bp.has_attribute('color'):
                     vehicle_bp = candidate_bp
                     color = available_colors[vehicle_index % num_colors]
                     vehicle_bp.set_attribute('color', color)  # 设置颜色
@@ -890,7 +871,7 @@ def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
                     vehicle_index += 1
                     attempts += 1
             if not found:
-                # 实在找不到支持颜色的蓝图，使用当前蓝图且不设颜色（或报错）
+                # 实在找不到支持颜色的蓝图，使用当前蓝图且不设颜色
                 print("警告：无支持颜色的蓝图可用，使用默认外观")
                 vehicle_bp = filter_vehicle_blueprints[vehicle_index % num_blueprints]
                 vehicle_index += 1
