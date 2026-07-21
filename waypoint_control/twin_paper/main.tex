@@ -160,23 +160,27 @@ To alleviate this pressure, we adopted an edge computing approach to perform pre
 We perform object detection and feature extraction on the raw data to obtain 3D point cloud bounding boxes, 2D image bounding boxes, and feature values, and then transmit this information to the central server via V2X.
 
 The central server is deployed at the location with the lowest network latency.
-After receiving the data, the central server first performs multi-object tracking at a single intersection to obtain the trajectories of people and vehicles at that intersection.
-Then, using a cross-intersection feature-based matching algorithm, the trajectories of the same object at adjacent intersections are correlated to obtain cross-intersection correlated vehicle and pedestrian trajectories.
-Trajectories that span intersections are tracked within known areas, but there are still unknown areas between adjacent intersections across the entire city.
-Therefore, we conducted trajectory prediction for its unknown area based on its driving pattern within the intersection, and obtained its predicted trajectory between intersections.
-We then used the vehicle’s driving patterns within the intersection to predict its trajectory in the unknown areas, thereby obtaining its predicted trajectory between intersections.
-Insert the predicted trajectory into the cross-intersection correlated trajectory to obtain the complete twin trajectory.
-Finally, the twin trajectories are recreated in the corresponding virtual world to achieve a digital twin.
+After receiving the data, the central server performs multi-target tracking at the intersection.
+When the target reaches the edge of an intersection, it enters an unknown area between two intersections.
+Therefore, we use the current intersection as the starting point and the adjacent intersection as the endpoint for trajectory prediction.
+Then, using the target eigenvalues, the predicted trajectory is matched with the trajectory at the destination intersection to obtain the cross-intersection trajectory.
+Finally, reconstruct the trajectory across intersections in chronological order to create a digital twin.
 When reproducing a trajectory, we only need to ensure that the target appears at the correct position at the correct time, so we used the simplest control method.
 The target starts at the current frame and ends at the next frame; the system calculates its speed and direction, and then moves the target to the position in the next frame using that speed and direction.
 
-% fig 系统整体构架图
 
 
 \subsection{End-to-end data transmission}
 % 介绍我们系统的数据是怎样端到端传输的，收集端与服务端的布局是怎样的，如何计算延迟，详细说明”在线“属性
 % 本论文的特色，创新点
 
+We selected five major intersections on each map as data collection points.
+At each intersection, one lidar sensor, six cameras, and two V2X communication devices are deployed in the center of the road.
+The six cameras—front, rear, front left, rear left, front right, and rear right—cover different areas of the intersection.
+We have deployed microcomputers at every intersection to perform preliminary processing of the raw data collected.
+We used the PV\_RCNN model to perform object detection on 3D point cloud data, obtaining 3D bounding boxes for vehicles and pedestrians.
+Using the YOLOv8 model to perform object detection on image data yields 2D bounding boxes and feature values for vehicles and pedestrians.
+Transmit the obtained 3D bounding boxes, 2D bounding boxes, and feature values to the central server via V2X.
 
 \subsection{Generation of twin trajectories}
 % 介绍我们系统是如何生成孪生轨迹的，轨迹的生成方法
