@@ -152,35 +152,53 @@ Springer Nature does not impose a strict layout as standard however authors are 
 \subsection{Twin system architecture}
 % 介绍我们这个孪生系统的组成结构，系统运行流程，侧重点在于系统的整体布局，突出整体性
 % 介绍系统的运行流程
-Our system is an online digital twin system for urban transportation scenarios, primarily consisting of multimodal data collection endpoints and a centralized server system.
+This paper describes the design of an online digital twin system for an urban transportation scenario.
+The system moves away from the traditional offline batch processing model and adopts a pipeline mechanism based on “real-time data collection and transmission, online inference, and streaming reconstruction.” Its workflow is primarily divided into three stages: data collection and processing, trajectory tracking and prediction, and twin trajectory reconstruction.
 
-On the multimodal data collection side, LiDAR and multi-angle camera arrays have been deployed at every major intersection to capture comprehensive data.
-The raw point cloud and image data collected are massive in size and contain a large amount of redundant information; transmitting them directly to the central server would place a significant burden on the network.
-To alleviate this pressure, we adopted an edge computing approach to perform preliminary data processing at the collection end.
-We perform object detection and feature extraction on the raw data to obtain 3D point cloud bounding boxes, 2D image bounding boxes, and feature values, and then transmit this information to the central server via V2X.
+During the data collection and processing phase, to obtain high-precision traffic information, we used LiDAR to capture 3D point cloud data and multi-view cameras to capture image data.
+The collected raw point cloud and image data sets are massive and contain a large amount of redundant information, making direct transmission a significant challenge.
+To alleviate this pressure, we perform preliminary processing on the data before it is transmitted.
+We used the Point-Voxel Region-based Convolutional Neural Network (PV-RCNN) model to perform object detection on 3D point cloud data, obtaining 3D bounding boxes for vehicles and pedestrians.
+PV-RCNN is a highly efficient two-stage 3D object detection network that maintains high detection accuracy for small-sized objects, such as pedestrians, while also delivering excellent inference speed.
+Using the You Only Look Once version 8 (YOLOv8) model to perform object detection on image data, 2D bounding boxes for vehicles and pedestrians are obtained.
+Image detection is located at the front end of the entire system workflow. YOLOv8’s extremely low inference latency ensures that no queuing bottlenecks occur, thereby improving system fluidity and reducing latency.
+A 50-layer Residual Network (ResNet-50) model is used to extract features from image data, yielding feature values for vehicles and pedestrians.
+ResNet-50 combines the ability to generate semantic representations applicable to both vehicles and pedestrians with fast inference speeds, enabling it to efficiently extract highly discriminative appearance features for heterogeneous targets such as vehicles and pedestrians while ensuring low latency.
+To record the latency of data transmission, we used V2X communication devices to transmit bounding box coordinates and feature vectors, thereby ensuring the authenticity of the time attributes.
 
-The central server is deployed at the location with the lowest network latency.
-After receiving the data, the central server performs multi-target tracking at the intersection.
-When the target reaches the edge of an intersection, it enters an unknown area between two intersections.
-Therefore, we use the current intersection as the starting point and the adjacent intersection as the endpoint for trajectory prediction.
-Then, using the target eigenvalues, the predicted trajectory is matched with the trajectory at the destination intersection to obtain the cross-intersection trajectory.
-Finally, reconstruct the trajectory across intersections in chronological order to create a digital twin.
-When reproducing a trajectory, we only need to ensure that the target appears at the correct position at the correct time, so we used the simplest control method.
-The target starts at the current frame and ends at the next frame; the system calculates its speed and direction, and then moves the target to the position in the next frame using that speed and direction.
+During the trajectory tracking and prediction phase, we primarily focused on three tasks: single-intersection trajectory tracking, trajectory prediction in unknown areas, and cross-intersection trajectory correlation.
+In single-intersection trajectory tracking, we use the Joint Probabilistic Data Association (JPDA) algorithm for multi-target tracking.
+By using a probabilistic soft decision mechanism to weight and update target states, JPDA can effectively address issues such as frequent target occlusion, close-range overlap, and sensor clutter in high-density traffic flows, thereby significantly enhancing the robustness of the association process.
+In trajectory prediction for unknown regions, we employ a fifth-degree polynomial trajectory inference method to infer a smooth trajectory for the unknown region based on the target’s current motion state and future boundary conditions.
+The five-point polynomial is a classic analytical method that simultaneously satisfies constraints on the initial and final positions, velocity, and acceleration, balancing both the smoothness of the trajectory and computational efficiency.
+In the process of correlating cross-intersection trajectories, we use the target’s feature values for matching, correlate trajectories from different intersections, and obtain cross-intersection trajectories.
+
+During the twin trajectory reproduction phase, we will reproduce the complete twin trajectory obtained in CARLA to create a digital twin.
+Trajectories tracked across intersections inevitably contain minute high-frequency noise; if used directly to drive reconstruction, this can cause the target to exhibit non-physical visual oscillations in the digital twin scene.
+To this end, this paper employs a trajectory smoothing algorithm to improve the geometric smoothness and kinematic continuity of the trajectory.
+To ensure spatiotemporal consistency during trajectory reproduction while reducing the system’s computational overhead, this paper adopts a vector velocity-driven control strategy based on adjacent sampling frames.
+The system sets the states of the current frame and the next frame as the starting point and ending point of the motion, respectively. Based on the inter-frame delay, it calculates the target’s vector velocity and orientation, thereby driving the target to move in segmented, uniform linear motion and accurately reproducing the target’s spatiotemporal trajectory.
 
 
-
-\subsection{End-to-end data transmission}
+\subsection{System physical layout and transmission latency}
 % 介绍我们系统的数据是怎样端到端传输的，收集端与服务端的布局是怎样的，如何计算延迟，详细说明”在线“属性
 % 本论文的特色，创新点
-
+Our system consists of a data collection end and a central server.
 We selected five major intersections on each map as data collection points.
-At each intersection, one lidar sensor, six cameras, and two V2X communication devices are deployed in the center of the road.
-The six cameras—front, rear, front left, rear left, front right, and rear right—cover different areas of the intersection.
-We have deployed microcomputers at every intersection to perform preliminary processing of the raw data collected.
-We used the PV\_RCNN model to perform object detection on 3D point cloud data, obtaining 3D bounding boxes for vehicles and pedestrians.
-Using the YOLOv8 model to perform object detection on image data yields 2D bounding boxes and feature values for vehicles and pedestrians.
-Transmit the obtained 3D bounding boxes, 2D bounding boxes, and feature values to the central server via V2X.
+One lidar sensor, six cameras, and seven V2X communication devices have been deployed at each intersection.
+We deployed the LiDAR at the center of the intersection, 1.8 meters above the ground.
+The six cameras, centered around the LiDAR unit, are positioned as follows: front, rear, left front, left rear, right front, and right rear. They are all uniformly mounted at a height of 3.6 meters above the ground, spaced 14 meters apart front to back and 8 meters apart left to right.
+The seven V2X communication devices are each mounted 0.8 meters above the lidar and the six cameras.
+The central server is located at the point closest to all intersections to minimize data transmission latency.
+At the same time, deploy one V2X communication device at the central server to receive data transmitted from the data collection endpoints.
+
+The latency in this system primarily stems from three sources: processing latency at the data collection end, data transmission latency, and processing latency at the central server.
+Processing latency at the data collection end primarily stems from the preprocessing of raw data. We mark the moment just before the data enters preprocessing as the start time and the moment preprocessing ends as the end time, then calculate the difference between the two as the processing latency.
+To calculate data transmission latency, we use the V2X transmission time at the data collection end as the start time and the V2X reception time at the central server as the end time, and calculate the difference between the two as the transmission latency.
+Processing latency on the central server primarily stems from the execution time of the relevant programs, namely the generation and re-creation of trajectories.
+We use the time when the data is input as the start time and the time when the target is successfully replicated in the virtual world as the end time, and calculate the difference between the two as the processing delay.
+Total delay refers to the time elapsed from when the target appears in front of the sensor until it is successfully detected.
+
 
 \subsection{Generation of twin trajectories}
 % 介绍我们系统是如何生成孪生轨迹的，轨迹的生成方法
