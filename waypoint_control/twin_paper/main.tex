@@ -227,7 +227,7 @@ Total delay refers to the time elapsed from when the target appears in front of 
   \footnotesize
   \setlength{\tabcolsep}{3pt}
   \caption{System latedncy.}
-  \label{tab:algorithmsd}
+  \label{tab:tracking-results}
 
   \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}cccccccccccc}
     \toprule
@@ -239,14 +239,26 @@ Total delay refers to the time elapsed from when the target appears in front of 
     \midrule
     \multirow{2}{*}{Town10} & person & 80.50 & 76.27 & 2.71 & 1353.6 & 1011 & 70.6 & 61.31 & 10.58 & 53.14 & 91.12 \\
                             & vehicle & 88.17 & 71.19 & 2.30 & 1153.6 & 320 & 22.2 & 83 & 11.43 & 45.47 & 85.64 \\
+    \midrule
+    \multirow{2}{*}{HutbCarlaCity} & person &  &  &  &  &  &  &  &  &  &  \\
+                            & vehicle &  &  &  &  &  &  &  &  &  &  \\
+    \midrule
+    \multirow{2}{*}{Zhongdian} & person &  &  &  &  &  &  &  &  &  &  \\
+                            & vehicle &  &  &  &  &  &  &  &  &  &  \\
     \bottomrule
   \end{tabular*}
 \end{table}
 
 To demonstrate the effectiveness of this system, we conducted validation tests across four different scenarios.
-Town01 and Town10 are virtual maps included with CARLA.
-hutb and zhongdian were imported into CARLA as real-world maps via the road network.
+Town01 and Town10 are virtual scene maps.
+HutbCarlaCity and Zhongdian are real-world maps.
+We ran 500 frames for each scenario to simulate traffic conditions over a period of time, and used the overall average across the five intersections to represent the final results, yielding the experimental results shown in Table \ref{tab:tracking-results}.
 
+In a 500-frame simulation, this system successfully achieved a spatio-temporally consistent digital twin.
+From Table \ref{tab:tracking-results}, we can see that:
+In the virtual scenarios, the MOTA (75.05 and 68.30) and Prcn (97.95 and 84.89) for the Town01 scenario were generally higher than those for the Town10 scenario (MOTA of 53.14 and 45.47, Prcn of 76.27 and 71.19) . The highest MOTA and Prcn values both occurred in the pedestrian class in the Town01 scenario (75.05 and 97.95, respectively), while the lowest MOTA value occurred in the vehicle class in the Town10 scenario (45.47).
+In both scenarios, the recall rates for vehicles (83.48 for Town01 and 88.17 for Town10) and MT (81.31 for Town01 and 83 for Town10) were both higher than those for pedestrians in the same scenarios. The highest recall rate was observed in the vehicle class for Town10 (88.17).
+All error metrics (FP, FN, IDS, FTR) for Town10 are significantly higher than those for Town01. Specifically, the “human” class in Town10 has the highest values for FP (1,353.6), FN (1,011), IDS (70.6), and FTR (2.71); the “human” class in Town01 has the lowest FP value (35.8).
 
 
 \subsection{Twins in different scenarios}
