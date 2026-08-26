@@ -444,13 +444,204 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=120, random_seed=42):
 
     return pedestrian_list
 
+# 生成自动驾驶车辆
+def spawn_autonomous_vehicles_hutb(world, tm, junction_weights, num_vehicles=50, random_seed=42):
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    vehicle_list = []
+
+    carla_map = world.get_map()
+    filter_bike_blueprinter = filter_vehicle_blueprinter(world.get_blueprint_library().filter('vehicle.*'))
+    all_waypoints = carla_map.generate_waypoints(distance=2.0)
+
+    # 提取各个路口外的入口点
+    junction_entries = {jid: [] for jid in junction_weights.keys()}
+    processed_jids = set()
+
+    for wp in all_waypoints:
+        if wp.is_junction and wp.junction_id in junction_weights:
+            jid = wp.junction_id
+            if jid not in processed_jids:
+                processed_jids.add(jid)
+                junction = wp.get_junction()
+                waypoint_pairs = junction.get_waypoints(carla.LaneType.Driving)
+                for entry_wp, _ in waypoint_pairs:
+                    outside_wps = entry_wp.previous(15.0)
+                    if outside_wps:
+                        junction_entries[jid].append(outside_wps[0])
+
+    valid_jids = {jid: w for jid, w in junction_weights.items() if len(junction_entries[jid]) > 0}
+    if not valid_jids:
+        print("警告: 未检测到有效的路口入口点！")
+        return []
+
+    # 按加权计算各路口车辆配额
+    total_weight = sum(valid_jids.values())
+    normalized_weights = {jid: w / total_weight for jid, w in valid_jids.items()}
+
+    assigned_counts = {}
+    remaining_vehicles = num_vehicles
+    for jid, weight in normalized_weights.items():
+        count = int(num_vehicles * weight)
+        assigned_counts[jid] = count
+        remaining_vehicles -= count
+
+    if remaining_vehicles > 0:
+        assigned_counts[max(normalized_weights, key=normalized_weights.get)] += remaining_vehicles
+
+    # 按配额生成车辆
+    for start_jid, count in assigned_counts.items():
+        entry_points = junction_entries[start_jid]
+        if not entry_points:
+            continue
+
+        for _ in range(count):
+            start_wp = random.choice(entry_points)
+            transform = start_wp.transform
+            transform.location.z += 0.5
+
+            vehicle_bp = random.choice(filter_bike_blueprinter)
+            vehicle = world.try_spawn_actor(vehicle_bp, transform)
+
+            if vehicle:
+                vehicle.set_autopilot(True)
+                tm.ignore_lights_percentage(vehicle, 100)
+                # 已移除 GlobalRoutePlanner 和 tm.set_path 跨路口导航逻辑
+                vehicle_list.append(vehicle)
+
+    print(f"成功按加权在各路口外生成了 {len(vehicle_list)} 辆车（本地行驶，无跨路口导航）。")
+    return vehicle_list
+
+
+def create_pedestrian_generator(world, seed=42):
+    # 获取行人蓝图（排除小孩）
+    all_walkers = world.get_blueprint_library().filter('walker.pedestrian.*')
+    kid_ids = ['walker.pedestrian.0015', 'walker.pedestrian.0016', 'walker.pedestrian.0017']
+
+    adult_bps = [bp for bp in all_walkers if bp.id not in kid_ids]
+
+    # 排序并打乱
+    adult_bps.sort(key=lambda x: x.id)
+    local_rng = random.Random(seed)
+    local_rng.shuffle(adult_bps)
+
+    # 使用 yield 循环输出模型
+    for bp in itertools.cycle(adult_bps):
+        yield bp
+
+
+def generate_pedestrian_trajectories(world, junction_weights, num_pedestrians=100, seed=2024):
+    """
+    按路口权重生成行人的初始位置和目标方向（避开路中央）
+    """
+    carla_map = world.get_map()
+    all_wps = carla_map.generate_waypoints(distance=2.0)
+
+    # 提取各个路口内的点
+    junction_wps = {jid: [] for jid in junction_weights.keys()}
+    for wp in all_wps:
+        if wp.is_junction and wp.junction_id in junction_weights:
+            junction_wps[wp.junction_id].append(wp)
+
+    # 寻找人行道点或向外侧偏移
+    target_locations = {jid: [] for jid in junction_weights.keys()}
+    for jid, wps in junction_wps.items():
+        for wp in wps:
+            # 尝试获取右侧车道，如果是人行道就使用它
+            right_lane = wp.get_right_lane()
+            if right_lane and right_lane.lane_type == carla.LaneType.Sidewalk:
+                target_locations[jid].append(right_lane.transform.location + carla.Location(z=0.2))
+            else:
+                # 否则直接向车道右侧垂直偏移 3.5 米，强行移出机动车道
+                right_vec = wp.transform.get_right_vector()
+                target_locations[jid].append(wp.transform.location + right_vec * 3.5 + carla.Location(z=0.2))
+
+    valid_jids = {jid: w for jid, w in junction_weights.items() if len(target_locations[jid]) > 0}
+    if not valid_jids:
+        return []
+
+    # 按加权计算各路口行人配额
+    total_weight = sum(valid_jids.values())
+    assigned_counts = {}
+    remaining = num_pedestrians
+
+    for jid, weight in valid_jids.items():
+        count = int(num_pedestrians * (weight / total_weight))
+        assigned_counts[jid] = count
+        remaining -= count
+
+    if remaining > 0:
+        assigned_counts[max(valid_jids, key=lambda k: valid_jids[k] / total_weight)] += remaining
+
+    # 4. 生成脚本数据（恢复为起点+终点的形式）
+    local_rng = random.Random(seed)
+    generated_script = []
+
+    for jid, count in assigned_counts.items():
+        locs = target_locations[jid]
+        if len(locs) < 2:
+            continue
+
+        for _ in range(count):
+            spawn_loc = local_rng.choice(locs)
+            dest_loc = local_rng.choice(locs)  # 在同路口内随便选一个点作为运动方向
+
+            speed = round(local_rng.uniform(1.1, 1.5), 2)
+            generated_script.append({
+                "spawn_point": carla.Transform(spawn_loc),
+                "destination": dest_loc,
+                "speed": speed
+            })
+
+    return generated_script
+
+
+# 生成随机运动行人
+def spawn_autonomous_pedestrians_hutb(world, junction_weights, num_pedestrians=100, random_seed=20):
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    pedestrian_list = []
+
+    auto_pedestrian_script = generate_pedestrian_trajectories(world, junction_weights, num_pedestrians, seed=random_seed)
+    pedestrian_gen = create_pedestrian_generator(world, seed=random_seed)
+
+    spawned_info = []
+    for script_data in auto_pedestrian_script:
+        walker_bp = next(pedestrian_gen)
+        walker_actor = world.try_spawn_actor(walker_bp, script_data["spawn_point"])
+        if walker_actor:
+            pedestrian_list.append(walker_actor)
+            spawned_info.append((walker_actor, script_data))
+
+    print(f"成功按权重 Spawn 了 {len(pedestrian_list)} 名行人（避开路中央）。")
+    world.tick()
+
+    # 恢复你最开始的机械直线运动控制器逻辑
+    for walker_actor, script_data in spawned_info:
+        spawn_loc = script_data["spawn_point"].location
+        dest_loc = script_data["destination"]
+        dx = dest_loc.x - spawn_loc.x
+        dy = dest_loc.y - spawn_loc.y
+        dist = math.sqrt(dx ** 2 + dy ** 2)
+
+        if dist > 0:
+            direction = carla.Vector3D(x=dx / dist, y=dy / dist, z=0.0)
+            control = carla.WalkerControl(
+                direction=direction,
+                speed=script_data["speed"]
+            )
+            walker_actor.apply_control(control)
+
+    return pedestrian_list
+
 
 # 主函数
 def main():
     # 连接到Carla服务器
     client = carla.Client('localhost', 2000)
     client.set_timeout(10.0)
-    world = client.get_world()
+    map_name = 'HutbCarlaCity'
+    world = client.load_world(map_name)
 
     # 仿真设置
     settings = world.get_settings()
@@ -476,10 +667,24 @@ def main():
         random_seed = 20
         # 静止 ego_vehicle 的位置
         ego_transform = carla.Transform(carla.Location(x=-46, y=21, z=1), carla.Rotation(pitch=0, yaw=90, roll=0))
-        # 先生成自动驾驶车辆
-        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
-        # 生成行人
-        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20)
+        # 定义 5 个路口 ID
+        target_junction_weights = {
+            2121: 0.3,
+            398: 0.1,
+            576: 0.3,
+            626: 0.1,
+            510: 0.2
+        }
+        if map_name in ["Town01", "Town10HD_Opt"]:
+            # 生成自动驾驶车辆
+            vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=50, random_seed=random_seed)
+            # 生成行人
+            pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=100, random_seed=20)
+        else:
+            # 生成自动驾驶车辆
+            vehicles = spawn_autonomous_vehicles_hutb(world, tm, target_junction_weights, num_vehicles=50,random_seed=random_seed)
+            # 生成行人
+            pedestrians = spawn_autonomous_pedestrians_hutb(world, target_junction_weights, num_pedestrians=100,random_seed=20)
         #启动行人碰撞
         for pedestrian in pedestrians:
             if "walker.pedestrian." in pedestrian.type_id:
