@@ -152,32 +152,15 @@ Springer Nature does not impose a strict layout as standard however authors are 
 \subsection{Twin system architecture}
 % 介绍我们这个孪生系统的组成结构，系统运行流程，侧重点在于系统的整体布局，突出整体性
 % 介绍系统的运行流程
-This paper describes the design of an online digital twin system for an urban transportation scenario.
-The system moves away from the traditional offline batch processing model and adopts a pipeline mechanism based on “real-time data collection and transmission, online inference, and streaming reconstruction.” Its workflow is primarily divided into three stages: data collection and processing, trajectory tracking and prediction, and twin trajectory reconstruction.
+This system consists of data collection nodes deployed at five major intersections (each equipped with one LiDAR, six cameras, and seven V2X devices) and a centralized server (equipped with one V2X device and the CARLA simulation platform). It operates using a pipeline mechanism that involves “real-time data collection and transmission, online inference, and streaming simulation.”
+During operation, each collection endpoint first captures point clouds and images. After preprocessing using PV-RCNN, YOLOv8, and ResNet-50 to extract the targets’ 3D and 2D bounding boxes and appearance feature vectors, the data is transmitted to the server via V2X.
+After the server has collected all the data, it uses the JPDA algorithm to perform multi-object tracking at a single intersection and infers trajectories in unknown areas using a fifth-degree polynomial, and then completes cross-intersection trajectory association based on feature matching.
+Finally, the system smooths and denoises the associated trajectories and uses a vector velocity control strategy based on adjacent sampled frames to drive the target in segmented, constant-speed linear motion, thereby reproducing the spatio-temporally consistent twin trajectories with high precision in the CARLA virtual environment.
 
-During the data collection and processing phase, to obtain high-precision traffic information, we used LiDAR to capture 3D point cloud data and multi-view cameras to capture image data.
-The collected raw point cloud and image data sets are massive and contain a large amount of redundant information, making direct transmission a significant challenge.
-To alleviate this pressure, we perform preliminary processing on the data before it is transmitted.
-We used the Point-Voxel Region-based Convolutional Neural Network (PV-RCNN) model to perform object detection on 3D point cloud data, obtaining 3D bounding boxes for vehicles and pedestrians.
-PV-RCNN is a highly efficient two-stage 3D object detection network that maintains high detection accuracy for small-sized objects, such as pedestrians, while also delivering excellent inference speed.
-Using the You Only Look Once version 8 (YOLOv8) model to perform object detection on image data, 2D bounding boxes for vehicles and pedestrians are obtained.
-Image detection is located at the front end of the entire system workflow. YOLOv8’s extremely low inference latency ensures that no queuing bottlenecks occur, thereby improving system fluidity and reducing latency.
-A 50-layer Residual Network (ResNet-50) model is used to extract features from image data, yielding feature values for vehicles and pedestrians.
-ResNet-50 combines the ability to generate semantic representations applicable to both vehicles and pedestrians with fast inference speeds, enabling it to efficiently extract highly discriminative appearance features for heterogeneous targets such as vehicles and pedestrians while ensuring low latency.
-To record the latency of data transmission, we used V2X communication devices to transmit bounding box coordinates and feature vectors, thereby ensuring the authenticity of the time attributes.
-
-During the trajectory tracking and prediction phase, we primarily focused on three tasks: single-intersection trajectory tracking, trajectory prediction in unknown areas, and cross-intersection trajectory correlation.
-In single-intersection trajectory tracking, we use the Joint Probabilistic Data Association (JPDA) algorithm for multi-target tracking.
-By using a probabilistic soft decision mechanism to weight and update target states, JPDA can effectively address issues such as frequent target occlusion, close-range overlap, and sensor clutter in high-density traffic flows, thereby significantly enhancing the robustness of the association process.
-In trajectory prediction for unknown regions, we employ a fifth-degree polynomial trajectory inference method to infer a smooth trajectory for the unknown region based on the target’s current motion state and future boundary conditions.
-The five-point polynomial is a classic analytical method that simultaneously satisfies constraints on the initial and final positions, velocity, and acceleration, balancing both the smoothness of the trajectory and computational efficiency.
-In the process of correlating cross-intersection trajectories, we use the target’s feature values for matching, correlate trajectories from different intersections, and obtain cross-intersection trajectories.
-
-During the twin trajectory reproduction phase, we will reproduce the complete twin trajectory obtained in CARLA to create a digital twin.
-Trajectories tracked across intersections inevitably contain minute high-frequency noise; if used directly to drive reconstruction, this can cause the target to exhibit non-physical visual oscillations in the digital twin scene.
-To this end, this paper employs a trajectory smoothing algorithm to improve the geometric smoothness and kinematic continuity of the trajectory.
-To ensure spatiotemporal consistency during trajectory reproduction while reducing the system’s computational overhead, this paper adopts a vector velocity-driven control strategy based on adjacent sampling frames.
-The system sets the states of the current frame and the next frame as the starting point and ending point of the motion, respectively. Based on the inter-frame delay, it calculates the target’s vector velocity and orientation, thereby driving the target to move in segmented, uniform linear motion and accurately reproducing the target’s spatiotemporal trajectory.
+We conducted experiments on four different maps to test the effectiveness of this system.
+Among these, Town01 and Town10 are maps included in the CARLA simulation software; both feature standard road topologies, spatial divisions for mixed-use traffic (pedestrians and vehicles), and complete 3D environments that include buildings and traffic infrastructure.
+HutbCarlaCity and Zhongdian are maps we created based on real-world road networks and environments; the former depicts Hunan University of Commerce and its surrounding areas, while the latter depicts the Changsha China Electronics Software Park and its surrounding areas.
+We ran 1,200 frames on each map to simulate traffic conditions over a two-minute period, and used the overall average across five intersections to represent the final result for that map.
 
 
 \subsection{System physical layout and transmission latency}

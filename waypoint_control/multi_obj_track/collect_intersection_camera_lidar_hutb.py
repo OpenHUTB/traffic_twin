@@ -32,6 +32,7 @@ import joblib
 import multiprocessing
 import traceback
 import queue
+import shutil
 
 from PIL import Image
 from fontTools.merge.util import current_time
@@ -51,6 +52,8 @@ global_time = 0.0
 base_frame = None
 # openpcdet进行目标识别所用时间
 extra_time = 0
+# yolo子进程所用时间
+yolo_time = 0
 
 relativePose_to_egoVehicle = {
        "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],    # 1
@@ -294,7 +297,8 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
         vehicle_id = vehicle.id
         vehicle_labels.append((time_stamp, vehicle_id, label))
     if not vehicle_list:
-        raise RuntimeError(f"时间戳 {time_stamp} 处未检测到任何车辆，数据可能不完整。")
+        vehicle_labels.append((time_stamp, None, None))
+        # raise RuntimeError(f"时间戳 {time_stamp} 处未检测到任何车辆，数据可能不完整。")
     all_vehicle_labels.append(vehicle_labels)
 
 
@@ -361,7 +365,8 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
         pedestrian_id = pedestrian.id
         pedestrian_labels.append((time_stamp, pedestrian_id, label))
     if not pedestrian_list:
-        raise RuntimeError(f"时间戳 {time_stamp} 处未检测到任何行人，数据可能不完整。")
+        pedestrian_labels.append((time_stamp, None, None))
+        # raise RuntimeError(f"时间戳 {time_stamp} 处未检测到任何行人，数据可能不完整。")
     all_pedestrian_labels.append(pedestrian_labels)
 
     # 将所有类别的标签合并到一个列表中
@@ -701,7 +706,7 @@ def clear_folder_contents(folder_path):
     print(f"文件夹内容已清空: {folder_path}")
 
 # 定义函数来保存相机图像数据
-def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, num, pca_model, quantize_scale, resnet_model, img_preprocess, compute_device):
+def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, num, pca_model, quantize_scale, resnet_model, img_preprocess, compute_device, input_queue, output_queue, p):
     global base_frame
     current_frame = image_data.frame
     # 如果是第一帧，就把它的 ID 存为基数
@@ -715,17 +720,19 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
     image = np.array(image_data.raw_data)
     image = image.reshape((image_data.height, image_data.width, 4))  # 4th channel is alpha
     image = image[:, :, :3]  # 去掉 alpha 通道，只保留 RGB
+    # 记录额外时间
+
     # 使用yolov8检测图片
     # 设置为 spawn 启动模式
-    multiprocessing.set_start_method("spawn", force=True)
-
-    input_queue = multiprocessing.Queue()
-    output_queue = multiprocessing.Queue()
-
-    p = multiprocessing.Process(
-        target=yolo_worker, args=(input_queue, output_queue)
-    )
-    p.start()
+    # multiprocessing.set_start_method("spawn", force=True)
+    #
+    # input_queue = multiprocessing.Queue()
+    # output_queue = multiprocessing.Queue()
+    #
+    # p = multiprocessing.Process(
+    #     target=yolo_worker, args=(input_queue, output_queue)
+    # )
+    # p.start()
 
     # 发送给 YOLO 子进程
     input_queue.put((1, image))
@@ -753,8 +760,8 @@ def save_camera_data(image_data, camera_id, junc, town_folder, model, sensors, n
             print("【警告】YOLO 处理超时，但子进程仍存活，跳过此帧。")
 
     # 结束进程
-    input_queue.put(None)
-    p.join()
+    # input_queue.put(None)
+    # p.join()
 
     # 将字典包装为 SimpleResults 对象
     results = [SimpleResults(d) for d in yolo_data]
@@ -961,79 +968,145 @@ def filter_vehicle_blueprinter(vehicle_blueprints):
 
 
 # 生成自动驾驶车辆
-def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
-    # 设置随机种子
+# def spawn_autonomous_vehicles(world, tm, num_vehicles=30, random_seed=42):
+#     # 设置随机种子
+#     random.seed(random_seed)
+#     np.random.seed(random_seed)
+#     tm.set_random_device_seed(random_seed)
+#     vehicle_list = []
+#     blueprint_library = world.get_blueprint_library()
+#     vehicle_blueprints = blueprint_library.filter('vehicle.*')
+#     filter_vehicle_blueprints = filter_vehicle_blueprinter(vehicle_blueprints)
+#     # 随机选择一个位置
+#     spawn_points = world.get_map().get_spawn_points()
+#     if len(spawn_points) == 0:
+#         print("No spawn points available!")
+#         return []
+#
+#     # 如果蓝图不足，使用颜色来区分
+#     num_blueprints = len(filter_vehicle_blueprints)
+#     num_colors = 12
+#     available_colors = ["255,0,0", "0,255,0", "0,0,255", "255,255,0", "0,255,255", "255,0,255", "128,128,0",
+#                         "128,0,128", "0,128,128", "255,165,0", "0,255,255", "255,192,203"]
+#     # 生成车辆
+#     vehicle_index = 0
+#     for _ in range(num_vehicles):
+#         # 选择一个随机位置生成车辆
+#         transform = spawn_points[np.random.randint(len(spawn_points))]
+#         # vehicle_bp = random.choice(filter_vehicle_blueprints)
+#         # 选择蓝图，确保每个蓝图的车辆唯一
+#         # if vehicle_index < num_blueprints:
+#         #     vehicle_bp = filter_vehicle_blueprints[vehicle_index]
+#         #     vehicle_index += 1
+#         # else:
+#         #     # 蓝图用完后，开始使用颜色来区分
+#         #     vehicle_bp = filter_vehicle_blueprints[vehicle_index % num_blueprints]
+#         #     color = available_colors[vehicle_index % num_colors]
+#         #     vehicle_bp.set_attribute('color', color)
+#         #     vehicle_index += 1
+#
+#         if vehicle_index < num_blueprints:
+#             vehicle_bp = filter_vehicle_blueprints[vehicle_index]
+#             vehicle_index += 1
+#         else:
+#             found = False
+#             attempts = 0
+#             while attempts < num_blueprints:
+#                 candidate_idx = vehicle_index % num_blueprints
+#                 candidate_bp = filter_vehicle_blueprints[candidate_idx]
+#                 if candidate_bp.has_attribute('color'):
+#                     vehicle_bp = candidate_bp
+#                     color = available_colors[vehicle_index % num_colors]
+#                     vehicle_bp.set_attribute('color', color)  # 设置颜色
+#                     vehicle_index += 1
+#                     found = True
+#                     break
+#                 else:
+#                     vehicle_index += 1
+#                     attempts += 1
+#             if not found:
+#                 # 实在找不到支持颜色的蓝图，使用当前蓝图且不设颜色
+#                 print("警告：无支持颜色的蓝图可用，使用默认外观")
+#                 vehicle_bp = filter_vehicle_blueprints[vehicle_index % num_blueprints]
+#                 vehicle_index += 1
+#
+#         vehicle = world.try_spawn_actor(vehicle_bp, transform)
+#         if vehicle is None:
+#             continue
+#         # 配置自动驾驶
+#         # vehicle.set_autopilot(True)  # 启动自动驾驶模式
+#         vehicle.set_autopilot(True, tm.get_port())  # 启动自动驾驶模式
+#         # 不考虑交通灯
+#         tm.ignore_lights_percentage(vehicle, 100)
+#         vehicle_list.append(vehicle)
+#         print(f"Spawned vehicle: {vehicle.id}")
+#
+#     return vehicle_list
+def spawn_autonomous_vehicles(world, tm, junction_weights, num_vehicles, random_seed=42):
     random.seed(random_seed)
     np.random.seed(random_seed)
-    tm.set_random_device_seed(random_seed)
     vehicle_list = []
-    blueprint_library = world.get_blueprint_library()
-    vehicle_blueprints = blueprint_library.filter('vehicle.*')
-    filter_vehicle_blueprints = filter_vehicle_blueprinter(vehicle_blueprints)
-    # 随机选择一个位置
-    spawn_points = world.get_map().get_spawn_points()
-    if len(spawn_points) == 0:
-        print("No spawn points available!")
+
+    carla_map = world.get_map()
+    filter_bike_blueprinter = filter_vehicle_blueprinter(world.get_blueprint_library().filter('vehicle.*'))
+    all_waypoints = carla_map.generate_waypoints(distance=2.0)
+
+    # 提取各个路口外的入口点
+    junction_entries = {jid: [] for jid in junction_weights.keys()}
+    processed_jids = set()
+
+    for wp in all_waypoints:
+        if wp.is_junction and wp.junction_id in junction_weights:
+            jid = wp.junction_id
+            if jid not in processed_jids:
+                processed_jids.add(jid)
+                junction = wp.get_junction()
+                waypoint_pairs = junction.get_waypoints(carla.LaneType.Driving)
+                for entry_wp, _ in waypoint_pairs:
+                    outside_wps = entry_wp.previous(15.0)
+                    if outside_wps:
+                        junction_entries[jid].append(outside_wps[0])
+
+    valid_jids = {jid: w for jid, w in junction_weights.items() if len(junction_entries[jid]) > 0}
+    if not valid_jids:
+        print("警告: 未检测到有效的路口入口点！")
         return []
 
-    # 如果蓝图不足，使用颜色来区分
-    num_blueprints = len(filter_vehicle_blueprints)
-    num_colors = 12
-    available_colors = ["255,0,0", "0,255,0", "0,0,255", "255,255,0", "0,255,255", "255,0,255", "128,128,0",
-                        "128,0,128", "0,128,128", "255,165,0", "0,255,255", "255,192,203"]
-    # 生成车辆
-    vehicle_index = 0
-    for _ in range(num_vehicles):
-        # 选择一个随机位置生成车辆
-        transform = spawn_points[np.random.randint(len(spawn_points))]
-        # vehicle_bp = random.choice(filter_vehicle_blueprints)
-        # 选择蓝图，确保每个蓝图的车辆唯一
-        # if vehicle_index < num_blueprints:
-        #     vehicle_bp = filter_vehicle_blueprints[vehicle_index]
-        #     vehicle_index += 1
-        # else:
-        #     # 蓝图用完后，开始使用颜色来区分
-        #     vehicle_bp = filter_vehicle_blueprints[vehicle_index % num_blueprints]
-        #     color = available_colors[vehicle_index % num_colors]
-        #     vehicle_bp.set_attribute('color', color)
-        #     vehicle_index += 1
+    # 按加权计算各路口车辆配额
+    total_weight = sum(valid_jids.values())
+    normalized_weights = {jid: w / total_weight for jid, w in valid_jids.items()}
 
-        if vehicle_index < num_blueprints:
-            vehicle_bp = filter_vehicle_blueprints[vehicle_index]
-            vehicle_index += 1
-        else:
-            found = False
-            attempts = 0
-            while attempts < num_blueprints:
-                candidate_idx = vehicle_index % num_blueprints
-                candidate_bp = filter_vehicle_blueprints[candidate_idx]
-                if candidate_bp.has_attribute('color'):
-                    vehicle_bp = candidate_bp
-                    color = available_colors[vehicle_index % num_colors]
-                    vehicle_bp.set_attribute('color', color)  # 设置颜色
-                    vehicle_index += 1
-                    found = True
-                    break
-                else:
-                    vehicle_index += 1
-                    attempts += 1
-            if not found:
-                # 实在找不到支持颜色的蓝图，使用当前蓝图且不设颜色
-                print("警告：无支持颜色的蓝图可用，使用默认外观")
-                vehicle_bp = filter_vehicle_blueprints[vehicle_index % num_blueprints]
-                vehicle_index += 1
+    assigned_counts = {}
+    remaining_vehicles = num_vehicles
+    for jid, weight in normalized_weights.items():
+        count = int(num_vehicles * weight)
+        assigned_counts[jid] = count
+        remaining_vehicles -= count
 
-        vehicle = world.try_spawn_actor(vehicle_bp, transform)
-        if vehicle is None:
+    if remaining_vehicles > 0:
+        assigned_counts[max(normalized_weights, key=normalized_weights.get)] += remaining_vehicles
+
+    # 按配额生成车辆
+    for start_jid, count in assigned_counts.items():
+        entry_points = junction_entries[start_jid]
+        if not entry_points:
             continue
-        # 配置自动驾驶
-        # vehicle.set_autopilot(True)  # 启动自动驾驶模式
-        vehicle.set_autopilot(True, tm.get_port())  # 启动自动驾驶模式
-        # 不考虑交通灯
-        tm.ignore_lights_percentage(vehicle, 100)
-        vehicle_list.append(vehicle)
-        print(f"Spawned vehicle: {vehicle.id}")
 
+        for _ in range(count):
+            start_wp = random.choice(entry_points)
+            transform = start_wp.transform
+            transform.location.z += 0.5
+
+            vehicle_bp = random.choice(filter_bike_blueprinter)
+            vehicle = world.try_spawn_actor(vehicle_bp, transform)
+
+            if vehicle:
+                vehicle.set_autopilot(True)
+                tm.ignore_lights_percentage(vehicle, 100)
+                # 已移除 GlobalRoutePlanner 和 tm.set_path 跨路口导航逻辑
+                vehicle_list.append(vehicle)
+
+    print(f"成功按加权在各路口外生成了 {len(vehicle_list)} 辆车（本地行驶，无跨路口导航）。")
     return vehicle_list
 
 def create_pedestrian_generator(world, seed=42):
@@ -1053,12 +1126,146 @@ def create_pedestrian_generator(world, seed=42):
         yield bp
 
 
-def get_or_create_pedestrian_script(world, num_pedestrians=150, filepath="HutbCarlaCity_pedestrians_generates_trajectory.json", seed=2024):
+# def get_or_create_pedestrian_script(
+#         world,
+#         num_pedestrians=50,
+#         filepath="HutbCarlaCity_pedestrians_generates_trajectory.json",
+#         seed=2024,
+#         target_junction_ids=[2121, 398, 576, 626, 510],  #目标路口ID列表
+#         radius=35.0,  # 新增：在路口中心多少米范围内生成
+#         min_distance=15.0  # 修改：由于是局部生成，起终点距离要求应适当调小，原为30
+# ):
+#     if os.path.exists(filepath):
+#         with open(filepath, 'r') as f:
+#             raw_script = json.load(f)
+#
+#         # 确保加载的非空 json 才会直接返回
+#         if len(raw_script) > 0:
+#             print(f" 已找到轨迹 ")
+#             final_script = []
+#             for item in raw_script:
+#                 spawn_loc = carla.Location(x=item["spawn_x"], y=item["spawn_y"], z=item["spawn_z"])
+#                 dest_loc = carla.Location(x=item["dest_x"], y=item["dest_y"], z=item["dest_z"])
+#                 final_script.append({
+#                     "spawn_point": carla.Transform(spawn_loc),
+#                     "destination": dest_loc,
+#                     "speed": item["speed"]
+#                 })
+#             print(f" 成功加载 {len(final_script)} 名行人的运动轨迹！")
+#             return final_script
+#
+#     # ---- 针对自定义地图的无缝兼容逻辑 ----
+#     carla_map = world.get_map()
+#     all_wps = carla_map.generate_waypoints(distance=2.0)
+#
+#     # 1. 解析指定路口 ID 的中心坐标
+#     junction_centers = []
+#     if target_junction_ids:
+#         seen_ids = set()
+#         for wp in all_wps:
+#             if wp.is_junction:
+#                 j = wp.get_junction()
+#                 if j.id in target_junction_ids and j.id not in seen_ids:
+#                     junction_centers.append(j.bounding_box.location)
+#                     seen_ids.add(j.id)
+#         if not junction_centers:
+#             print(f" 警告：未能在地图中找到指定的路口 ID {target_junction_ids}，将退回全图生成。")
+#
+#     # 2. 精确筛选位于目标路口范围内的人行道 Waypoint
+#     sidewalk_wps = [wp for wp in all_wps if wp.lane_type == carla.LaneType.Sidewalk]
+#     base_wps = sidewalk_wps if len(sidewalk_wps) > 0 else all_wps
+#
+#     if junction_centers:
+#         # 只保留在任何一个目标路口半径范围内的人行道点
+#         target_wps = [
+#             wp for wp in base_wps
+#             if any(wp.transform.location.distance(center) <= radius for center in junction_centers)
+#         ]
+#         if len(target_wps) == 0:
+#             print(f" 警告：在指定路口 {radius} 米范围内没找到人行道，自动扩大搜索半径至 {radius * 1.5} 米...")
+#             target_wps = [
+#                 wp for wp in base_wps
+#                 if any(wp.transform.location.distance(center) <= radius * 1.5 for center in junction_centers)
+#             ]
+#     else:
+#         target_wps = base_wps
+#
+#     def get_location(rng):
+#         # 如果是全图生成，优先使用 Navmesh 以保证全图多样性
+#         if not junction_centers:
+#             loc = world.get_random_location_from_navigation()
+#             if loc is not None:
+#                 return loc
+#
+#         # 如果限制在特定路口，全局 Navmesh 采样命中率太低
+#         # 直接使用预先筛选的绝对合法的人行道 Waypoint (目标路口范围内)
+#         if len(target_wps) > 0:
+#             wp = rng.choice(target_wps)
+#             # 添加微小的 xy 随机偏移，避免行人完全排成一条直线
+#             offset_x = rng.uniform(-0.5, 0.5)
+#             offset_y = rng.uniform(-0.5, 0.5)
+#             loc = wp.transform.location
+#             return carla.Location(x=loc.x + offset_x, y=loc.y + offset_y, z=loc.z + 0.2)
+#
+#         return None
+#
+#     # ------------------------------------
+#
+#     local_rng = random.Random(seed)
+#     raw_script = []
+#     final_script = []
+#     generated_count = 0
+#
+#     max_attempts = num_pedestrians * 100
+#
+#     for attempt in range(max_attempts):
+#         if generated_count >= num_pedestrians:
+#             break
+#
+#         spawn_point = get_location(local_rng)
+#         destination = get_location(local_rng)
+#
+#         if spawn_point is not None and destination is not None:
+#             distance = spawn_point.distance(destination)
+#
+#             # 使用动态的 min_distance（局部路口生成时距离不能要求太大）
+#             if distance >= min_distance:
+#                 speed = round(local_rng.uniform(1.1, 1.5), 2)
+#
+#                 raw_script.append({
+#                     "spawn_x": spawn_point.x, "spawn_y": spawn_point.y, "spawn_z": spawn_point.z,
+#                     "dest_x": destination.x, "dest_y": destination.y, "dest_z": destination.z,
+#                     "speed": speed
+#                 })
+#
+#                 final_script.append({
+#                     "spawn_point": carla.Transform(spawn_point),
+#                     "destination": destination,
+#                     "speed": speed
+#                 })
+#                 generated_count += 1
+#
+#     if generated_count < num_pedestrians:
+#         print(f"只找到了 {generated_count} 条大于 {min_distance} 米的路线。")
+#
+#     with open(filepath, 'w') as f:
+#         json.dump(raw_script, f, indent=4)
+#
+#     print(f"轨迹生成完毕！已将 {generated_count} 名行人的轨迹保存在 {filepath}！")
+#     return final_script
+def get_or_create_pedestrian_script(
+        world,
+        num_pedestrians=50,
+        filepath="HutbCarlaCity_pedestrians_generates_trajectory.json",
+        seed=2024,
+        target_junction_ids=[2121, 398, 576, 626, 510],  # 目标路口ID列表
+        radius=35.0,  # 在路口中心多少米范围内生成（起点）
+        min_distance=30.0  # 终点全图随机，距离可以要求大一点
+):
     if os.path.exists(filepath):
         with open(filepath, 'r') as f:
             raw_script = json.load(f)
 
-        # 确保加载的非空 json 才会直接返回
         if len(raw_script) > 0:
             print(f" 已找到轨迹 ")
             final_script = []
@@ -1073,39 +1280,96 @@ def get_or_create_pedestrian_script(world, num_pedestrians=150, filepath="HutbCa
             print(f" 成功加载 {len(final_script)} 名行人的运动轨迹！")
             return final_script
 
-    # ---- 针对自定义地图的无缝兼容逻辑 ----
     carla_map = world.get_map()
     all_wps = carla_map.generate_waypoints(distance=2.0)
-    sidewalk_wps = [wp for wp in all_wps if wp.lane_type == carla.LaneType.Sidewalk]
-    target_wps = sidewalk_wps if len(sidewalk_wps) > 0 else all_wps
 
-    def get_location(rng):
-        # 优先使用 Navmesh，如果自定义地图返回 None，则从人行道 Waypoint 随机抽取
+    # 获取目标路口中心并加入提前跳出优化
+    junction_centers = {}
+    if target_junction_ids:
+        seen_ids = set()
+        target_count = len(set(target_junction_ids))
+        for wp in all_wps:
+            if wp.is_junction:
+                j = wp.get_junction()
+                if j.id in target_junction_ids and j.id not in seen_ids:
+                    junction_centers[j.id] = j.bounding_box.location
+                    seen_ids.add(j.id)
+                    if len(seen_ids) == target_count:
+                        break
+        if not junction_centers:
+            print(f" 警告：未能在地图中找到指定的路口 ID，将退回全图生成。")
+
+    # 将人行道点按路口ID分类建档字典
+    sidewalk_wps = [wp for wp in all_wps if wp.lane_type == carla.LaneType.Sidewalk]
+    base_wps = sidewalk_wps if len(sidewalk_wps) > 0 else all_wps
+
+    junction_wps_dict = {}  # 字典：{ 路口ID : [可用Waypoint列表] }
+    valid_junction_ids = []  # 记录真正有合法生成点的路口ID
+
+    if junction_centers:
+        for j_id, center in junction_centers.items():
+            # 筛选只属于当前路口半径内的点
+            wps_in_radius = [wp for wp in base_wps if wp.transform.location.distance(center) <= radius]
+
+            # 防错：如果当前路口找不到点，扩大该路口的搜索范围
+            if len(wps_in_radius) == 0:
+                print(f" 路口 {j_id} 在 {radius} 米内无点，扩大半径至 {radius * 1.5} 米...")
+                wps_in_radius = [wp for wp in base_wps if wp.transform.location.distance(center) <= radius * 1.5]
+
+            if len(wps_in_radius) > 0:
+                junction_wps_dict[j_id] = wps_in_radius
+                valid_junction_ids.append(j_id)
+            else:
+                print(f" 路口 {j_id} 附近没有可用人行道，将被忽略分配。")
+
+    # 独立起点与终点生成函数
+    def get_spawn_location(rng, target_j_id):
+        """严格在指定的特定路口生成起点"""
+        if valid_junction_ids and target_j_id in junction_wps_dict:
+            wp = rng.choice(junction_wps_dict[target_j_id])
+            offset_x = rng.uniform(-0.5, 0.5)
+            offset_y = rng.uniform(-0.5, 0.5)
+            loc = wp.transform.location
+            return carla.Location(x=loc.x + offset_x, y=loc.y + offset_y, z=loc.z + 0.2)
+        # 降级：全图随机
         loc = world.get_random_location_from_navigation()
-        if loc is None and len(target_wps) > 0:
-            loc = rng.choice(target_wps).transform.location + carla.Location(z=0.2)
-        return loc
+        return loc if loc else (rng.choice(base_wps).transform.location + carla.Location(z=0.2))
+
+    def get_destination_location(rng):
+        """全图随机找终点，确保能散开且距离达标"""
+        loc = world.get_random_location_from_navigation()
+        if loc is not None:
+            return loc
+        return rng.choice(base_wps).transform.location + carla.Location(z=0.2)
+
     # ------------------------------------
 
-    MIN_DISTANCE = 30
     local_rng = random.Random(seed)
     raw_script = []
     final_script = []
     generated_count = 0
-
     max_attempts = num_pedestrians * 100
+
+    # 打印统计日志
+    distribution_stats = {j_id: 0 for j_id in valid_junction_ids}
 
     for attempt in range(max_attempts):
         if generated_count >= num_pedestrians:
             break
 
-        spawn_point = get_location(local_rng)
-        destination = get_location(local_rng)
+        # 轮询机制：决定当前这个人属于哪个路口
+        if valid_junction_ids:
+            current_j_id = valid_junction_ids[generated_count % len(valid_junction_ids)]
+        else:
+            current_j_id = None  # 降级全图
+
+        spawn_point = get_spawn_location(local_rng, current_j_id)
+        destination = get_destination_location(local_rng)
 
         if spawn_point is not None and destination is not None:
             distance = spawn_point.distance(destination)
 
-            if distance >= MIN_DISTANCE:
+            if distance >= min_distance:
                 speed = round(local_rng.uniform(1.1, 1.5), 2)
 
                 raw_script.append({
@@ -1119,19 +1383,27 @@ def get_or_create_pedestrian_script(world, num_pedestrians=150, filepath="HutbCa
                     "destination": destination,
                     "speed": speed
                 })
+
+                # 记录成功生成的数量
                 generated_count += 1
+                if current_j_id is not None:
+                    distribution_stats[current_j_id] += 1
 
     if generated_count < num_pedestrians:
-        print(f"只找到了 {generated_count} 条大于 {MIN_DISTANCE} 米的路线。")
+        print(f"只找到了 {generated_count} 条大于 {min_distance} 米的路线。")
 
     with open(filepath, 'w') as f:
         json.dump(raw_script, f, indent=4)
 
-    print(f"轨迹生成完毕！已将 {generated_count} 名行人的轨迹保存在 {filepath}！")
+    print(f"轨迹生成完毕！已成功保存 {generated_count} 名行人的轨迹。")
+    if distribution_stats:
+        print(f" 路口均分统计: {distribution_stats}")
+
     return final_script
 
+
 # 生成随机运动行人
-def spawn_autonomous_pedestrians(world, num_pedestrians=150, random_seed=20):
+def spawn_autonomous_pedestrians(world, num_pedestrians=50, random_seed=20):
     random.seed(random_seed)
     np.random.seed(random_seed)
     pedestrian_list = []
@@ -1177,6 +1449,7 @@ def spawn_autonomous_pedestrians(world, num_pedestrians=150, random_seed=20):
 
     return pedestrian_list
 
+
 def spawn_v2x_sensors(world, lidar_transform, z_height=2.57):
     sensors = {}  # 字典
 
@@ -1218,7 +1491,7 @@ def do_nothing(data):
     pass
 
 def spawn_v2x_receiver(world, quantize_scale, town_folder):
-    location = carla.Location(x=0, y=0, z=2.62)
+    location = carla.Location(x=75.5, y=-283, z=2.62)
     transform = carla.Transform(location, carla.Rotation(yaw=0))
 
     # 获取传感器蓝图
@@ -1535,7 +1808,7 @@ def main():
     argparser.add_argument(
         '-n', '--number-of-vehicles',
         metavar='N0',
-        default=200,
+        default=120,
         type=int,
         help='Number of vehicles (default: 30)')
     argparser.add_argument(
@@ -1553,7 +1826,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_1',  # 默认路口
+        default='road_intersection_3',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
@@ -1606,16 +1879,36 @@ def main():
     quantize_scale = pca_data['quantize_scale']
     print("模型加载完成！")
 
+    # 开启子进程
+    # 设置为 spawn 启动模式
+    multiprocessing.set_start_method("spawn", force=True)
+
+    input_queue = multiprocessing.Queue()
+    output_queue = multiprocessing.Queue()
+
+    p = multiprocessing.Process(
+        target=yolo_worker, args=(input_queue, output_queue)
+    )
+    p.start()
+
     try:
         # 设置随机种子
         random_seed = 20
         intersection_config = town_configurations[args.town][args.intersection]
         ego_transform = intersection_config.ego_vehicle_position
         camera_loc = intersection_config.camera_positions
+        # 定义 5 个路口 ID
+        target_junction_weights = {
+            2121: 0.3,
+            398: 0.2,
+            576: 0.2,
+            626: 0.1,
+            510: 0.2
+        }
         # 先生成自动驾驶车辆
-        vehicles = spawn_autonomous_vehicles(world, tm, num_vehicles=args.number_of_vehicles, random_seed=random_seed)
+        vehicles = spawn_autonomous_vehicles(world, tm, target_junction_weights, num_vehicles=args.number_of_vehicles, random_seed=random_seed)
         # 生成随机运动行人
-        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=150, random_seed=20)
+        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=50, random_seed=20)
         # 启动行人碰撞
         for pedestrian in pedestrians:
             if "walker.pedestrian." in pedestrian.type_id:
@@ -1698,7 +1991,7 @@ def main():
                 if "lidar" in sensor_name:  # lidar数据
                     save_radar_data(data, world, ego_transform, actual_vehicle_num, actual_pedestrian_num, lidar_to_world_inv, all_vehicle_labels, all_pedestrian_labels, junc, town_folder, file_num, sensors, num)
                 else:
-                    save_camera_data(data, sensor_name, junc, town_folder, model, sensors, num, pca_model, quantize_scale, resnet_model, img_preprocess, compute_device)
+                    save_camera_data(data, sensor_name, junc, town_folder, model, sensors, num, pca_model, quantize_scale, resnet_model, img_preprocess, compute_device, input_queue, output_queue, p)
             # time.sleep(0.05)
             folder_index += 1
             system_uptime_end = time.time() - extra_time
@@ -1722,17 +2015,37 @@ def main():
         flattened_data = [item for sublist in all_vehicle_labels for item in sublist]
         processed_data = []
 
+        # for entry in flattened_data:
+        #     timestamp, vehicle_id, position_with_dims = entry
+        #     x, y, z, length, width, height = position_with_dims
+        #     position = (x, y, z)
+        #     box = (length, width, height)
+        #     processed_data.append({
+        #         'Time': timestamp,
+        #         'TruthID': vehicle_id,
+        #         'Position': position,
+        #         'Box': box
+        #     })
         for entry in flattened_data:
             timestamp, vehicle_id, position_with_dims = entry
-            x, y, z, length, width, height = position_with_dims
-            position = (x, y, z)
-            box = (length, width, height)
-            processed_data.append({
-                'Time': timestamp,
-                'TruthID': vehicle_id,
-                'Position': position,
-                'Box': box
-            })
+
+            # 判断是否为空帧
+            if vehicle_id is None or position_with_dims is None:
+                # 空帧：直接把字段设为空列表 []
+                processed_data.append(
+                    {"Time": timestamp, "TruthID": [], "Position": [], "Box": []}
+                )
+            else:
+                # 有车帧：安全解包
+                x, y, z, length, width, height = position_with_dims
+                processed_data.append(
+                    {
+                        "Time": timestamp,
+                        "TruthID": vehicle_id,
+                        "Position": (x, y, z),
+                        "Box": (length, width, height),
+                    }
+                )
 
         truths = np.array(processed_data, dtype=object)
         file_path = os.path.join(folder_name, "truths.mat")
@@ -1789,17 +2102,37 @@ def main():
         flattened_data = [item for sublist in all_pedestrian_labels for item in sublist]
         processed_data = []
 
+        # for entry in flattened_data:
+        #     timestamp, pedestrian_id, position_with_dims = entry
+        #     x, y, z, length, width, height = position_with_dims
+        #     position = (x, y, z)
+        #     box = (length, width, height)
+        #     processed_data.append({
+        #         'Time': timestamp,
+        #         'TruthID': pedestrian_id,
+        #         'Position': position,
+        #         'Box': box
+        #     })
         for entry in flattened_data:
             timestamp, pedestrian_id, position_with_dims = entry
-            x, y, z, length, width, height = position_with_dims
-            position = (x, y, z)
-            box = (length, width, height)
-            processed_data.append({
-                'Time': timestamp,
-                'TruthID': pedestrian_id,
-                'Position': position,
-                'Box': box
-            })
+
+            # 判断是否为空帧
+            if pedestrian_id is None or position_with_dims is None:
+                # 空帧：直接把字段设为空列表 []
+                processed_data.append(
+                    {"Time": timestamp, "TruthID": [], "Position": [], "Box": []}
+                )
+            else:
+                # 有车帧：安全解包
+                x, y, z, length, width, height = position_with_dims
+                processed_data.append(
+                    {
+                        "Time": timestamp,
+                        "TruthID": pedestrian_id,
+                        "Position": (x, y, z),
+                        "Box": (length, width, height),
+                    }
+                )
 
         truths = np.array(processed_data, dtype=object)
         file_path = os.path.join(folder_name, "truths.mat")
@@ -1842,6 +2175,10 @@ def main():
 
 
         destroy_actor(lidar, camera_dict, vehicles, sensor_queue, pedestrians)
+
+        # 结束子进程
+        input_queue.put(None)
+        p.join()
     except Exception as e:
         print(f"Error occurred during execution: {e}")
     finally:

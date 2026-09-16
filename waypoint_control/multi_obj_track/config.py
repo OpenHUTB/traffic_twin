@@ -184,19 +184,19 @@ town_configurations = {
     },
     "HutbCarlaCity": {
         "road_intersection_1": IntersectionConfig(
-            carla.Transform(carla.Location(x=-233, y=-36, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0)),
+            carla.Transform(carla.Location(x=-283, y=7.65, z=0.98), carla.Rotation(pitch=0, yaw=90, roll=0)),
             {
-                "back_camera": carla.Transform(carla.Location(x=-233, y=-43, z=3.6),
+                "back_camera": carla.Transform(carla.Location(x=-283, y=0.65, z=3.6),
                                                carla.Rotation(pitch=0, yaw=-90, roll=0)),
-                "front_camera": carla.Transform(carla.Location(x=-233, y=-29, z=3.6),
+                "front_camera": carla.Transform(carla.Location(x=-283, y=14.65, z=3.6),
                                                 carla.Rotation(pitch=0, yaw=90, roll=0)),
-                "right_camera": carla.Transform(carla.Location(x=-237, y=-43, z=3.6),
+                "right_camera": carla.Transform(carla.Location(x=-287, y=0.65, z=3.6),
                                                 carla.Rotation(pitch=0, yaw=-178, roll=0)),
-                "front_right_camera": carla.Transform(carla.Location(x=-237, y=-29, z=3.6),
+                "front_right_camera": carla.Transform(carla.Location(x=-287, y=14.65, z=3.6),
                                                       carla.Rotation(pitch=0, yaw=-178, roll=0)),
-                "left_camera": carla.Transform(carla.Location(x=-229, y=-43, z=3.6),
+                "left_camera": carla.Transform(carla.Location(x=-279, y=0.65, z=3.6),
                                                carla.Rotation(pitch=0, yaw=-0, roll=0)),
-                "front_left_camera": carla.Transform(carla.Location(x=-229, y=-29, z=3.6),
+                "front_left_camera": carla.Transform(carla.Location(x=-279, y=14.65, z=3.6),
                                                      carla.Rotation(pitch=0, yaw=-0, roll=0))
             }
         ),
