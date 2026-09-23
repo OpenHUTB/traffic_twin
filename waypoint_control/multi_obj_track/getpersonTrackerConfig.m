@@ -131,6 +131,71 @@ function params = getpersonTrackerConfig(mapName, juncName)
                 otherwise
                     error('未知的路口名称: %s. 请使用 junc1 到 junc5', juncName);
             end
+
+        case 'HutbCarlaCity'
+            switch juncName
+                case 'test_data_junc1'
+                    params.AssignmentThreshold   = [9.75684428230482 16.3351497498942];
+                    params.MaxNumTracks          = 500;
+                    params.DetectionProbability  = 0.913386838596447;
+                    params.MaxNumEvents          = 50;
+                    params.ClutterDensity        = 0.000366717387199037;
+                    params.NewTargetDensity      = 0.000148460923299678;
+                    params.ConfirmationThreshold = 0.938147779394056;
+                    params.DeletionThreshold     = 0.209630902450980;
+                    params.DeathRate             = 0.423696545423201;
+            
+                case 'test_data_junc2'
+                    % 为路口2设置不同的参数
+                    params.AssignmentThreshold   = [4.41139807185751 17.6868991062162];
+                    params.MaxNumTracks          = 500;
+                    params.DetectionProbability  = 0.947455558421740;
+                    params.MaxNumEvents          = 50;
+                    params.ClutterDensity        = 1.86096137983808e-05;
+                    params.NewTargetDensity      = 3.80117342358463e-05;
+                    params.ConfirmationThreshold = 0.936068556581983;
+                    params.DeletionThreshold     = 0.531618986497684;
+                    params.DeathRate             = 0.668611670928736;
+            
+                case 'test_data_junc3'
+                    % 为路口3设置不同的参数
+                    params.AssignmentThreshold   = [5.05257590977771 11.8577119577199];
+                    params.MaxNumTracks          = 500;
+                    params.DetectionProbability  = 0.939147105863770;
+                    params.MaxNumEvents          = 50;
+                    params.ClutterDensity        = 0.000967329823930347;
+                    params.NewTargetDensity      = 0.00138180117517692;
+                    params.ConfirmationThreshold = 0.785555459940353;
+                    params.DeletionThreshold     = 0.457727552330610;
+                    params.DeathRate             = 0.381193624961542;
+            
+                case 'test_data_junc4'
+                    % 为路口4设置不同的参数
+                    params.AssignmentThreshold   = [7.83207871045522 18.0769277673030];
+                    params.MaxNumTracks          = 500;
+                    params.DetectionProbability  = 0.909687600424253;
+                    params.MaxNumEvents          = 50;
+                    params.ClutterDensity        = 0.000573395101222235;
+                    params.NewTargetDensity      = 1.09028345361171e-05;
+                    params.ConfirmationThreshold = 0.841763389966227;
+                    params.DeletionThreshold     = 0.577162275556646;
+                    params.DeathRate             = 0.633680661585115;
+            
+                case 'test_data_junc5'
+                    % 为路口5设置不同的参数
+                    params.AssignmentThreshold   = [1.41468533291560 17.6376377753875];
+                    params.MaxNumTracks          = 500;
+                    params.DetectionProbability  = 0.511208887677303;
+                    params.MaxNumEvents          = 50;
+                    params.ClutterDensity        = 0.000786155080138548;
+                    params.NewTargetDensity      = 0.00213804507795649;
+                    params.ConfirmationThreshold = 0.948671207605335;
+                    params.DeletionThreshold     = 0.499848633547259;
+                    params.DeathRate             = 0.589144590001205;
+            
+                otherwise
+                    error('未知的路口名称: %s. 请使用 junc1 到 junc5', juncName);
+            end
         
     end
 end

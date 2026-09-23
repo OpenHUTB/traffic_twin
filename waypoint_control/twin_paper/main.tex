@@ -162,42 +162,32 @@ Among these, Town01 and Town10 are maps included in the CARLA simulation softwar
 HutbCarlaCity and Zhongdian are maps we created based on real-world road networks and environments; the former depicts Hunan University of Commerce and its surrounding areas, while the latter depicts the Changsha China Electronics Software Park and its surrounding areas.
 We ran 1,200 frames on each map to simulate traffic conditions over a two-minute period, and used the overall average across five intersections to represent the final result for that map.
 
+\subsection{Trajectory tracking via multi-modal fusion}
+% 具体介绍轨迹的跟踪，如何通过点云与图片得到轨迹，实验的设计与实现
+% JPDA参数配置、贝叶斯调优、重识别模型训练、重识别阈值设定
+To obtain high-precision tracking trajectories, we track pedestrians and vehicles separately. The processes for both are identical, differing only in the JPDA parameter settings.
 
-\subsection{System physical layout and transmission latency}
-% 介绍我们系统的数据是怎样端到端传输的，收集端与服务端的布局是怎样的，如何计算延迟，详细说明”在线“属性
-% 本论文的特色，创新点
-Our system consists of a data collection end and a central server.
-We selected five major intersections on each map as data collection points.
-One lidar sensor, six cameras, and seven V2X communication devices have been deployed at each intersection.
-We deployed the LiDAR at the center of the intersection, 1.8 meters above the ground.
-The six cameras, centered around the LiDAR unit, are positioned as follows: front, rear, left front, left rear, right front, and right rear. They are all uniformly mounted at a height of 3.6 meters above the ground, spaced 14 meters apart front to back and 8 meters apart left to right.
-The seven V2X communication devices are each mounted 0.8 meters above the lidar and the six cameras.
-The central server is located at the point closest to all intersections to minimize data transmission latency.
-At the same time, deploy one V2X communication device at the central server to receive data transmitted from the data collection endpoints.
+First, the multimodal detection results are extracted, classified, and assembled.
+Assemble the classified 3D and 2D bounding boxes into the format required by the JPDA tracker, and synchronize the sensor data with the vehicle's pose.
+At the same time, the appearance feature vectors are also written to the database to facilitate subsequent cross-intersection target re-identification.
+The appearance feature vectors are obtained using the ResNet-50 model during the data collection phase.
+In terms of multimodal fusion strategies, the first frame is initialized using only point cloud detection results to avoid any instability that might be introduced during the camera initialization phase.
+Starting from the next frame, merge the LiDAR detection list with the camera detection list to form the vehicle detection set and the pedestrian detection set, respectively.
+During the merging process, ensure that each detection set includes the necessary appearance features and class attributes; if any are missing, fill them with default values to maintain consistency in the detection structure.
 
-The latency in this system primarily stems from three sources: processing latency at the data collection end, data transmission latency, and processing latency at the central server.
-Processing latency at the data collection end primarily stems from the preprocessing of raw data. We mark the moment just before the data enters preprocessing as the start time and the moment preprocessing ends as the end time, then calculate the difference between the two as the processing latency.
-To calculate data transmission latency, we use the V2X transmission time at the data collection end as the start time and the V2X reception time at the central server as the end time, and calculate the difference between the two as the transmission latency.
-Since the central server must receive data from all intersections before it can perform trajectory tracking, the longest transmission delay is therefore the total transmission delay.
-Processing latency on the central server primarily stems from the execution time of the relevant programs, namely the generation and re-creation of trajectories.
-We use the time when the data is input as the start time and the time when the target is successfully replicated in the virtual world as the end time, and calculate the difference between the two as the processing delay.
-Total delay refers to the time elapsed from when the target appears in front of the sensor until it is successfully detected.
+Before performing the formal tracking, we first performed Bayesian optimization on the parameters of the JPDA tracker to achieve optimal tracking performance.
+The optimized parameters include AssignmentThreshold, DetectionProbability, ClutterDensity, NewTargetDensity, ConfirmationThreshold, DeletionThreshold, and DeathRate.
+Because pedestrians and vehicles differ significantly as targets, they were optimized separately, resulting in different parameter configurations.
+After obtaining the optimal parameters, the classified vehicle detection set and pedestrian detection set are fed into their respective JPDA trackers to obtain the trajectory estimates for the current frame.
+If the flight path is not associated with any existing flight path, create it as a temporary flight path.
+If the track persists over the next few consecutive frames, it is upgraded to a confirmed track.
+The status of each track includes information such as the target's position, speed, size, and yaw angle.
 
+The system records the feature values of vehicles entering and exiting the intersection for the first time, and then compares them with the feature values of vehicles entering and exiting adjacent intersections, respectively.
+If the similarity between the feature values of a target leaving the current intersection and a target entering an adjacent intersection exceeds a set threshold, and the time interval is within a reasonable range, the two are considered to be the same target.
+Similarly, if the similarity between the feature values of a target entering the current intersection and those of a target leaving an adjacent intersection exceeds a set threshold, and the time interval between the two events falls within a reasonable range, the two targets are considered to be the same.
+After the trajectories across intersections have been linked, the system performs a fifth-degree polynomial fit on the unknown regions between the linked trajectories to obtain a continuous trajectory estimate.
 
-\begin{table}[htbp]
-  \centering
-  \caption{System latency.}
-  \label{tab:algorithm_performance}
-
-  \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}ccccc}
-    \toprule
-    Scene & Data Preprocessing & Data Transmission & Trajectory Tracking and Replay & Total \\
-    \midrule
-      Town01  & 2 & 1 & 1 &                    \\
-      Town10  & 400 & 533 & 600 & 1533                   \\
-    \bottomrule
-  \end{tabular*}
-\end{table}
 
 
 \subsection{Generation of twin trajectories}
