@@ -54,6 +54,10 @@ base_frame = None
 extra_time = 0
 # yolo子进程所用时间
 yolo_time = 0
+# ptd 去重集合：{frame_id: set((x,y,z,l,w,h,yaw), ...)}，用于应用层重传后的去重
+received_ptd = {}
+# 上一帧的 ptd 数据，用于跨帧重传
+last_ptd_data = None
 
 relativePose_to_egoVehicle = {
        "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],    # 1
@@ -426,32 +430,52 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
 
 
 def send_v2x_message_lidar(lidar_data, sensor, pkl_file_path, junc, world):
+    # 调试日志：记录每一帧读到的检测结果与发送情况
+    dbg_log = "detection_logs/_send_lidar.log"
     try:
         # 1. 读取 pkl 文件获取帧 ID
         with open(pkl_file_path, 'rb') as f:
             data = pickle.load(f)
+
+        raw_len = len(data) if isinstance(data, list) else -1
         if isinstance(data, list):
             data = data[0]
         # 获取 frame_id 并转为字符串 (如果没有则默认为 "0")
         frame_id = str(data.get('frame_id', '0'))
 
-        # # 获取当前时间戳 (保留4位小数即可)
-        # current_time = f"{time.time() - extra_time:.4f}"
+        n_box = len(data.get('boxes_lidar', [])) if isinstance(data, dict) else -1
+        scores = data.get('score', []) if isinstance(data, dict) else []
+        score_str = [round(float(s), 3) for s in scores]
+
+        with open(dbg_log, 'a') as lf:
+            lf.write(f"[发送] pkl元素数={raw_len}, frame_id={frame_id}, 框数={n_box}, scores={score_str}\n")
 
         send_lidar_message(data, sensor, world, junc)
-        # 拼接成最简单的纯文本字符串，用逗号隔开
-        # text_payload = f"{frame_id},{current_time},{junc},点云数据"
-        # msg = carla.CustomV2XBytes()
-        # msg.set_bytes(bytearray(text_payload, 'utf-8'))
-        # sensor.send(msg)
 
     except Exception as e:
         import traceback
+        with open(dbg_log, 'a') as lf:
+            lf.write(f"[异常] {e}\n{traceback.format_exc()}\n")
         traceback.print_exc()
         print(f"[发包报错]: {e}")
 
 def send_lidar_message(data, sensor, world, junc):
-    # 将核心数据提取出来
+    global last_ptd_data
+    # 1) 跨帧重传：先重发上一帧的 ptd 数据，跨过约一个完整帧周期，真正错开突发丢包的坏时段
+    if last_ptd_data is not None:
+        _send_ptd_once(last_ptd_data, sensor, world, junc)
+
+    # 2) 发送当前帧（连发 2 次，间隔 0.1s 提供短时冗余）
+    _send_ptd_once(data, sensor, world, junc)
+    time.sleep(0.1)
+    _send_ptd_once(data, sensor, world, junc)
+
+    # 3) 保存当前帧，供下一帧做跨帧重传
+    last_ptd_data = data
+
+
+def _send_ptd_once(data, sensor, world, junc):
+    # 发送某一帧的全部 ptd 消息（一次完整遍历）
     boxes_lidar = data['boxes_lidar']
     scores = data['score']
     frame_id = data['frame_id']
@@ -674,7 +698,7 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
         f.write(str(file_num) + "\n")  # 添加换行符
 
     # 运行自动化目标检测脚本
-    duration = run_shell_script()
+    duration = run_shell_script(file_num)
     global extra_time
     extra_time += duration
 
@@ -1303,6 +1327,9 @@ def get_or_create_pedestrian_script(
     sidewalk_wps = [wp for wp in all_wps if wp.lane_type == carla.LaneType.Sidewalk]
     base_wps = sidewalk_wps if len(sidewalk_wps) > 0 else all_wps
 
+    # --- 新增：过滤掉 z 高度不符合要求的点 (考虑 +0.2 后不能大于 2.0) ---
+    base_wps = [wp for wp in base_wps if wp.transform.location.z + 0.2 <= 2.0]
+
     junction_wps_dict = {}  # 字典：{ 路口ID : [可用Waypoint列表] }
     valid_junction_ids = []  # 记录真正有合法生成点的路口ID
 
@@ -1313,27 +1340,36 @@ def get_or_create_pedestrian_script(
 
             # 防错：如果当前路口找不到点，扩大该路口的搜索范围
             if len(wps_in_radius) == 0:
-                print(f" 路口 {j_id} 在 {radius} 米内无点，扩大半径至 {radius * 1.5} 米...")
+                print(f" 路口 {j_id} 在 {radius} 米内无点（或 z 均>2），扩大半径至 {radius * 1.5} 米...")
                 wps_in_radius = [wp for wp in base_wps if wp.transform.location.distance(center) <= radius * 1.5]
 
             if len(wps_in_radius) > 0:
                 junction_wps_dict[j_id] = wps_in_radius
                 valid_junction_ids.append(j_id)
             else:
-                print(f" 路口 {j_id} 附近没有可用人行道，将被忽略分配。")
+                print(f" 路口 {j_id} 附近没有满足条件（含高度限制）的人行道，将被忽略分配。")
 
     # 独立起点与终点生成函数
     def get_spawn_location(rng, target_j_id):
-        """严格在指定的特定路口生成起点"""
+        """严格在指定的特定路口生成起点，且确保生成高度 z <= 2"""
         if valid_junction_ids and target_j_id in junction_wps_dict:
             wp = rng.choice(junction_wps_dict[target_j_id])
             offset_x = rng.uniform(-0.5, 0.5)
             offset_y = rng.uniform(-0.5, 0.5)
             loc = wp.transform.location
             return carla.Location(x=loc.x + offset_x, y=loc.y + offset_y, z=loc.z + 0.2)
-        # 降级：全图随机
-        loc = world.get_random_location_from_navigation()
-        return loc if loc else (rng.choice(base_wps).transform.location + carla.Location(z=0.2))
+
+        # 降级：全图随机（最多尝试20次以保证 z <= 2.0）
+        for _ in range(20):
+            loc = world.get_random_location_from_navigation()
+            if loc and loc.z <= 2.0:
+                return loc
+
+        # 最终托底：从过滤过高度的 base_wps 中选
+        if base_wps:
+            return rng.choice(base_wps).transform.location + carla.Location(z=0.2)
+
+        return None
 
     def get_destination_location(rng):
         """全图随机找终点，确保能散开且距离达标"""
@@ -1367,6 +1403,10 @@ def get_or_create_pedestrian_script(
         destination = get_destination_location(local_rng)
 
         if spawn_point is not None and destination is not None:
+            # 二次验证保障机制（防漏网之鱼）
+            if spawn_point.z > 2.0:
+                continue
+
             distance = spawn_point.distance(destination)
 
             if distance >= min_distance:
@@ -1390,7 +1430,7 @@ def get_or_create_pedestrian_script(
                     distribution_stats[current_j_id] += 1
 
     if generated_count < num_pedestrians:
-        print(f"只找到了 {generated_count} 条大于 {min_distance} 米的路线。")
+        print(f"只找到了 {generated_count} 条大于 {min_distance} 米且符合高度限制的路线。")
 
     with open(filepath, 'w') as f:
         json.dump(raw_script, f, indent=4)
@@ -1578,6 +1618,14 @@ def _on_v2x_received(event, quantize_scale, town_folder):
                 frame_id = int(frame_id_str)
                 send_time = float(send_time_str)
 
+                # 应用层重传去重：同一帧同一目标只记录一次
+                dedup_key = (x, y, z, l, w, h, yaw)
+                if frame_id not in received_ptd:
+                    received_ptd[frame_id] = set()
+                if dedup_key in received_ptd[frame_id]:
+                    continue  # 重复消息（重传），跳过
+                received_ptd[frame_id].add(dedup_key)
+
                 # 计算当前延迟
                 receive_time = time.time() - extra_time
                 latency_ms = (receive_time - send_time) * 1000
@@ -1735,34 +1783,45 @@ def recognize_vehicle_class(vehicle):
 #         print(f"错误信息：\n{e.stderr}")
 
 
-def run_shell_script():
-    # 定义脚本的绝对路径
-    script_path = "/home/yons/object_detection.sh"
+def run_shell_script(file_num=None):
     # 定义工作目录
-    work_dir = "/mnt/mydrive/traffic_twin/waypoint_control/multi_obj_track"
+    work_dir = os.path.dirname(os.path.abspath(__file__))
+    # 定义脚本路径
+    script_path = os.path.join(work_dir, "object_detection.sh")
 
-    print("开始执行检测流程...")
+    # 日志目录：每帧一个日志文件，便于定位缺 ptd 的帧到底报了什么错
+    log_dir = os.path.join(work_dir, "detection_logs")
+    os.makedirs(log_dir, exist_ok=True)
+    tag = file_num if file_num is not None else "unknown"
+    log_path = os.path.join(log_dir, f"detect_frame_{tag}.log")
+
+    print(f"开始执行检测流程... 帧 {tag}")
 
     # 记录开始时间 (高精度)
     start_time = time.time()
 
-    try:
-        subprocess.run(
-            ["bash", script_path],
-            cwd=work_dir,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=True
-        )
+    with open(log_path, 'w') as logf:
+        logf.write(f"===== 帧 {tag} 检测开始 =====\n")
+        logf.flush()
+        try:
+            subprocess.run(
+                ["bash", script_path],
+                cwd=work_dir,
+                stdout=logf,
+                stderr=subprocess.STDOUT,
+                check=True
+            )
+            logf.write(f"\n===== 帧 {tag} 检测结束 (正常) =====\n")
 
-        # 记录结束时间并计算耗时
-        end_time = time.time()
-        duration = end_time - start_time
-        return duration
+        except subprocess.CalledProcessError as e:
+            logf.write(f"\n===== 帧 {tag} 检测失败 (exit code {e.returncode}) =====\n")
+            print(f"  帧 {tag} 脚本执行失败！详见 {log_path}")
+            return -1
 
-    except subprocess.CalledProcessError:
-        print(" 脚本执行失败！")
-        return -1
+    # 记录结束时间并计算耗时
+    end_time = time.time()
+    duration = end_time - start_time
+    return duration
 
 
 def init_resnet50_extractor():
@@ -1826,7 +1885,7 @@ def main():
     argparser.add_argument(
         '-i', '--intersection',
         metavar='INTERSECTION',
-        default='road_intersection_3',  # 默认路口
+        default='road_intersection_5',  # 默认路口
         help='Name of the intersection within the town (default: road_intersection_1)'
     )
     args = argparser.parse_args()
