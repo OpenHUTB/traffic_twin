@@ -431,7 +431,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
 
 def send_v2x_message_lidar(lidar_data, sensor, pkl_file_path, junc, world):
     # 调试日志：记录每一帧读到的检测结果与发送情况
-    dbg_log = "/home/yons/detection_logs/_send_lidar.log"
+    dbg_log = "detection_logs/_send_lidar.log"
     try:
         # 1. 读取 pkl 文件获取帧 ID
         with open(pkl_file_path, 'rb') as f:
@@ -1784,13 +1784,13 @@ def recognize_vehicle_class(vehicle):
 
 
 def run_shell_script(file_num=None):
-    # 定义脚本的绝对路径
-    script_path = "/home/yons/object_detection.sh"
     # 定义工作目录
-    work_dir = "/mnt/mydrive/traffic_twin/waypoint_control/multi_obj_track"
+    work_dir = os.path.dirname(os.path.abspath(__file__))
+    # 定义脚本路径
+    script_path = os.path.join(work_dir, "object_detection.sh")
 
     # 日志目录：每帧一个日志文件，便于定位缺 ptd 的帧到底报了什么错
-    log_dir = "/home/yons/detection_logs"
+    log_dir = os.path.join(work_dir, "detection_logs")
     os.makedirs(log_dir, exist_ok=True)
     tag = file_num if file_num is not None else "unknown"
     log_path = os.path.join(log_dir, f"detect_frame_{tag}.log")
