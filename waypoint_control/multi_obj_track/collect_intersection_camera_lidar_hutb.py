@@ -33,6 +33,7 @@ import multiprocessing
 import traceback
 import queue
 import shutil
+from collections import deque
 
 from PIL import Image
 from fontTools.merge.util import current_time
@@ -54,10 +55,15 @@ base_frame = None
 extra_time = 0
 # yolo子进程所用时间
 yolo_time = 0
-# ptd 去重集合：{frame_id: set((x,y,z,l,w,h,yaw), ...)}，用于应用层重传后的去重
+# ptd、img 去重集合，用于应用层重传后的去重
 received_ptd = {}
-# 上一帧的 ptd 数据，用于跨帧重传
-last_ptd_data = None
+received_img = {}
+# 发送端记录
+ptd_sent_record = {}
+# v2x 应用层重传
+RETX_WINDOW = 10          # 每帧消息在 RETX_WINDOW 帧后补发一次，错开约 5.5 秒
+ptd_history = deque(maxlen=RETX_WINDOW)   # ptd 发送历史
+img_history = {}                           # camera_id -> deque(maxlen=RETX_WINDOW)
 
 relativePose_to_egoVehicle = {
        "back_camera": [-7.00, 0.00, 2.62, -180.00, 0.00, 0.00],    # 1
@@ -307,9 +313,7 @@ def save_point_label(world, location, lidar_to_world_inv, time_stamp, all_vehicl
 
 
     # 获取行人标签
-    step = 2  # 每隔1个元素遍历（步长为2）
-    for pedestrian in pedestrian_list[1::step]:
-        # for pedestrian in pedestrian_list:
+    for pedestrian in pedestrian_list:
         bounding_box = pedestrian.bounding_box
         bbox_z = bounding_box.location.z
         location = pedestrian.get_transform().location
@@ -460,22 +464,42 @@ def send_v2x_message_lidar(lidar_data, sensor, pkl_file_path, junc, world):
         print(f"[发包报错]: {e}")
 
 def send_lidar_message(data, sensor, world, junc):
-    global last_ptd_data
-    # 1) 跨帧重传：先重发上一帧的 ptd 数据，跨过约一个完整帧周期，真正错开突发丢包的坏时段
-    if last_ptd_data is not None:
-        _send_ptd_once(last_ptd_data, sensor, world, junc)
+    global ptd_history
+    global ptd_sent_record
+    # 首次发送该帧时，把本帧要发送的全部检测框数据、路口号与发送时间完整记录下来，
+    # 用于无线丢包整帧缺失时，把真实数据兜底补写回 v2x_latency_logs
+    frame_id = str(data['frame_id'])
+    if frame_id not in ptd_sent_record:
+        send_time = time.time() - extra_time
+        simple_junc = junc.split('_')[-1] if isinstance(junc, str) and '_' in junc else junc
+        boxes_lidar = data.get('boxes_lidar')
+        scores = data.get('score')
+        target_list = []
+        if boxes_lidar is not None and scores is not None and len(boxes_lidar) > 0:
+            for i in range(len(boxes_lidar)):
+                if scores[i] > 0.6:
+                    box = boxes_lidar[i]
+                    target_list.append(tuple(box[:7]))
+        ptd_sent_record[frame_id] = (send_time, simple_junc, target_list)
 
-    # 2) 发送当前帧（连发 2 次，间隔 0.1s 提供短时冗余）
+    # 跨帧重传
+    n = len(ptd_history)
+    if n >= RETX_WINDOW:
+        _send_ptd_once(ptd_history[0], sensor, world, junc)
+    if n >= RETX_WINDOW // 2:
+        _send_ptd_once(ptd_history[n - RETX_WINDOW // 2], sensor, world, junc)
+
+    # 发送当前帧（连发 2 次，间隔 0.1s 提供短时冗余）
     _send_ptd_once(data, sensor, world, junc)
     time.sleep(0.1)
     _send_ptd_once(data, sensor, world, junc)
 
-    # 3) 保存当前帧，供下一帧做跨帧重传
-    last_ptd_data = data
+    # 当前帧入历史队列
+    ptd_history.append(data)
 
 
 def _send_ptd_once(data, sensor, world, junc):
-    # 发送某一帧的全部 ptd 消息（一次完整遍历）
+    # 发送某一帧的全部 ptd 消息
     boxes_lidar = data['boxes_lidar']
     scores = data['score']
     frame_id = data['frame_id']
@@ -697,10 +721,11 @@ def save_radar_data(radar_data, world, ego_vehicle_transform, actual_vehicle_num
     with open(dir_val, 'w') as f:
         f.write(str(file_num) + "\n")  # 添加换行符
 
-    # 运行自动化目标检测脚本
-    duration = run_shell_script(file_num)
-    global extra_time
-    extra_time += duration
+    # 触发常驻检测服务
+    request_file = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/detection_request.txt"
+    with open(request_file, 'w') as f:
+        f.write(str(file_num))
+    wait_for_detection(file_num)
 
     sensor = sensors["v2x_point"]
     pkl_file_path = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/output/cfgs/custom_models/pv_rcnn/default/pv_rcnn/default/pv_rcnn/default/eval/epoch_no_number/val/default/result.pkl"
@@ -834,6 +859,7 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model
         orig_img = result.orig_img if hasattr(result, 'orig_img') else image
 
         number = 0
+        payloads = []  # 本帧要发送的全部消息字节流（bytearray）
 
         # 遍历图片中的每一个检测框
         for i in range(len(boxes)):
@@ -879,10 +905,8 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model
                             frameid = int(frame_id)
                             # junc_id = int(junc[4:])
 
-                            text_payload = struct.pack('<i 5s 20s i 24s', frameid, junc.encode('utf-8'), camera_id.encode('utf-8'), number, feature_bytes)
-                            msg = carla.CustomV2XBytes()
-                            msg.set_bytes(bytearray(text_payload))
-                            sensor.send(msg)
+                            binary_payload = struct.pack('<i 5s 20s i 24s', frameid, junc.encode('utf-8'), camera_id.encode('utf-8'), number, feature_bytes)
+                            payloads.append(bytearray(binary_payload))
 
                     x = format_8_chars(x)
                     y = format_8_chars(y)
@@ -893,9 +917,34 @@ def send_v2x_message_camera(sensor, junc, frame_id, result, camera_id, pca_model
                     final_type = "person" if class_name == "person" else "vehicle"
 
                     text_payload = f"{frame_id},{junc},{camera_id},{final_type},{current_time},{x},{y},{w},{h},{number},img"
-                    msg = carla.CustomV2XBytes()
-                    msg.set_bytes(bytearray(text_payload, 'utf-8'))
-                    sensor.send(msg)
+                    payloads.append(bytearray(text_payload, 'utf-8'))
+
+        # 本帧没有有效消息，直接返回
+        if not payloads:
+            return
+
+        # 跨帧重传：补发该相机历史里错开的两帧，覆盖突发丢包窗口
+        hist = img_history.setdefault(camera_id, deque(maxlen=RETX_WINDOW))
+        n = len(hist)
+        if n >= RETX_WINDOW:
+            for old_payload in hist[0]:
+                msg = carla.CustomV2XBytes()
+                msg.set_bytes(old_payload)
+                sensor.send(msg)
+        if n >= RETX_WINDOW // 2:
+            for old_payload in hist[n - RETX_WINDOW // 2]:
+                msg = carla.CustomV2XBytes()
+                msg.set_bytes(old_payload)
+                sensor.send(msg)
+
+        # 发送当前帧全部消息
+        for payload in payloads:
+            msg = carla.CustomV2XBytes()
+            msg.set_bytes(payload)
+            sensor.send(msg)
+
+        # 当前帧入历史队列
+        hist.append(payloads)
 
     except Exception as e:
         import traceback
@@ -1279,7 +1328,7 @@ def create_pedestrian_generator(world, seed=42):
 #     return final_script
 def get_or_create_pedestrian_script(
         world,
-        num_pedestrians=50,
+        num_pedestrians=40,
         filepath="HutbCarlaCity_pedestrians_generates_trajectory.json",
         seed=2024,
         target_junction_ids=[2121, 398, 576, 626, 510],  # 目标路口ID列表
@@ -1443,7 +1492,7 @@ def get_or_create_pedestrian_script(
 
 
 # 生成随机运动行人
-def spawn_autonomous_pedestrians(world, num_pedestrians=50, random_seed=20):
+def spawn_autonomous_pedestrians(world, num_pedestrians=40, random_seed=20):
     random.seed(random_seed)
     np.random.seed(random_seed)
     pedestrian_list = []
@@ -1655,6 +1704,14 @@ def _on_v2x_received(event, quantize_scale, town_folder):
                 frame_id = int(frame_id_str)
                 send_time = float(send_time_str)
 
+                # 应用层重传去重
+                dedup_key = (camera_id, final_type, x, y, w, h, number)
+                if frame_id not in received_img:
+                    received_img[frame_id] = set()
+                if dedup_key in received_img[frame_id]:
+                    continue
+                received_img[frame_id].add(dedup_key)
+
                 # 计算当前延迟
                 receive_time = time.time() - extra_time
                 latency_ms = (receive_time - send_time) * 1000
@@ -1824,6 +1881,22 @@ def run_shell_script(file_num=None):
     return duration
 
 
+def wait_for_detection(file_num, timeout=15.0):
+    """轮询常驻检测服务写出的 done 标记，直到当前帧检测完成"""
+    done_file = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet/detection_done.txt"
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            with open(done_file) as f:
+                if f.read().strip() == str(file_num):
+                    return True
+        except (FileNotFoundError, OSError):
+            pass
+        time.sleep(0.005)
+    print(f"[警告] 帧 {file_num} 检测超时（{timeout}s），继续。")
+    return False
+
+
 def init_resnet50_extractor():
     """
     初始化并返回 ResNet50 模型、预处理流程和运行设备。
@@ -1847,6 +1920,56 @@ def init_resnet50_extractor():
     ])
 
     return resnet50, preprocess, device
+
+
+def backfill_v2x_latency_logs(town_folder, total_frames):
+    base = os.path.join(town_folder, "v2x_latency_logs")
+    os.makedirs(base, exist_ok=True)
+    now = time.time() - extra_time
+    backfilled = 0
+    for i in range(total_frames):
+        f = os.path.join(base, "frame_%06d.txt" % i)
+        # 已存在且有内容则跳过
+        if os.path.exists(f) and os.path.getsize(f) > 0:
+            continue
+        key = "%06d" % i
+        if key not in ptd_sent_record:
+            continue
+        send_time, junc, target_list = ptd_sent_record[key]
+        with open(f, "w", encoding="utf-8") as fp:
+            if target_list:
+                latency_ms = (now - send_time) * 1000
+                for box in target_list:
+                    x, y, z, l, w, h, yaw = [format_8_chars(v) for v in box]
+                    fp.write(
+                        "路口号: %s, x: %s, y: %s, z: %s, l: %s, w: %s, h: %s, yaw: %s, "
+                        "发送时间: %.4f, 接收时间: %.4f, 延迟(ms): %.2f, 数据类型: ptd\n"
+                        % (junc, x, y, z, l, w, h, yaw, send_time, now, latency_ms)
+                    )
+            else:
+                fp.write(
+                    "路口号: %s, 发送时间: %.4f, 接收时间: %.4f, 延迟(ms): 0.00, "
+                    "数据类型: ptd(无目标)\n"
+                    % (junc, send_time, now)
+                )
+        backfilled += 1
+    print("v2x_latency_logs 兜底补写 %d 帧（共 %d 帧）" % (backfilled, total_frames))
+
+
+def fill_missing_frame_files(town_folder, total_frames):
+    """补齐 v2x_logs 缺失帧：无目标或丢包导致整帧缺失时，写一个空文件占位，
+    保证 v2x_logs 一帧都不缺。
+    """
+    base = os.path.join(town_folder, "v2x_logs")
+    os.makedirs(base, exist_ok=True)
+    missing = 0
+    for i in range(total_frames):
+        f = os.path.join(base, "frame_%06d.txt" % i)
+        if not os.path.exists(f):
+            with open(f, "w", encoding="utf-8") as fp:
+                fp.write("")
+            missing += 1
+    print("补齐 v2x_logs 缺失帧：补写了 %d 个空文件（共 %d 帧）" % (missing, total_frames))
 
 
 # 主函数
@@ -1950,6 +2073,8 @@ def main():
     )
     p.start()
 
+    detection_proc = None
+
     try:
         # 设置随机种子
         random_seed = 20
@@ -1958,7 +2083,7 @@ def main():
         camera_loc = intersection_config.camera_positions
         # 定义 5 个路口 ID
         target_junction_weights = {
-            2121: 0.3,
+            1554: 0.3,
             398: 0.2,
             576: 0.2,
             626: 0.1,
@@ -1967,7 +2092,7 @@ def main():
         # 先生成自动驾驶车辆
         vehicles = spawn_autonomous_vehicles(world, tm, target_junction_weights, num_vehicles=args.number_of_vehicles, random_seed=random_seed)
         # 生成随机运动行人
-        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=50, random_seed=20)
+        pedestrians = spawn_autonomous_pedestrians(world, num_pedestrians=40, random_seed=20)
         # 启动行人碰撞
         for pedestrian in pedestrians:
             if "walker.pedestrian." in pedestrian.type_id:
@@ -2000,6 +2125,31 @@ def main():
         sensors = spawn_v2x_sensors(world, lidar_transform, z_height=2.62)
         # 生成并启动V2X数据收集端
         receiver = spawn_v2x_receiver(world, quantize_scale, town_folder)
+        # 启动常驻检测服务（openpcdet 环境，模型只加载一次，替代每帧 subprocess）
+        openpcdet_root = "/home/yons/traffic_twin/waypoint_control/multi_obj_track/OpenPCDet"
+        ready_file = os.path.join(openpcdet_root, "detection_ready.txt")
+        for _f in ("detection_request.txt", "detection_done.txt", "detection_ready.txt"):
+            _p = os.path.join(openpcdet_root, _f)
+            if os.path.exists(_p):
+                os.remove(_p)
+        detection_proc = subprocess.Popen(
+            ["/home/yons/anaconda3/envs/openpcdet/bin/python", "detection_server.py"],
+            cwd=os.path.join(openpcdet_root, "tools"),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        # 等待检测服务加载完模型（最多 120 秒）
+        ready = False
+        for _ in range(1200):
+            if os.path.exists(ready_file):
+                ready = True
+                break
+            if detection_proc.poll() is not None:
+                break
+            time.sleep(0.1)
+        if ready:
+            print("检测服务已就绪")
+        else:
+            print(f"[警告] 检测服务未在 120s 内就绪，退出码: {detection_proc.poll()}")
         # 定义保存数据的唯一总文件夹
         BASE_SAVE_DIR = f"{town_folder}/v2x_latency_logs"
         # 在程序启动时，确保总文件夹存在（如果不存在则创建）
@@ -2058,6 +2208,10 @@ def main():
             print(system_uptime)
             # all_system_uptime.append(system_uptime)
 
+
+        # 补写缺失帧
+        backfill_v2x_latency_logs(town_folder, DATA_MUN)
+        fill_missing_frame_files(town_folder, DATA_MUN)
 
         # 保存车辆数据
         folder_name = f"{town_folder}/{junc}/vehicle_data"
@@ -2241,6 +2395,12 @@ def main():
     except Exception as e:
         print(f"Error occurred during execution: {e}")
     finally:
+        if detection_proc is not None:
+            try:
+                detection_proc.terminate()
+                detection_proc.wait(timeout=5)
+            except Exception:
+                pass
         settings.synchronous_mode = False
         world.apply_settings(settings)
 

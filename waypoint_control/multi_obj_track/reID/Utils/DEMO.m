@@ -7,7 +7,7 @@ t_start = data.t_end;
 % 获取程序开始时间
 sys_time_before = posixtime(datetime('now'));
 
-townName = 'Town10';   % 可以修改城镇和路口
+townName = 'HutbCarlaCity';   % 可以修改城镇和路口
 % dataSets = {'Town10HD_Opt/test_data_junc1', 'Town10HD_Opt/test_data_junc2', 'Town10HD_Opt/test_data_junc3', 'Town10HD_Opt/test_data_junc4', 'Town10HD_Opt/test_data_junc5'};
 % 定义各城镇对应的数据集
 if strcmp(townName, 'Town10')
@@ -22,6 +22,12 @@ elseif strcmp(townName, 'Town01')
                 'Town01/test_data_junc3', ...
                 'Town01/test_data_junc4', ...
                 'Town01/test_data_junc5'};
+elseif strcmp(townName, 'HutbCarlaCity')
+    dataSets = {'HutbCarlaCity/test_data_junc1', ...
+                'HutbCarlaCity/test_data_junc2', ...
+                'HutbCarlaCity/test_data_junc3', ...
+                'HutbCarlaCity/test_data_junc4', ...
+                'HutbCarlaCity/test_data_junc5'};
 else
     error('未知城镇: %s', townName);
 end
