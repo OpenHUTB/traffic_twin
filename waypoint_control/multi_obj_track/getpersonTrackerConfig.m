@@ -135,63 +135,63 @@ function params = getpersonTrackerConfig(mapName, juncName)
         case 'HutbCarlaCity'
             switch juncName
                 case 'test_data_junc1'
-                    params.AssignmentThreshold   = [9.75684428230482 16.3351497498942];
+                    params.AssignmentThreshold   = [3.29019966746201 5.20051015544721];
                     params.MaxNumTracks          = 500;
-                    params.DetectionProbability  = 0.913386838596447;
+                    params.DetectionProbability  = 0.799498399329098;
                     params.MaxNumEvents          = 50;
-                    params.ClutterDensity        = 0.000366717387199037;
-                    params.NewTargetDensity      = 0.000148460923299678;
-                    params.ConfirmationThreshold = 0.938147779394056;
-                    params.DeletionThreshold     = 0.209630902450980;
-                    params.DeathRate             = 0.423696545423201;
+                    params.ClutterDensity        = 0.00117742854196387;
+                    params.NewTargetDensity      = 0.000520024170289272;
+                    params.ConfirmationThreshold = 0.835387286417635;
+                    params.DeletionThreshold     = 0.114314875200130;
+                    params.DeathRate             = 0.775262991820542;
             
                 case 'test_data_junc2'
                     % 为路口2设置不同的参数
-                    params.AssignmentThreshold   = [4.41139807185751 17.6868991062162];
+                    params.AssignmentThreshold   = [5.05876515169249 16.0165668135300];
                     params.MaxNumTracks          = 500;
-                    params.DetectionProbability  = 0.947455558421740;
+                    params.DetectionProbability  = 0.833751973694059;
                     params.MaxNumEvents          = 50;
-                    params.ClutterDensity        = 1.86096137983808e-05;
-                    params.NewTargetDensity      = 3.80117342358463e-05;
-                    params.ConfirmationThreshold = 0.936068556581983;
-                    params.DeletionThreshold     = 0.531618986497684;
-                    params.DeathRate             = 0.668611670928736;
+                    params.ClutterDensity        = 0.000966891113612540;
+                    params.NewTargetDensity      = 0.00100052018402347;
+                    params.ConfirmationThreshold = 0.948569562318262;
+                    params.DeletionThreshold     = 0.207267059644079;
+                    params.DeathRate             = 0.413672578414304;
             
                 case 'test_data_junc3'
                     % 为路口3设置不同的参数
-                    params.AssignmentThreshold   = [5.05257590977771 11.8577119577199];
+                    params.AssignmentThreshold   = [7.90971871794943 11.8816428142020];
                     params.MaxNumTracks          = 500;
-                    params.DetectionProbability  = 0.939147105863770;
+                    params.DetectionProbability  = 0.917957518421427;
                     params.MaxNumEvents          = 50;
-                    params.ClutterDensity        = 0.000967329823930347;
-                    params.NewTargetDensity      = 0.00138180117517692;
-                    params.ConfirmationThreshold = 0.785555459940353;
-                    params.DeletionThreshold     = 0.457727552330610;
-                    params.DeathRate             = 0.381193624961542;
+                    params.ClutterDensity        = 0.000949067244284934;
+                    params.NewTargetDensity      = 0.000594533560972845;
+                    params.ConfirmationThreshold = 0.941140807666159;
+                    params.DeletionThreshold     = 0.248032468511061;
+                    params.DeathRate             = 0.562725856839778;
             
                 case 'test_data_junc4'
                     % 为路口4设置不同的参数
-                    params.AssignmentThreshold   = [7.83207871045522 18.0769277673030];
+                    params.AssignmentThreshold   = [9.07839574911748 13.1596301828909];
                     params.MaxNumTracks          = 500;
-                    params.DetectionProbability  = 0.909687600424253;
+                    params.DetectionProbability  = 0.931074794844520;
                     params.MaxNumEvents          = 50;
-                    params.ClutterDensity        = 0.000573395101222235;
-                    params.NewTargetDensity      = 1.09028345361171e-05;
-                    params.ConfirmationThreshold = 0.841763389966227;
-                    params.DeletionThreshold     = 0.577162275556646;
-                    params.DeathRate             = 0.633680661585115;
+                    params.ClutterDensity        = 0.000379279368337218;
+                    params.NewTargetDensity      = 0.000394514848007303;
+                    params.ConfirmationThreshold = 0.606629854194746;
+                    params.DeletionThreshold     = 0.580145852893850;
+                    params.DeathRate             = 0.681063194545668;
             
                 case 'test_data_junc5'
                     % 为路口5设置不同的参数
-                    params.AssignmentThreshold   = [1.41468533291560 17.6376377753875];
+                    params.AssignmentThreshold   = [9.99214247879570 19.7264722366053];
                     params.MaxNumTracks          = 500;
-                    params.DetectionProbability  = 0.511208887677303;
+                    params.DetectionProbability  = 0.932419145566829;
                     params.MaxNumEvents          = 50;
-                    params.ClutterDensity        = 0.000786155080138548;
-                    params.NewTargetDensity      = 0.00213804507795649;
-                    params.ConfirmationThreshold = 0.948671207605335;
-                    params.DeletionThreshold     = 0.499848633547259;
-                    params.DeathRate             = 0.589144590001205;
+                    params.ClutterDensity        = 3.00171979342977e-05;
+                    params.NewTargetDensity      = 2.97140434108628e-05;
+                    params.ConfirmationThreshold = 0.636685081826180;
+                    params.DeletionThreshold     = 0.222287805568204;
+                    params.DeathRate             = 0.609535487414596;
             
                 otherwise
                     error('未知的路口名称: %s. 请使用 junc1 到 junc5', juncName);

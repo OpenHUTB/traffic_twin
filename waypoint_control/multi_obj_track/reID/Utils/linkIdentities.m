@@ -52,15 +52,14 @@ function traj = linkIdentities(juncTrajCell, matchThreshold, townName)  % 1x5 ce
                      2, 4;
                      2, 5;
                      3, 5];
+    elseif strcmp(townName, 'HutbCarlaCity')
+        roadPairs = [1, 2;
+                     1, 3;
+                     2, 5;
+                     3, 4;
+                     4, 5];
     end
-    % roadPairs = [1, 2;
-    %              1, 3;
-    %              1, 4;
-    %              1, 5;
-    %              2, 4;
-    %              2, 5;
-    %              3, 4;
-    %              3, 5];
+
 
     % 按照拓扑转移顺序，顺次使用 matchpairs 进行路口间的全局最优匹配
     for p = 1:size(roadPairs, 1)
