@@ -17,6 +17,7 @@ SAMPLING_RESOLUTION = 2.0
 from agents.navigation.behavior_agent import BehaviorAgent
 from twin_accuracy_evaluator import *
 from agents.navigation.global_route_planner import GlobalRoutePlanner
+from database_config import database_config_from_env
 
 ApplyControl = carla.command.ApplyVehicleControl
 
@@ -248,12 +249,7 @@ def main():
             start_time.append(times[0])  # 提取并添加第一个路口的时间
 
         # 连接到 MySQL 数据库
-        conn = mysql.connector.connect(
-            host='localhost',
-            user='root',
-            password='12345',
-            database='test'
-        )
+        conn = mysql.connector.connect(**database_config_from_env())
         # 创建一个游标对象
         cursor = conn.cursor()
 
