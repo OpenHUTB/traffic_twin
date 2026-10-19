@@ -3,13 +3,30 @@ import glob
 import re
 
 
+JUNCTION_PATTERN = re.compile(r'路口号:\s*([^,]+)')
+
+
+def safe_junction_path(base_output_dir, junction_id):
+    """Return a junction directory that cannot escape ``base_output_dir``."""
+    junction_id = junction_id.strip()
+    if not junction_id or junction_id in {'.', '..'} or '\x00' in junction_id:
+        raise ValueError(f"Invalid junction ID: {junction_id!r}")
+    if os.path.isabs(junction_id) or ':' in junction_id or '/' in junction_id or '\\' in junction_id:
+        raise ValueError(f"Junction ID must be a relative directory name: {junction_id!r}")
+
+    base_path = os.path.realpath(base_output_dir)
+    junction_path = os.path.realpath(os.path.join(base_path, junction_id))
+    if os.path.normcase(os.path.commonpath([base_path, junction_path])) != os.path.normcase(base_path):
+        raise ValueError(f"Junction ID escapes output directory: {junction_id!r}")
+    return junction_path
+
+
 def split_data_by_junction(input_file_path, base_output_dir):
     """
     核心拆分逻辑：处理单个 txt 文件，按路口号拆分
     """
     original_filename = os.path.basename(input_file_path)
     file_handles = {}
-    junc_pattern = re.compile(r'路口号:\s*([^,]+)')
 
     # 定义异常数据的关键字列表
     abnormal_keywords = ['NULL', 'null', 'NaN', 'None']
@@ -27,12 +44,12 @@ def split_data_by_junction(input_file_path, base_output_dir):
                         # 抛出 ValueError，中断当前文件的处理
                         raise ValueError(f"在第 {line_num} 行检测到异常数据 '{keyword}' -> 内容: {line_clean}")
 
-                match = junc_pattern.search(line_clean)
+                match = JUNCTION_PATTERN.search(line_clean)
                 if match:
                     junction_id = match.group(1).strip()
 
                     if junction_id not in file_handles:
-                        junc_folder = os.path.join(base_output_dir, junction_id)
+                        junc_folder = safe_junction_path(base_output_dir, junction_id)
                         os.makedirs(junc_folder, exist_ok=True)
                         target_file_path = os.path.join(junc_folder, original_filename)
                         # 开启写入通道
