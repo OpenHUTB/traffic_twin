@@ -113,6 +113,20 @@ pip install mysql-connector-python
   doi={10.1109/TITS.2026.3651290}}
 ```
 
+### Database configuration
+
+Database credentials are not stored in source code. Export the following
+variables before running `intersection_navigation/twin_navigation.py`:
+
+```bash
+export TRAFFIC_TWIN_DB_USER='traffic_service'
+export TRAFFIC_TWIN_DB_PASSWORD='use-a-secret-manager-in-production'
+```
+
+Optional settings are `TRAFFIC_TWIN_DB_HOST` (default: `localhost`),
+`TRAFFIC_TWIN_DB_PORT` (default: `3306`), and `TRAFFIC_TWIN_DB_NAME`
+(default: `test`).
+
 
 
 
